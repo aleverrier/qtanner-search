@@ -1,6 +1,8 @@
 """qtanner: small utilities for local code handling."""
 
 from .gf2 import gf2_is_in_rowspan, gf2_rank
+from .group import FiniteGroup
+from .lift_matrices import build_hx_hz, css_commutes
 from .local_codes import (
     LocalCode,
     apply_col_perm_to_row,
@@ -15,7 +17,7 @@ from .local_codes import (
     variants_6_3_3,
     variants_8_4_4,
 )
-from .mtx import write_mtx, write_mtx_from_rows
+from .mtx import write_mtx, write_mtx_from_bitrows, write_mtx_from_rows
 
 __all__ = [
     "LocalCode",
@@ -32,6 +34,10 @@ __all__ = [
     "variants_8_4_4",
     "gf2_rank",
     "gf2_is_in_rowspan",
+    "FiniteGroup",
+    "build_hx_hz",
+    "css_commutes",
     "write_mtx",
     "write_mtx_from_rows",
+    "write_mtx_from_bitrows",
 ]

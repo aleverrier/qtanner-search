@@ -25,4 +25,18 @@ def write_mtx_from_rows(
     write_mtx(path, n_rows, n_cols, ones)
 
 
-__all__ = ["write_mtx", "write_mtx_from_rows"]
+def write_mtx_from_bitrows(path: str, rows: List[int], n_cols: int) -> None:
+    """Write MatrixMarket data from int bitset rows."""
+    n_rows = len(rows)
+    ones: List[Tuple[int, int]] = []
+    for r, row in enumerate(rows):
+        x = row
+        while x:
+            lsb = x & -x
+            c = lsb.bit_length() - 1
+            ones.append((r, c))
+            x -= lsb
+    write_mtx(path, n_rows, n_cols, ones)
+
+
+__all__ = ["write_mtx", "write_mtx_from_rows", "write_mtx_from_bitrows"]
