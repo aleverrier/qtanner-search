@@ -29,6 +29,7 @@ from qtanner.local_codes import (
     variants_8_4_4,
 )
 from qtanner.mtx import write_mtx_from_bitrows
+from qtanner.qdistrnd import dist_rand_css_mtx
 
 
 def _parse_int_list(text: str) -> List[int]:
@@ -83,6 +84,13 @@ def main() -> None:
     parser.add_argument("--Bcode", choices=["2_1_2", "6_3_3", "8_4_4"], default="2_1_2")
     parser.add_argument("--A1-variant", type=int, default=0)
     parser.add_argument("--B1-variant", type=int, default=0)
+    parser.add_argument("--qdistrnd", action="store_true", help="Estimate distances via GAP/QDistRnd.")
+    parser.add_argument("--qd-num", type=int, default=50000)
+    parser.add_argument("--qd-mindist", type=int, default=0)
+    parser.add_argument("--qd-debug", type=int, default=2)
+    parser.add_argument("--qd-maxav", type=float, default=None)
+    parser.add_argument("--qd-seed", type=int, default=None)
+    parser.add_argument("--qd-timeout", type=float, default=None)
     args = parser.parse_args()
 
     A = _parse_int_list(args.A)
@@ -111,8 +119,10 @@ def main() -> None:
     k = n_cols - rank_hx - rank_hz
 
     os.makedirs(args.out, exist_ok=True)
-    write_mtx_from_bitrows(os.path.join(args.out, "Hx.mtx"), hx_rows, n_cols)
-    write_mtx_from_bitrows(os.path.join(args.out, "Hz.mtx"), hz_rows, n_cols)
+    hx_path = os.path.join(args.out, "Hx.mtx")
+    hz_path = os.path.join(args.out, "Hz.mtx")
+    write_mtx_from_bitrows(hx_path, hx_rows, n_cols)
+    write_mtx_from_bitrows(hz_path, hz_rows, n_cols)
 
     meta = {
         "group": group_meta,
@@ -128,6 +138,32 @@ def main() -> None:
         "hz_rows": len(hz_rows),
         "column_order": "col = ((i*nB + j)*|G| + g), g fastest",
     }
+
+    if args.qdistrnd:
+        log_path = os.path.join(args.out, "qdistrnd.log")
+        try:
+            qd_summary = dist_rand_css_mtx(
+                hx_path,
+                hz_path,
+                num=args.qd_num,
+                mindist=args.qd_mindist,
+                debug=args.qd_debug,
+                maxav=args.qd_maxav,
+                seed=args.qd_seed,
+                timeout_sec=args.qd_timeout,
+                log_path=log_path,
+            )
+        except RuntimeError:
+            print(f"QDistRnd failed; see {log_path}")
+            sys.exit(2)
+        meta["qdistrnd"] = {**qd_summary, "log_file": "qdistrnd.log"}
+        print(
+            "QDistRnd upper bounds:",
+            f"dX_ub={qd_summary['dX_ub']}",
+            f"dZ_ub={qd_summary['dZ_ub']}",
+            f"d_ub={qd_summary['d_ub']}",
+            f"runtime_sec={qd_summary['runtime_sec']:.2f}",
+        )
     with open(os.path.join(args.out, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, indent=2, sort_keys=True)
 

@@ -18,6 +18,7 @@ from .local_codes import (
     variants_8_4_4,
 )
 from .mtx import write_mtx, write_mtx_from_bitrows, write_mtx_from_rows
+from .qdistrnd import dist_rand_css_mtx, gap_is_available, qdistrnd_is_available
 
 __all__ = [
     "LocalCode",
@@ -40,4 +41,7 @@ __all__ = [
     "write_mtx",
     "write_mtx_from_rows",
     "write_mtx_from_bitrows",
+    "dist_rand_css_mtx",
+    "gap_is_available",
+    "qdistrnd_is_available",
 ]
