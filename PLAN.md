@@ -21,6 +21,9 @@ We keep only candidates we hope satisfy:
    - optional dist-m4ri via Docker for speed
 6) Search pipeline with filters + persistence.
 
+## Reminders
+- [ ] Later: integrate dist-m4ri (m4ri backend) via Docker for faster distance estimation.
+
 ## Filters to try
 Baseline:
 - classical slice Tanner-code distance filter
