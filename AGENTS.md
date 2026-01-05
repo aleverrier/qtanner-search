@@ -9,9 +9,10 @@ We are implementing a small-scale search for explicit quantum Tanner codes from 
 - Keep changes small and commit frequently.
 
 ## Development workflow
-- After making changes, run the repo’s quick checks (when available):
-  - `python -m pytest -q` (or `make test` if present)
-  - When running tests, run `./scripts/run_tests.sh` (not `python -m pytest`).
+- After making changes, run the repo’s quick checks:
+  - Preferred: `make test`
+  - Equivalent: `./scripts/run_tests.sh`
+- Do not run `python -m pytest` directly (the test entrypoint is `./scripts/run_tests.sh`).
 - Do not add heavy dependencies unless necessary.
 - All generated matrices must be saved in MatrixMarket `.mtx` format.
 
