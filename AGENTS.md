@@ -11,6 +11,7 @@ We are implementing a small-scale search for explicit quantum Tanner codes from 
 ## Development workflow
 - After making changes, run the repo’s quick checks (when available):
   - `python -m pytest -q` (or `make test` if present)
+  - When running tests, run `./scripts/run_tests.sh` (not `python -m pytest`).
 - Do not add heavy dependencies unless necessary.
 - All generated matrices must be saved in MatrixMarket `.mtx` format.
 
@@ -22,3 +23,10 @@ We are implementing a small-scale search for explicit quantum Tanner codes from 
 
 ## When unsure
 - Prefer asking for a smaller, testable implementation step.
+
+## Critical Thinking
+- Fix root cause (not band-aid).
+- Unsure: read more code; if still stuck, ask w/ short options.
+- Conflicts: call out; pick safer path.
+- Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
+- Leave breadcrumb notes in thread.

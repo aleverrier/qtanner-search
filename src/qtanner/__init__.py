@@ -19,6 +19,14 @@ from .local_codes import (
 )
 from .mtx import write_mtx, write_mtx_from_bitrows, write_mtx_from_rows
 from .qdistrnd import dist_rand_css_mtx, gap_is_available, qdistrnd_is_available
+from .qdistrnd import dist_rand_dz_mtx
+from .slice_codes import (
+    build_a_slice_checks_G,
+    build_a_slice_checks_H,
+    build_b_slice_checks_Gp,
+    build_b_slice_checks_Hp,
+)
+from .trials import parse_trials_schedule, trials_for_n
 
 __all__ = [
     "LocalCode",
@@ -42,6 +50,13 @@ __all__ = [
     "write_mtx_from_rows",
     "write_mtx_from_bitrows",
     "dist_rand_css_mtx",
+    "dist_rand_dz_mtx",
     "gap_is_available",
     "qdistrnd_is_available",
+    "build_a_slice_checks_H",
+    "build_a_slice_checks_G",
+    "build_b_slice_checks_Hp",
+    "build_b_slice_checks_Gp",
+    "parse_trials_schedule",
+    "trials_for_n",
 ]

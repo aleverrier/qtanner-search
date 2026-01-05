@@ -16,6 +16,8 @@ def test_lifted_repetition_cyclic_commutes():
     C1p = repetition_2()
     hx_rows, hz_rows, n_cols = build_hx_hz(group, A, B, C0, C1, C0p, C1p)
     assert css_commutes(hx_rows, hz_rows)
-    assert n_cols == 2 * 2 * 3
+    assert n_cols == 12
+    assert len(hx_rows) == 6
+    assert len(hz_rows) == 6
     k = n_cols - gf2_rank(hx_rows, n_cols) - gf2_rank(hz_rows, n_cols)
     assert k >= 0

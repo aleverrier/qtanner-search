@@ -47,19 +47,19 @@ def _lift_block(
     b_inv = [group.inv_of(b) for b in B]
     rows: List[int] = []
     for support in supports:
-        row = 0
-        for i, j in support:
-            a_i = A[i]
-            b_inv_j = b_inv[j]
-            for g in range(order):
-                g2 = g
+        for g0 in range(order):
+            row = 0
+            for i, j in support:
+                a_i = A[i]
+                b_inv_j = b_inv[j]
+                g1 = g0
                 if perm in ("RB", "LARB"):
-                    g2 = group.mul(g2, b_inv_j)
+                    g1 = group.mul(g1, b_inv_j)
                 if perm in ("LA", "LARB"):
-                    g2 = group.mul(a_i, g2)
-                col = ((i * nB + j) * order + g2)
+                    g1 = group.mul(a_i, g1)
+                col = ((i * nB + j) * order + g1)
                 row |= 1 << col
-        rows.append(row)
+            rows.append(row)
     return rows
 
 
@@ -94,6 +94,15 @@ def build_hx_hz(
     hz_rows.extend(_lift_block(supports, nA, nB, group, A, B, perm="RB"))
     supports = kron_support(C1.G_rows, nA, C0p.H_rows, nB)
     hz_rows.extend(_lift_block(supports, nA, nB, group, A, B, perm="LA"))
+
+    expected_hx_rows = (
+        len(C0.H_rows) * len(C0p.G_rows) + len(C1.H_rows) * len(C1p.G_rows)
+    ) * order
+    expected_hz_rows = (
+        len(C0.G_rows) * len(C1p.H_rows) + len(C1.G_rows) * len(C0p.H_rows)
+    ) * order
+    assert len(hx_rows) == expected_hx_rows
+    assert len(hz_rows) == expected_hz_rows
 
     return hx_rows, hz_rows, n_cols
 

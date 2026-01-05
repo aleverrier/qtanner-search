@@ -114,8 +114,8 @@ def main() -> None:
     if not css_commutes(hx_rows, hz_rows):
         raise RuntimeError("HX and HZ do not commute.")
 
-    rank_hx = gf2_rank(hx_rows, n_cols)
-    rank_hz = gf2_rank(hz_rows, n_cols)
+    rank_hx = gf2_rank(hx_rows[:], n_cols)
+    rank_hz = gf2_rank(hz_rows[:], n_cols)
     k = n_cols - rank_hx - rank_hz
 
     os.makedirs(args.out, exist_ok=True)
@@ -171,6 +171,8 @@ def main() -> None:
         "Built code:",
         f"n={n_cols}",
         f"k={k}",
+        f"hx_rank={rank_hx}",
+        f"hz_rank={rank_hz}",
         f"Hx_rows={len(hx_rows)}",
         f"Hz_rows={len(hz_rows)}",
         f"out={args.out}",

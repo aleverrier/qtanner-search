@@ -10,9 +10,20 @@ import time
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
+from .gap_session import GapSession
+
 from qtanner.mtx import validate_mtx_for_qdistrnd
 
 _LAST_RUN_INFO: Optional[Dict[str, str]] = None
+
+
+def qd_stats_d_ub(qd_stats: Optional[Dict[str, object]]) -> Optional[int]:
+    if not qd_stats:
+        return None
+    d_ub = qd_stats.get("d_ub")
+    if d_ub is None:
+        return None
+    return int(d_ub)
 
 
 def _gap_string_literal(text: str) -> str:
@@ -20,33 +31,8 @@ def _gap_string_literal(text: str) -> str:
     return text.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def _build_gap_script(
-    hx_path: str,
-    hz_path: str,
-    num: int,
-    mindist: int,
-    debug: int,
-    maxav: float | None,
-    seed: int | None,
-) -> str:
-    hx_abs = os.path.abspath(hx_path)
-    hz_abs = os.path.abspath(hz_path)
-    hx_literal = _gap_string_literal(hx_abs)
-    hz_literal = _gap_string_literal(hz_abs)
-    base_args = f"HX, HZ, {num}, {mindist}, {debug} : field := GF(2)"
-    base_args_swapped = f"HZ, HX, {num}, {mindist}, {debug} : field := GF(2)"
-    if maxav is not None:
-        base_args += f", maxav:={maxav}"
-        base_args_swapped += f", maxav:={maxav}"
-    lines = [
-        "OnBreak := function()",
-        '  Print("QDISTERROR GAPBreak\\n");',
-        "  QuitGap(3);",
-        "end;",
-        'if LoadPackage("QDistRnd") = fail then',
-        '  Print("QDISTERROR QDistRndNotLoaded\\n");',
-        "  QuitGap(2);",
-        "fi;",
+def _gap_read_mmgf2_lines() -> list[str]:
+    return [
         "ReadMMGF2 := function(path)",
         "  local stream, line, parts, rows, cols, nnz, idx, M, i, j, val;",
         "  stream := InputTextFile(path);",
@@ -113,6 +99,37 @@ def _build_gap_script(
         "  CloseStream(stream);",
         "  return M;",
         "end;",
+    ]
+
+
+def _build_gap_script(
+    hx_path: str,
+    hz_path: str,
+    num: int,
+    mindist: int,
+    debug: int,
+    maxav: float | None,
+    seed: int | None,
+) -> str:
+    hx_abs = os.path.abspath(hx_path)
+    hz_abs = os.path.abspath(hz_path)
+    hx_literal = _gap_string_literal(hx_abs)
+    hz_literal = _gap_string_literal(hz_abs)
+    base_args = f"HX, HZ, {num}, {mindist}, {debug} : field := GF(2)"
+    base_args_swapped = f"HZ, HX, {num}, {mindist}, {debug} : field := GF(2)"
+    if maxav is not None:
+        base_args += f", maxav:={maxav}"
+        base_args_swapped += f", maxav:={maxav}"
+    lines = [
+        "OnBreak := function()",
+        '  Print("QDISTERROR GAPBreak\\n");',
+        "  QuitGap(3);",
+        "end;",
+        'if LoadPackage("QDistRnd") = fail then',
+        '  Print("QDISTERROR QDistRndNotLoaded\\n");',
+        "  QuitGap(2);",
+        "fi;",
+        *_gap_read_mmgf2_lines(),
         f'HX := ReadMMGF2("{hx_literal}");;',
         f'HZ := ReadMMGF2("{hz_literal}");;',
     ]
@@ -179,6 +196,79 @@ def _parse_qdist_result(stdout: str, *, log_path: str, stderr: str) -> tuple[int
             f"stderr (first {len(stderr_lines)} lines):\n{stderr_preview}"
         )
     return dX_raw, dZ_raw
+
+
+def _build_gap_script_dz(
+    hx_path: str,
+    num: int,
+    mindist: int,
+    debug: int,
+    seed: int | None,
+) -> str:
+    hx_abs = os.path.abspath(hx_path)
+    hx_literal = _gap_string_literal(hx_abs)
+    base_args = f"HX, HZ, {num}, {mindist}, {debug} : field := GF(2)"
+    lines = [
+        "OnBreak := function()",
+        '  Print("QDISTERROR GAPBreak\\n");',
+        "  QuitGap(3);",
+        "end;",
+        'if LoadPackage("QDistRnd") = fail then',
+        '  Print("QDISTERROR QDistRndNotLoaded\\n");',
+        "  QuitGap(2);",
+        "fi;",
+        *_gap_read_mmgf2_lines(),
+        f'HX := ReadMMGF2("{hx_literal}");;',
+        "ncols := NumberColumns(HX);;",
+        "HZ := NullMat(1, ncols, GF(2));",
+    ]
+    if seed is not None:
+        lines.append(f"Reset(GlobalMersenneTwister, {seed});")
+    lines.extend(
+        [
+            f"dZ_raw := DistRandCSS({base_args});;",
+            'Print("QDISTRESULT_Z ", dZ_raw, "\\n");',
+            "QuitGap(0);",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _parse_qdist_result_z(stdout: str, *, log_path: str, stderr: str) -> int:
+    error_lines = []
+    combined_lines = []
+    for line in stdout.splitlines():
+        combined_lines.append(line)
+        if "QDISTERROR" in line:
+            error_lines.append(line.strip())
+    for line in stderr.splitlines():
+        combined_lines.append(line)
+        if "QDISTERROR" in line or line.startswith("Error,") or line.startswith(
+            "Syntax error"
+        ):
+            error_lines.append(line.strip())
+    if error_lines:
+        preview = "\n".join(error_lines[:20])
+        raise RuntimeError(
+            "GAP/QDistRnd reported errors. "
+            f"See log at {log_path}.\n"
+            f"errors (first {len(error_lines[:20])} lines):\n{preview}"
+        )
+    dZ_raw: Optional[int] = None
+    for line in combined_lines:
+        if "QDISTRESULT_Z" in line:
+            match = re.search(r"QDISTRESULT_Z\s+(-?\d+)", line)
+            if match:
+                dZ_raw = int(match.group(1))
+    if dZ_raw is None:
+        stderr_lines = stderr.splitlines()[:20]
+        stderr_preview = "\n".join(stderr_lines)
+        raise RuntimeError(
+            "Missing QDISTRESULT_Z line in GAP output. "
+            f"See log at {log_path}.\n"
+            f"stderr (first {len(stderr_lines)} lines):\n{stderr_preview}"
+        )
+    return dZ_raw
 
 
 def _run_gap_qdistrnd(
@@ -325,6 +415,7 @@ def dist_rand_css_mtx(
     gap_cmd: str = "gap",
     timeout_sec: float | None = None,
     log_path: str | None = None,
+    session: GapSession | None = None,
 ) -> Dict[str, Any]:
     """Estimate CSS distance upper bounds via GAP/QDistRnd using .mtx files."""
     log_path_final = log_path or _default_log_path(hx_path)
@@ -335,35 +426,75 @@ def dist_rand_css_mtx(
         _write_validation_log(log_path_final, error=exc)
         raise
     _write_validation_log(log_path_final, hx_stats=hx_stats, hz_stats=hz_stats)
-    cmd, script, stdout, stderr, returncode, runtime_sec, script_path = _run_gap_qdistrnd(
-        hx_path,
-        hz_path,
-        num=num,
-        mindist=mindist,
-        debug=debug,
-        maxav=maxav,
-        seed=seed,
-        gap_cmd=gap_cmd,
-        timeout_sec=timeout_sec,
-        log_path=log_path_final,
-    )
-    write_qdistrnd_log(
-        log_path_final,
-        cmd=cmd,
-        script=script,
-        script_path=script_path,
-        stdout=stdout,
-        stderr=stderr,
-        returncode=returncode,
-        runtime_sec=runtime_sec,
-        hx_stats=hx_stats,
-        hz_stats=hz_stats,
-    )
-    if returncode != 0:
-        raise RuntimeError(
-            f"GAP exited with code {returncode}. See log at {log_path_final}."
+    if session is None:
+        (
+            cmd,
+            script,
+            stdout,
+            stderr,
+            returncode,
+            runtime_sec,
+            script_path,
+        ) = _run_gap_qdistrnd(
+            hx_path,
+            hz_path,
+            num=num,
+            mindist=mindist,
+            debug=debug,
+            maxav=maxav,
+            seed=seed,
+            gap_cmd=gap_cmd,
+            timeout_sec=timeout_sec,
+            log_path=log_path_final,
         )
-    dX_raw, dZ_raw = _parse_qdist_result(stdout, log_path=log_path_final, stderr=stderr)
+        write_qdistrnd_log(
+            log_path_final,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=returncode,
+            runtime_sec=runtime_sec,
+            hx_stats=hx_stats,
+            hz_stats=hz_stats,
+        )
+        if returncode != 0:
+            raise RuntimeError(
+                f"GAP exited with code {returncode}. See log at {log_path_final}."
+            )
+        dX_raw, dZ_raw = _parse_qdist_result(
+            stdout, log_path=log_path_final, stderr=stderr
+        )
+    else:
+        dX_raw, dZ_raw, lines, runtime_sec = session.run_css(
+            hx_path,
+            hz_path,
+            num=num,
+            mindist=mindist,
+            debug=debug,
+            timeout_sec=timeout_sec,
+        )
+        stdout = "\n".join(lines)
+        stderr = ""
+        script = session.server_script or ""
+        script_path = str(Path(log_path_final).with_suffix(".g"))
+        if script:
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(script)
+        cmd = [gap_cmd, "-q", "-b", "--quitonbreak", script_path]
+        write_qdistrnd_log(
+            log_path_final,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=0,
+            runtime_sec=runtime_sec,
+            hx_stats=hx_stats,
+            hz_stats=hz_stats,
+        )
     summary = {
         "dX_ub": abs(dX_raw),
         "dZ_ub": abs(dZ_raw),
@@ -379,6 +510,7 @@ def dist_rand_css_mtx(
         "seed": seed,
         "runtime_sec": runtime_sec,
         "gap_cmd": gap_cmd,
+        "session": session is not None,
     }
     run_info = _run_info_from_details(
         cmd=cmd,
@@ -387,6 +519,120 @@ def dist_rand_css_mtx(
         stdout=stdout,
         stderr=stderr,
         returncode=returncode,
+        runtime_sec=runtime_sec,
+    )
+    global _LAST_RUN_INFO
+    _LAST_RUN_INFO = run_info
+    return summary
+
+
+def dist_rand_dz_mtx(
+    hx_path: str,
+    *,
+    num: int,
+    mindist: int,
+    debug: int = 2,
+    seed: int | None = None,
+    gap_cmd: str = "gap",
+    timeout_sec: float | None = None,
+    log_path: str | None = None,
+    session: GapSession | None = None,
+) -> Dict[str, Any]:
+    """Estimate Z-distance upper bounds for a single HX using GAP/QDistRnd."""
+    log_path_final = log_path or _default_log_path(hx_path)
+    try:
+        hx_stats = validate_mtx_for_qdistrnd(Path(hx_path))
+    except RuntimeError as exc:
+        _write_validation_log(log_path_final, error=exc)
+        raise
+    _write_validation_log(log_path_final, hx_stats=hx_stats)
+    if session is None:
+        script = _build_gap_script_dz(hx_path, num, mindist, debug, seed)
+        script_path = str(Path(log_path_final).with_suffix(".g"))
+        with open(script_path, "w", encoding="utf-8") as f:
+            f.write(script)
+        cmd = [gap_cmd, "-q", "-b", "--quitonbreak", script_path]
+        start = time.monotonic()
+        try:
+            result = subprocess.run(
+                cmd,
+                text=True,
+                capture_output=True,
+                timeout=timeout_sec,
+                check=False,
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
+        except subprocess.TimeoutExpired as exc:
+            runtime_sec = time.monotonic() - start
+            raise RuntimeError(
+                f"GAP timed out after {timeout_sec} seconds (runtime {runtime_sec:.2f}s)."
+            ) from exc
+        runtime_sec = time.monotonic() - start
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        write_qdistrnd_log(
+            log_path_final,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=result.returncode,
+            runtime_sec=runtime_sec,
+            hx_stats=hx_stats,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"GAP exited with code {result.returncode}. See log at {log_path_final}."
+            )
+        dZ_raw = _parse_qdist_result_z(stdout, log_path=log_path_final, stderr=stderr)
+    else:
+        dZ_raw, lines, runtime_sec = session.run_dz(
+            hx_path,
+            num=num,
+            mindist=mindist,
+            debug=debug,
+            timeout_sec=timeout_sec,
+        )
+        stdout = "\n".join(lines)
+        stderr = ""
+        script = session.server_script or ""
+        script_path = str(Path(log_path_final).with_suffix(".g"))
+        if script:
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(script)
+        cmd = [gap_cmd, "-q", "-b", "--quitonbreak", script_path]
+        write_qdistrnd_log(
+            log_path_final,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=0,
+            runtime_sec=runtime_sec,
+            hx_stats=hx_stats,
+        )
+    summary = {
+        "dZ_raw": dZ_raw,
+        "dZ_ub": abs(dZ_raw),
+        "terminated_early": dZ_raw < 0,
+        "num": num,
+        "mindist": mindist,
+        "debug": debug,
+        "seed": seed,
+        "runtime_sec": runtime_sec,
+        "gap_cmd": gap_cmd,
+        "session": session is not None,
+    }
+    run_info = _run_info_from_details(
+        cmd=cmd,
+        script=script,
+        script_path=script_path,
+        stdout=stdout,
+        stderr=stderr,
+        returncode=result.returncode,
         runtime_sec=runtime_sec,
     )
     global _LAST_RUN_INFO
@@ -436,8 +682,10 @@ def qdistrnd_is_available(gap_cmd: str = "gap") -> bool:
 
 __all__ = [
     "dist_rand_css_mtx",
+    "dist_rand_dz_mtx",
     "gap_is_available",
     "qdistrnd_is_available",
+    "qd_stats_d_ub",
     "get_last_qdistrnd_run",
     "write_qdistrnd_log",
 ]

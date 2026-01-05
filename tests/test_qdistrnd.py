@@ -10,8 +10,10 @@ from qtanner.local_codes import repetition_2
 from qtanner.mtx import write_mtx_from_bitrows
 from qtanner.qdistrnd import (
     _build_gap_script,
+    _build_gap_script_dz,
     dist_rand_css_mtx,
     gap_is_available,
+    qd_stats_d_ub,
     qdistrnd_is_available,
 )
 
@@ -33,6 +35,18 @@ def test_gap_script_omits_one_mul():
     assert "HZ := ReadMMGF2(" in script
     assert "Hx.mtx" in script
     assert "Hz.mtx" in script
+
+
+def test_gap_script_dz_uses_single_zero_row():
+    script = _build_gap_script_dz(
+        "Hx.mtx",
+        num=1,
+        mindist=0,
+        debug=0,
+        seed=None,
+    )
+    assert "NullMat(1," in script
+    assert "QDISTRESULT_Z" in script
 
 
 def test_qdistrnd_optional(tmp_path):
@@ -68,3 +82,7 @@ def test_qdistrnd_optional(tmp_path):
     for key in ["dX_ub", "dZ_ub", "d_ub", "runtime_sec", "gap_cmd"]:
         assert key in summary
     assert summary["d_ub"] >= 1
+
+
+def test_qd_stats_d_ub_none():
+    assert qd_stats_d_ub(None) is None
