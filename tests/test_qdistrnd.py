@@ -7,11 +7,12 @@ import pytest
 from qtanner.group import FiniteGroup
 from qtanner.lift_matrices import build_hx_hz
 from qtanner.local_codes import repetition_2
-from qtanner.mtx import write_mtx_from_bitrows
+from qtanner.mtx import write_mtx, write_mtx_from_bitrows
 from qtanner.qdistrnd import (
     _build_gap_script,
     _build_gap_script_dz,
     dist_rand_css_mtx,
+    dist_rand_dz_mtx,
     gap_is_available,
     qd_stats_d_ub,
     qdistrnd_is_available,
@@ -35,6 +36,7 @@ def test_gap_script_omits_one_mul():
     assert "HZ := ReadMMGF2(" in script
     assert "Hx.mtx" in script
     assert "Hz.mtx" in script
+    assert "FlushOutput" not in script
 
 
 def test_gap_script_dz_uses_single_zero_row():
@@ -47,6 +49,29 @@ def test_gap_script_dz_uses_single_zero_row():
     )
     assert "NullMat(1," in script
     assert "QDISTRESULT_Z" in script
+    assert "FlushOutput" not in script
+
+
+def test_dist_rand_dz_missing_gap_cmd_logs(tmp_path):
+    hx_path = tmp_path / "Hx.mtx"
+    write_mtx(str(hx_path), 1, 1, [])
+    log_path = tmp_path / "qdistrnd.log"
+
+    with pytest.raises(RuntimeError) as excinfo:
+        dist_rand_dz_mtx(
+            str(hx_path),
+            num=1,
+            mindist=0,
+            debug=0,
+            gap_cmd="gap-does-not-exist",
+            timeout_sec=1,
+            log_path=str(log_path),
+        )
+
+    assert "GAP command not found" in str(excinfo.value)
+    assert "UnboundLocalError" not in str(excinfo.value)
+    assert log_path.exists()
+    assert "[stdout]" in log_path.read_text(encoding="utf-8")
 
 
 def test_qdistrnd_optional(tmp_path):

@@ -41,4 +41,28 @@ def should_abort_after_batch(
     return False
 
 
-__all__ = ["parse_qd_batches", "threshold_to_beat", "should_abort_after_batch"]
+def format_slice_decision(
+    *,
+    which: str,
+    n_slice: int,
+    d_min: int,
+    trials: int,
+    mindist: int,
+    d_ub: int,
+    early_exit: bool,
+    passed: bool,
+) -> str:
+    status = "PASS" if passed else "FAIL"
+    return (
+        f"[slice-{which}] n_slice={n_slice} want d>={d_min} "
+        f"trials={trials} mindist={mindist} -> "
+        f"got d_ub={d_ub} early_exit={early_exit} {status}"
+    )
+
+
+__all__ = [
+    "format_slice_decision",
+    "parse_qd_batches",
+    "threshold_to_beat",
+    "should_abort_after_batch",
+]

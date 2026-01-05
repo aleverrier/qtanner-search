@@ -1,0 +1,150 @@
+[validation]
+HX {'rows': 72, 'cols': 144, 'nnz_declared': 648, 'nnz_actual': 648, 'min_i': 1, 'max_i': 72, 'min_j': 1, 'max_j': 144}
+HZ {'rows': 72, 'cols': 144, 'nnz_declared': 648, 'nnz_actual': 648, 'min_i': 1, 'max_i': 72, 'min_j': 1, 'max_j': 144}
+
+[command]
+gap -q -b --quitonbreak /Users/anthony/qtanner-search/data/tmp/search_w9_smallgroups/o4_g2_p9_a12_b8/qdistrnd.g
+
+[script_path]
+/Users/anthony/qtanner-search/data/tmp/search_w9_smallgroups/o4_g2_p9_a12_b8/qdistrnd.g
+
+[script]
+OnBreak := function()
+  Print("QDISTERROR GAPBreak\n");
+  QuitGap(3);
+end;
+if LoadPackage("QDistRnd") = fail then
+  Print("QDISTERROR QDistRndNotLoaded\n");
+  QuitGap(2);
+fi;
+ReadMMGF2 := function(path)
+  local stream, line, parts, rows, cols, nnz, idx, M, i, j, val;
+  stream := InputTextFile(path);
+  if stream = fail then
+    Print("QDISTERROR ReadMMGF2OpenFailed ", path, "\n");
+    QuitGap(3);
+  fi;
+  line := ReadLine(stream);
+  while true do
+    line := ReadLine(stream);
+    if line = fail then
+      CloseStream(stream);
+      Print("QDISTERROR ReadMMGF2MissingSize ", path, "\n");
+      QuitGap(3);
+    fi;
+    line := Filtered(line, c -> not c in "\r\n");
+    idx := PositionProperty(line, c -> not (c = ' ' or c = '\t'));
+    if idx = fail then
+      continue;
+    fi;
+    if line[idx] = '%' then
+      continue;
+    fi;
+    break;
+  od;
+  parts := Filtered(SplitString(line, " \t"), x -> x <> "");
+  if Length(parts) < 3 then
+    CloseStream(stream);
+    Print("QDISTERROR ReadMMGF2BadSize ", path, "\n");
+    QuitGap(3);
+  fi;
+  rows := Int(parts[1]);
+  cols := Int(parts[2]);
+  nnz := Int(parts[3]);
+  M := NullMat(rows, cols, GF(2));
+  while true do
+    line := ReadLine(stream);
+    if line = fail then
+      break;
+    fi;
+    line := Filtered(line, c -> not c in "\r\n");
+    idx := PositionProperty(line, c -> not (c = ' ' or c = '\t'));
+    if idx = fail then
+      continue;
+    fi;
+    if line[idx] = '%' then
+      continue;
+    fi;
+    parts := Filtered(SplitString(line, " \t"), x -> x <> "");
+    if Length(parts) < 2 then
+      continue;
+    fi;
+    i := Int(parts[1]);
+    j := Int(parts[2]);
+    if Length(parts) >= 3 then
+      val := Int(parts[3]);
+    else
+      val := 1;
+    fi;
+    if (val mod 2) = 1 then
+      M[i][j] := M[i][j] + One(GF(2));
+    fi;
+  od;
+  CloseStream(stream);
+  return M;
+end;
+stream := InputTextFile("*stdin*");
+if stream = fail then
+  Print("QDISTERROR StdinOpenFailed\n");
+  QuitGap(3);
+fi;
+while true do
+  line := ReadLine(stream);
+  if line = fail then
+    QuitGap(0);
+  fi;
+  line := Filtered(line, c -> not c in "\r\n");
+  if line = "" then
+    continue;
+  fi;
+  parts := SplitString(line, "|");
+  cmd := parts[1];
+  if cmd = "QUIT" then
+    QuitGap(0);
+  fi;
+  if cmd = "CSS" then
+    if Length(parts) < 6 then
+      Print("QDISTERROR BadCommand ", line, "\n");
+      FlushOutput();
+      continue;
+    fi;
+    HX := ReadMMGF2(parts[2]);
+    HZ := ReadMMGF2(parts[3]);
+    num := Int(parts[4]);
+    mindist := Int(parts[5]);
+    debug := Int(parts[6]);
+    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));
+    dX_raw := DistRandCSS(HZ, HX, num, mindist, debug : field := GF(2));
+    Print("QDISTRESULT ", dX_raw, " ", dZ_raw, "\n");
+    FlushOutput();
+    continue;
+  fi;
+  if cmd = "DZ" then
+    if Length(parts) < 5 then
+      Print("QDISTERROR BadCommand ", line, "\n");
+      FlushOutput();
+      continue;
+    fi;
+    HX := ReadMMGF2(parts[2]);
+    num := Int(parts[3]);
+    mindist := Int(parts[4]);
+    debug := Int(parts[5]);
+    ncols := NumberColumns(HX);
+    HZ := NullMat(1, ncols, GF(2));
+    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));
+    Print("QDISTRESULT_Z ", dZ_raw, "\n");
+    FlushOutput();
+    continue;
+  fi;
+  Print("QDISTERROR UnknownCommand ", line, "\n");
+  FlushOutput();
+od;
+
+[stdout]
+
+QDISTRESULT 13 15
+
+[stderr]
+
+[returncode/runtime]
+0 5.46

@@ -83,6 +83,95 @@ def _gap_read_mmgf2_lines() -> list[str]:
     ]
 
 
+def _gap_last_error_line() -> str:
+    return "\n".join(
+        [
+            "if IsBound(LastErrorMessage) then",
+            "  msg := LastErrorMessage();",
+            "else",
+            '  msg := "unknown";',
+            "fi;",
+        ]
+    )
+
+
+def _build_gap_server_script() -> str:
+    lines = [
+        'if LoadPackage("io") = fail then',
+        '  Print("QTANNER_IO_MISSING\\n");',
+        "  QuitGap(2);",
+        "fi;",
+        'infile := IO_File("/dev/stdin","r");',
+        'outfile := IO_File("/dev/stdout","w");',
+        "if infile = fail or outfile = fail then",
+        '  Print("QTANNER_IO_OPEN_FAILED\\n");',
+        "  QuitGap(3);",
+        "fi;",
+        "OnBreak := function()",
+        '  IO_WriteLine(outfile, "QTANNER_GAP_BREAK");',
+        "  QuitGap(3);",
+        "end;",
+        "OnError := function()",
+        "  local msg;",
+        *_gap_last_error_line().splitlines(),
+        '  IO_WriteLine(outfile, Concatenation("QTANNER_GAP_ERROR ", msg));',
+        "  QuitGap(3);",
+        "end;",
+        'if LoadPackage("QDistRnd") = fail then',
+        '  IO_WriteLine(outfile, "QDISTERROR QDistRndNotLoaded");',
+        "  QuitGap(2);",
+        "fi;",
+        *_gap_read_mmgf2_lines(),
+        "while true do",
+        "  line := IO_ReadLine(infile);",
+        "  if line = fail then",
+        "    QuitGap(0);",
+        "  fi;",
+        '  line := Filtered(line, c -> not c in "\\r\\n");',
+        "  if line = \"\" then",
+        "    continue;",
+        "  fi;",
+        '  parts := SplitString(line, "|");',
+        "  cmd := parts[1];",
+        "  if cmd = \"QUIT\" then",
+        "    QuitGap(0);",
+        "  fi;",
+        "  if cmd = \"CSS\" then",
+        "    if Length(parts) < 6 then",
+        '      IO_WriteLine(outfile, Concatenation("QDISTERROR BadCommand ", line));',
+        "      continue;",
+        "    fi;",
+        "    HX := ReadMMGF2(parts[2]);",
+        "    HZ := ReadMMGF2(parts[3]);",
+        "    num := Int(parts[4]);",
+        "    mindist := Int(parts[5]);",
+        "    debug := Int(parts[6]);",
+        "    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));",
+        "    dX_raw := DistRandCSS(HZ, HX, num, mindist, debug : field := GF(2));",
+        '    IO_WriteLine(outfile, Concatenation("QDISTRESULT ", String(dX_raw), " ", String(dZ_raw)));',
+        "    continue;",
+        "  fi;",
+        "  if cmd = \"DZ\" then",
+        "    if Length(parts) < 5 then",
+        '      IO_WriteLine(outfile, Concatenation("QDISTERROR BadCommand ", line));',
+        "      continue;",
+        "    fi;",
+        "    HX := ReadMMGF2(parts[2]);",
+        "    num := Int(parts[3]);",
+        "    mindist := Int(parts[4]);",
+        "    debug := Int(parts[5]);",
+        "    ncols := NumberColumns(HX);",
+        "    HZ := NullMat(1, ncols, GF(2));",
+        "    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));",
+        '    IO_WriteLine(outfile, Concatenation("QDISTRESULT_Z ", String(dZ_raw)));',
+        "    continue;",
+        "  fi;",
+        '  IO_WriteLine(outfile, Concatenation("QDISTERROR UnknownCommand ", line));',
+        "od;",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 class GapSession:
     """Manage a persistent GAP process for QDistRnd calls."""
 
@@ -110,74 +199,7 @@ class GapSession:
         return self._server_script
 
     def _build_server_script(self) -> str:
-        lines = [
-            "OnBreak := function()",
-            '  Print("QDISTERROR GAPBreak\\n");',
-            "  QuitGap(3);",
-            "end;",
-            'if LoadPackage("QDistRnd") = fail then',
-            '  Print("QDISTERROR QDistRndNotLoaded\\n");',
-            "  QuitGap(2);",
-            "fi;",
-            *_gap_read_mmgf2_lines(),
-            "stream := InputTextFile(\"*stdin*\");",
-            "if stream = fail then",
-            '  Print("QDISTERROR StdinOpenFailed\\n");',
-            "  QuitGap(3);",
-            "fi;",
-            "while true do",
-            "  line := ReadLine(stream);",
-            "  if line = fail then",
-            "    QuitGap(0);",
-            "  fi;",
-            '  line := Filtered(line, c -> not c in "\\r\\n");',
-            "  if line = \"\" then",
-            "    continue;",
-            "  fi;",
-            '  parts := SplitString(line, "|");',
-            "  cmd := parts[1];",
-            "  if cmd = \"QUIT\" then",
-            "    QuitGap(0);",
-            "  fi;",
-            "  if cmd = \"CSS\" then",
-            "    if Length(parts) < 6 then",
-            '      Print("QDISTERROR BadCommand ", line, "\\n");',
-            "      FlushOutput();",
-            "      continue;",
-            "    fi;",
-            "    HX := ReadMMGF2(parts[2]);",
-            "    HZ := ReadMMGF2(parts[3]);",
-            "    num := Int(parts[4]);",
-            "    mindist := Int(parts[5]);",
-            "    debug := Int(parts[6]);",
-            "    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));",
-            "    dX_raw := DistRandCSS(HZ, HX, num, mindist, debug : field := GF(2));",
-            '    Print("QDISTRESULT ", dX_raw, " ", dZ_raw, "\\n");',
-            "    FlushOutput();",
-            "    continue;",
-            "  fi;",
-            "  if cmd = \"DZ\" then",
-            "    if Length(parts) < 5 then",
-            '      Print("QDISTERROR BadCommand ", line, "\\n");',
-            "      FlushOutput();",
-            "      continue;",
-            "    fi;",
-            "    HX := ReadMMGF2(parts[2]);",
-            "    num := Int(parts[3]);",
-            "    mindist := Int(parts[4]);",
-            "    debug := Int(parts[5]);",
-            "    ncols := NumberColumns(HX);",
-            "    HZ := NullMat(1, ncols, GF(2));",
-            "    dZ_raw := DistRandCSS(HX, HZ, num, mindist, debug : field := GF(2));",
-            '    Print("QDISTRESULT_Z ", dZ_raw, "\\n");',
-            "    FlushOutput();",
-            "    continue;",
-            "  fi;",
-            '  Print("QDISTERROR UnknownCommand ", line, "\\n");',
-            "  FlushOutput();",
-            "od;",
-        ]
-        return "\n".join(lines) + "\n"
+        return _build_gap_server_script()
 
     def _start_process(self) -> None:
         self._server_script = self._build_server_script()
@@ -279,7 +301,15 @@ class GapSession:
             line = line.rstrip("\n")
             lines.append(line)
             if any(
-                marker in line for marker in ("QDISTERROR", "Error,", "Syntax error")
+                marker in line
+                for marker in (
+                    "QDISTERROR",
+                    "QTANNER_GAP_ERROR",
+                    "QTANNER_GAP_BREAK",
+                    "QTANNER_IO_MISSING",
+                    "Error,",
+                    "Syntax error",
+                )
             ):
                 raise GapSessionError(
                     "GAP/QDistRnd reported errors.", lines=lines, kind="error"
@@ -408,4 +438,4 @@ class GapSessionError(RuntimeError):
         self.kind = kind
 
 
-__all__ = ["GapSession"]
+__all__ = ["GapSession", "_build_gap_server_script"]

@@ -28,6 +28,8 @@ def main() -> None:
         required=True,
         help="Group identifier as 'order,gid' (required).",
     )
+    parser.add_argument("--slice-d-min", type=int, default=None)
+    parser.add_argument("--verbose", type=int, default=1)
     args, extra_args = parser.parse_known_args()
 
     fast_defaults = [
@@ -49,8 +51,12 @@ def main() -> None:
         "--only-group",
         args.only_group,
         *fast_defaults,
-        *extra_args,
+        "--verbose",
+        str(args.verbose),
     ]
+    if args.slice_d_min is not None:
+        cmd.extend(["--slice-d-min", str(args.slice_d_min)])
+    cmd.extend(extra_args)
     os.execv(sys.executable, cmd)
 
 

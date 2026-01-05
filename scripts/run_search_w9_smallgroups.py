@@ -39,6 +39,7 @@ from qtanner.leaderboard import (
 )
 from qtanner.qdistrnd import dist_rand_css_mtx, dist_rand_dz_mtx, qd_stats_d_ub
 from qtanner.search_utils import (
+    format_slice_decision,
     parse_qd_batches,
     should_abort_after_batch,
     threshold_to_beat,
@@ -140,6 +141,15 @@ def _print_paper_baselines(n: int, baselines: Dict[int, List[Tuple[int, int]]]) 
         print(f"[baseline] n={n} k={k} d={d}")
 
 
+def _default_slice_d_min(
+    n: int, *, baselines: Dict[int, List[Tuple[int, int]]], target: int
+) -> int:
+    entries = baselines.get(n, [])
+    if not entries:
+        return target
+    return max(d for _, d in entries)
+
+
 def _build_meta(
     *,
     order: int,
@@ -237,6 +247,7 @@ def _run_slice_filter(
     log_path: Path,
     session: Optional[GapSession],
     fallback_log_path: Path,
+    verbose: int,
 ) -> tuple[Optional[Dict[str, object]], Optional[str], str]:
     try:
         stats = dist_rand_dz_mtx(
@@ -246,6 +257,7 @@ def _run_slice_filter(
             seed=seed,
             log_path=str(log_path),
             session=session,
+            verbose=verbose,
         )
         return stats, None, str(log_path)
     except Exception as exc:
@@ -260,6 +272,7 @@ def _run_slice_filter(
             seed=seed,
             log_path=str(fallback_log_path),
             session=None,
+            verbose=verbose,
         )
         return stats, None, str(fallback_log_path)
     except Exception as exc:
@@ -293,6 +306,8 @@ def main() -> None:
     parser.add_argument("--allow-repeats", action="store_true")
     parser.add_argument("--min-distinct-nonid", type=int, default=3)
     parser.add_argument("--max-multiplicity-nonid", type=int, default=None)
+    parser.add_argument("--slice-d-min", type=int, default=None)
+    parser.add_argument("--verbose", type=int, default=1)
     parser.add_argument("--use-gap-session", dest="use_gap_session", action="store_true")
     parser.add_argument(
         "--no-gap-session", dest="use_gap_session", action="store_false"
@@ -389,6 +404,12 @@ def main() -> None:
                 for gid in gid_range:
                     group = smallgroup(order, gid)
                     target, mindist = _target_and_mindist(n)
+                    slice_d_min = (
+                        args.slice_d_min
+                        if args.slice_d_min is not None
+                        else _default_slice_d_min(n, baselines=baselines, target=target)
+                    )
+                    slice_mindist = max(slice_d_min, 0)
                     qd_num_eff = args.qd_num
                     if schedule:
                         qd_num_eff = min(
@@ -493,12 +514,13 @@ def main() -> None:
                                             ) = _run_slice_filter(
                                                 which="a",
                                                 path=a_path,
-                                                mindist=mindist,
+                                                mindist=slice_mindist,
                                                 num=args.slice_fast_num,
                                                 seed=args.seed,
                                                 log_path=a_log,
                                                 session=session,
                                                 fallback_log_path=a_fallback,
+                                                verbose=args.verbose,
                                             )
                                             slice_cache_a[a_key] = (
                                                 slice_stats["a"],
@@ -523,12 +545,13 @@ def main() -> None:
                                             ) = _run_slice_filter(
                                                 which="b",
                                                 path=b_path,
-                                                mindist=mindist,
+                                                mindist=slice_mindist,
                                                 num=args.slice_fast_num,
                                                 seed=args.seed,
                                                 log_path=b_log,
                                                 session=session,
                                                 fallback_log_path=b_fallback,
+                                                verbose=args.verbose,
                                             )
                                             slice_cache_b[b_key] = (
                                                 slice_stats["b"],
@@ -574,10 +597,54 @@ def main() -> None:
                                                 "[candidate] rejected by slice filter error."
                                             )
                                             continue
-                                        if slice_stats["a"]["terminated_early"] or slice_stats[
-                                            "b"
-                                        ]["terminated_early"]:
+                                        a_d_ub = int(slice_stats["a"]["dZ_ub"])
+                                        b_d_ub = int(slice_stats["b"]["dZ_ub"])
+                                        a_early = bool(slice_stats["a"]["terminated_early"])
+                                        b_early = bool(slice_stats["b"]["terminated_early"])
+                                        a_pass = (not a_early) and (a_d_ub >= slice_d_min)
+                                        b_pass = (not b_early) and (b_d_ub >= slice_d_min)
+                                        if args.verbose:
+                                            print(
+                                                format_slice_decision(
+                                                    which="a",
+                                                    n_slice=len(A) * order,
+                                                    d_min=slice_d_min,
+                                                    trials=int(slice_stats["a"]["num"]),
+                                                    mindist=int(slice_stats["a"]["mindist"]),
+                                                    d_ub=a_d_ub,
+                                                    early_exit=a_early,
+                                                    passed=a_pass,
+                                                )
+                                            )
+                                            print(
+                                                format_slice_decision(
+                                                    which="b",
+                                                    n_slice=len(B) * order,
+                                                    d_min=slice_d_min,
+                                                    trials=int(slice_stats["b"]["num"]),
+                                                    mindist=int(slice_stats["b"]["mindist"]),
+                                                    d_ub=b_d_ub,
+                                                    early_exit=b_early,
+                                                    passed=b_pass,
+                                                )
+                                            )
+                                        if not a_pass or not b_pass:
                                             reject_reason = "slice_filter_reject"
+                                            if args.verbose:
+                                                if not a_pass:
+                                                    print(
+                                                        "[slice-reject] "
+                                                        f"a d_ub={a_d_ub} "
+                                                        f"early_exit={a_early} "
+                                                        f"d_min={slice_d_min}"
+                                                    )
+                                                if not b_pass:
+                                                    print(
+                                                        "[slice-reject] "
+                                                        f"b d_ub={b_d_ub} "
+                                                        f"early_exit={b_early} "
+                                                        f"d_min={slice_d_min}"
+                                                    )
                                             record = {
                                                 "group": {"order": order, "gid": gid},
                                                 "A": A,
@@ -657,6 +724,7 @@ def main() -> None:
                                                 timeout_sec=args.qd_timeout,
                                                 log_path=str(tmp_dir / "qdistrnd.log"),
                                                 session=session,
+                                                verbose=args.verbose,
                                             )
                                             qd_batches_used.append(batch_num)
                                             trials_used += batch_num
@@ -734,7 +802,7 @@ def main() -> None:
                                                     threshold=batch_threshold,
                                                     qd_stats=qd_stats,
                                                     slice_stats=slice_stats,
-                                                    mindist=mindist,
+                                                    mindist=slice_mindist,
                                                     slice_num=args.slice_fast_num,
                                                     qd_debug=args.qd_debug,
                                                     seed=args.seed,
@@ -843,7 +911,7 @@ def main() -> None:
                                         threshold=last_threshold_used,
                                         qd_stats=qd_stats,
                                         slice_stats=slice_stats,
-                                        mindist=mindist,
+                                        mindist=slice_mindist,
                                         slice_num=args.slice_fast_num,
                                         qd_debug=args.qd_debug,
                                         seed=args.seed,

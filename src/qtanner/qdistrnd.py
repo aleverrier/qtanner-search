@@ -15,6 +15,7 @@ from .gap_session import GapSession
 from qtanner.mtx import validate_mtx_for_qdistrnd
 
 _LAST_RUN_INFO: Optional[Dict[str, str]] = None
+_TAIL_LINES = 30
 
 
 def qd_stats_d_ub(qd_stats: Optional[Dict[str, object]]) -> Optional[int]:
@@ -146,6 +147,35 @@ def _build_gap_script(
     return "\n".join(lines) + "\n"
 
 
+def _tail_excerpt(text: str, *, max_lines: int = _TAIL_LINES) -> str:
+    if not text:
+        return ""
+    lines = text.splitlines()
+    if not lines:
+        return ""
+    tail = lines[-max_lines:]
+    return "\n".join(tail)
+
+
+def _append_tail_section(
+    *,
+    stdout: str,
+    stderr: str,
+    max_lines: int = _TAIL_LINES,
+) -> str:
+    stdout_tail = _tail_excerpt(stdout, max_lines=max_lines)
+    stderr_tail = _tail_excerpt(stderr, max_lines=max_lines)
+    return "\n".join(
+        [
+            "[tail]",
+            "[stdout_tail]",
+            stdout_tail,
+            "[stderr_tail]",
+            stderr_tail,
+        ]
+    ).rstrip("\n") + "\n"
+
+
 def _validate_mtx_header(path: str) -> None:
     """Ensure MatrixMarket header matches QDistRnd expectations."""
     with open(path, "r", encoding="utf-8") as f:
@@ -164,12 +194,15 @@ def _parse_qdist_result(stdout: str, *, log_path: str, stderr: str) -> tuple[int
     combined_lines = []
     for line in stdout.splitlines():
         combined_lines.append(line)
-        if "QDISTERROR" in line:
+        if "QDISTERROR" in line or "QTANNER_GAP_ERROR" in line:
             error_lines.append(line.strip())
     for line in stderr.splitlines():
         combined_lines.append(line)
-        if "QDISTERROR" in line or line.startswith("Error,") or line.startswith(
-            "Syntax error"
+        if (
+            "QDISTERROR" in line
+            or "QTANNER_GAP_ERROR" in line
+            or line.startswith("Error,")
+            or line.startswith("Syntax error")
         ):
             error_lines.append(line.strip())
     if error_lines:
@@ -239,12 +272,15 @@ def _parse_qdist_result_z(stdout: str, *, log_path: str, stderr: str) -> int:
     combined_lines = []
     for line in stdout.splitlines():
         combined_lines.append(line)
-        if "QDISTERROR" in line:
+        if "QDISTERROR" in line or "QTANNER_GAP_ERROR" in line:
             error_lines.append(line.strip())
     for line in stderr.splitlines():
         combined_lines.append(line)
-        if "QDISTERROR" in line or line.startswith("Error,") or line.startswith(
-            "Syntax error"
+        if (
+            "QDISTERROR" in line
+            or "QTANNER_GAP_ERROR" in line
+            or line.startswith("Error,")
+            or line.startswith("Syntax error")
         ):
             error_lines.append(line.strip())
     if error_lines:
@@ -290,6 +326,10 @@ def _run_gap_qdistrnd(
         f.write(script)
     cmd = [gap_cmd, "-q", "-b", "--quitonbreak", script_path]
     start = time.monotonic()
+    result = None
+    stdout = ""
+    stderr = ""
+    returncode = -1
     try:
         result = subprocess.run(
             cmd,
@@ -299,16 +339,43 @@ def _run_gap_qdistrnd(
             check=False,
         )
     except FileNotFoundError as exc:
+        runtime_sec = time.monotonic() - start
+        write_qdistrnd_log(
+            log_path,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=returncode,
+            runtime_sec=runtime_sec,
+            include_tail=True,
+        )
         raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
     except subprocess.TimeoutExpired as exc:
         runtime_sec = time.monotonic() - start
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        write_qdistrnd_log(
+            log_path,
+            cmd=cmd,
+            script=script,
+            script_path=script_path,
+            stdout=stdout,
+            stderr=stderr,
+            returncode=returncode,
+            runtime_sec=runtime_sec,
+            include_tail=True,
+        )
         raise RuntimeError(
             f"GAP timed out after {timeout_sec} seconds (runtime {runtime_sec:.2f}s)."
         ) from exc
     runtime_sec = time.monotonic() - start
-    stdout = result.stdout or ""
-    stderr = result.stderr or ""
-    return cmd, script, stdout, stderr, result.returncode, runtime_sec, script_path
+    if result is not None:
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        returncode = result.returncode
+    return cmd, script, stdout, stderr, returncode, runtime_sec, script_path
 
 
 def write_qdistrnd_log(
@@ -323,6 +390,7 @@ def write_qdistrnd_log(
     runtime_sec: float,
     hx_stats: dict | None = None,
     hz_stats: dict | None = None,
+    include_tail: bool = False,
 ) -> None:
     """Write a QDistRnd run log with command, script, and outputs."""
     with open(log_path, "w", encoding="utf-8") as f:
@@ -351,6 +419,9 @@ def write_qdistrnd_log(
             f.write("\n")
         f.write("\n[returncode/runtime]\n")
         f.write(f"{returncode} {runtime_sec:.2f}\n")
+        if include_tail:
+            f.write("\n")
+            f.write(_append_tail_section(stdout=stdout, stderr=stderr))
 
 
 def _default_log_path(hx_path: str) -> str:
@@ -416,9 +487,11 @@ def dist_rand_css_mtx(
     timeout_sec: float | None = None,
     log_path: str | None = None,
     session: GapSession | None = None,
+    verbose: int = 0,
 ) -> Dict[str, Any]:
     """Estimate CSS distance upper bounds via GAP/QDistRnd using .mtx files."""
     log_path_final = log_path or _default_log_path(hx_path)
+    returncode = -1
     try:
         hx_stats = validate_mtx_for_qdistrnd(Path(hx_path))
         hz_stats = validate_mtx_for_qdistrnd(Path(hz_path))
@@ -458,14 +531,47 @@ def dist_rand_css_mtx(
             runtime_sec=runtime_sec,
             hx_stats=hx_stats,
             hz_stats=hz_stats,
+            include_tail=returncode != 0,
         )
         if returncode != 0:
-            raise RuntimeError(
-                f"GAP exited with code {returncode}. See log at {log_path_final}."
+            message = f"GAP exited with code {returncode}. See log at {log_path_final}."
+            if verbose:
+                message = (
+                    f"{message}\n"
+                    "[stdout_tail]\n"
+                    f"{_tail_excerpt(stdout)}\n"
+                    "[stderr_tail]\n"
+                    f"{_tail_excerpt(stderr)}"
+                )
+            raise RuntimeError(message)
+        try:
+            dX_raw, dZ_raw = _parse_qdist_result(
+                stdout, log_path=log_path_final, stderr=stderr
             )
-        dX_raw, dZ_raw = _parse_qdist_result(
-            stdout, log_path=log_path_final, stderr=stderr
-        )
+        except RuntimeError as exc:
+            write_qdistrnd_log(
+                log_path_final,
+                cmd=cmd,
+                script=script,
+                script_path=script_path,
+                stdout=stdout,
+                stderr=stderr,
+                returncode=returncode,
+                runtime_sec=runtime_sec,
+                hx_stats=hx_stats,
+                hz_stats=hz_stats,
+                include_tail=True,
+            )
+            message = str(exc)
+            if verbose:
+                message = (
+                    f"{message}\n"
+                    "[stdout_tail]\n"
+                    f"{_tail_excerpt(stdout)}\n"
+                    "[stderr_tail]\n"
+                    f"{_tail_excerpt(stderr)}"
+                )
+            raise RuntimeError(message) from exc
     else:
         dX_raw, dZ_raw, lines, runtime_sec = session.run_css(
             hx_path,
@@ -483,6 +589,7 @@ def dist_rand_css_mtx(
             with open(script_path, "w", encoding="utf-8") as f:
                 f.write(script)
         cmd = [gap_cmd, "-q", "-b", "--quitonbreak", script_path]
+        returncode = 0
         write_qdistrnd_log(
             log_path_final,
             cmd=cmd,
@@ -490,7 +597,7 @@ def dist_rand_css_mtx(
             script_path=script_path,
             stdout=stdout,
             stderr=stderr,
-            returncode=0,
+            returncode=returncode,
             runtime_sec=runtime_sec,
             hx_stats=hx_stats,
             hz_stats=hz_stats,
@@ -537,9 +644,14 @@ def dist_rand_dz_mtx(
     timeout_sec: float | None = None,
     log_path: str | None = None,
     session: GapSession | None = None,
+    verbose: int = 0,
 ) -> Dict[str, Any]:
     """Estimate Z-distance upper bounds for a single HX using GAP/QDistRnd."""
     log_path_final = log_path or _default_log_path(hx_path)
+    result = None
+    stdout = ""
+    stderr = ""
+    returncode = -1
     try:
         hx_stats = validate_mtx_for_qdistrnd(Path(hx_path))
     except RuntimeError as exc:
@@ -562,15 +674,44 @@ def dist_rand_dz_mtx(
                 check=False,
             )
         except FileNotFoundError as exc:
+            runtime_sec = time.monotonic() - start
+            write_qdistrnd_log(
+                log_path_final,
+                cmd=cmd,
+                script=script,
+                script_path=script_path,
+                stdout=stdout,
+                stderr=stderr,
+                returncode=returncode,
+                runtime_sec=runtime_sec,
+                hx_stats=hx_stats,
+                include_tail=True,
+            )
             raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
         except subprocess.TimeoutExpired as exc:
             runtime_sec = time.monotonic() - start
+            stdout = exc.stdout or ""
+            stderr = exc.stderr or ""
+            write_qdistrnd_log(
+                log_path_final,
+                cmd=cmd,
+                script=script,
+                script_path=script_path,
+                stdout=stdout,
+                stderr=stderr,
+                returncode=returncode,
+                runtime_sec=runtime_sec,
+                hx_stats=hx_stats,
+                include_tail=True,
+            )
             raise RuntimeError(
                 f"GAP timed out after {timeout_sec} seconds (runtime {runtime_sec:.2f}s)."
             ) from exc
         runtime_sec = time.monotonic() - start
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
+        if result is not None:
+            stdout = result.stdout or ""
+            stderr = result.stderr or ""
+            returncode = result.returncode
         write_qdistrnd_log(
             log_path_final,
             cmd=cmd,
@@ -578,15 +719,52 @@ def dist_rand_dz_mtx(
             script_path=script_path,
             stdout=stdout,
             stderr=stderr,
-            returncode=result.returncode,
+            returncode=returncode,
             runtime_sec=runtime_sec,
             hx_stats=hx_stats,
+            include_tail=returncode != 0,
         )
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"GAP exited with code {result.returncode}. See log at {log_path_final}."
+        if returncode != 0:
+            returncode_text = returncode if result is not None else "unknown"
+            message = (
+                f"GAP exited with code {returncode_text}. See log at {log_path_final}."
             )
-        dZ_raw = _parse_qdist_result_z(stdout, log_path=log_path_final, stderr=stderr)
+            if verbose:
+                message = (
+                    f"{message}\n"
+                    "[stdout_tail]\n"
+                    f"{_tail_excerpt(stdout)}\n"
+                    "[stderr_tail]\n"
+                    f"{_tail_excerpt(stderr)}"
+                )
+            raise RuntimeError(message)
+        try:
+            dZ_raw = _parse_qdist_result_z(
+                stdout, log_path=log_path_final, stderr=stderr
+            )
+        except RuntimeError as exc:
+            write_qdistrnd_log(
+                log_path_final,
+                cmd=cmd,
+                script=script,
+                script_path=script_path,
+                stdout=stdout,
+                stderr=stderr,
+                returncode=returncode,
+                runtime_sec=runtime_sec,
+                hx_stats=hx_stats,
+                include_tail=True,
+            )
+            message = str(exc)
+            if verbose:
+                message = (
+                    f"{message}\n"
+                    "[stdout_tail]\n"
+                    f"{_tail_excerpt(stdout)}\n"
+                    "[stderr_tail]\n"
+                    f"{_tail_excerpt(stderr)}"
+                )
+            raise RuntimeError(message) from exc
     else:
         dZ_raw, lines, runtime_sec = session.run_dz(
             hx_path,
@@ -614,6 +792,7 @@ def dist_rand_dz_mtx(
             runtime_sec=runtime_sec,
             hx_stats=hx_stats,
         )
+        returncode = 0
     summary = {
         "dZ_raw": dZ_raw,
         "dZ_ub": abs(dZ_raw),
@@ -632,7 +811,7 @@ def dist_rand_dz_mtx(
         script_path=script_path,
         stdout=stdout,
         stderr=stderr,
-        returncode=result.returncode,
+        returncode=returncode,
         runtime_sec=runtime_sec,
     )
     global _LAST_RUN_INFO
