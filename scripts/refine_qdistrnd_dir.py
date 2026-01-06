@@ -104,7 +104,7 @@ def main() -> None:
     p.add_argument("--qd-num", type=int, default=2000, help="Number of QDistRnd trials (default: 2000)")
     p.add_argument("--qd-mindist", type=int, default=0, help="mindist passed to DistRandCSS (default: 0)")
     p.add_argument("--qd-debug", type=int, default=0, help="debug flag passed to DistRandCSS (default: 0)")
-    p.add_argument("--timeout", type=int, default=120, help="Timeout in seconds (default: 120)")
+    p.add_argument("--timeout", "--qd-timeout", dest="timeout", type=int, default=120, help="Timeout in seconds (default: 120)")
     p.add_argument(
         "--print-gap-output",
         action="store_true",

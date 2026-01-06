@@ -73,6 +73,11 @@ def build_hx_hz(
     C1p: LocalCode,
 ) -> Tuple[List[int], List[int], int]:
     """Build lifted CSS check matrices HX and HZ as bitset rows."""
+    # qtanner-search compat: accept dict group
+    if isinstance(group, dict):
+        from types import SimpleNamespace
+        group = SimpleNamespace(**group)
+
     nA = C0.n
     nB = C0p.n
     if C1.n != nA or C1p.n != nB:
