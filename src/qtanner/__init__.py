@@ -9,13 +9,10 @@ from .local_codes import (
     apply_col_perm_to_rows,
     distinct_column_permutation_representatives,
     hamming_6_3_3_shortened,
-    hamming_8_4_4_extended,
     is_orthogonal,
-    repetition_2,
     row_from_bits,
     span_codewords,
     variants_6_3_3,
-    variants_8_4_4,
 )
 from .mtx import write_mtx, write_mtx_from_bitrows, write_mtx_from_rows
 from .qdistrnd import dist_rand_css_mtx, gap_is_available, qdistrnd_is_available
@@ -35,12 +32,9 @@ __all__ = [
     "apply_col_perm_to_rows",
     "span_codewords",
     "is_orthogonal",
-    "repetition_2",
     "hamming_6_3_3_shortened",
-    "hamming_8_4_4_extended",
     "distinct_column_permutation_representatives",
     "variants_6_3_3",
-    "variants_8_4_4",
     "gf2_rank",
     "gf2_is_in_rowspan",
     "FiniteGroup",

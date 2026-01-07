@@ -23,10 +23,7 @@ from qtanner.local_codes import (
     LocalCode,
     apply_col_perm_to_rows,
     hamming_6_3_3_shortened,
-    hamming_8_4_4_extended,
-    repetition_2,
     variants_6_3_3,
-    variants_8_4_4,
 )
 from qtanner.mtx import write_mtx_from_bitrows
 from qtanner.qdistrnd import dist_rand_css_mtx
@@ -35,31 +32,10 @@ from qtanner.qdistrnd import dist_rand_css_mtx
 def _parse_int_list(text: str) -> List[int]:
     return [int(x.strip()) for x in text.split(",") if x.strip()]
 
-
-def _base_code(name: str) -> LocalCode:
-    if name == "2_1_2":
-        return repetition_2()
-    if name == "6_3_3":
-        return hamming_6_3_3_shortened()
-    if name == "8_4_4":
-        return hamming_8_4_4_extended()
-    raise ValueError(f"Unknown code name: {name}")
-
-
-def _variants_for(name: str) -> List[List[int]]:
-    if name == "6_3_3":
-        return variants_6_3_3()
-    if name == "8_4_4":
-        return variants_8_4_4()
-    return []
-
-
-def _apply_variant(code: LocalCode, name: str, variant_idx: int) -> LocalCode:
-    if name == "2_1_2":
-        return code
-    variants = _variants_for(name)
+def _apply_variant(code: LocalCode, variant_idx: int) -> LocalCode:
+    variants = variants_6_3_3()
     if variant_idx < 0 or variant_idx >= len(variants):
-        raise ValueError(f"Variant index {variant_idx} out of range for {name}.")
+        raise ValueError(f"Variant index {variant_idx} out of range for 6_3_3.")
     perm = variants[variant_idx]
     H_rows = apply_col_perm_to_rows(code.H_rows, perm, code.n)
     G_rows = apply_col_perm_to_rows(code.G_rows, perm, code.n)
@@ -73,15 +49,15 @@ def _apply_variant(code: LocalCode, name: str, variant_idx: int) -> LocalCode:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build one lifted Tanner code.")
+    parser = argparse.ArgumentParser(
+        description="Build one lifted [6,3,3]x[6,3,3] Tanner code."
+    )
     parser.add_argument("--out", default="data/tmp/build_one", help="Output directory.")
     parser.add_argument("--group", choices=["cyclic", "smallgroup"], default="cyclic")
     parser.add_argument("--order", type=int, required=True)
     parser.add_argument("--gid", type=int, help="SmallGroup ID (required for smallgroup).")
     parser.add_argument("--A", required=True, help="Comma-separated A list, e.g. 0,1,2.")
     parser.add_argument("--B", required=True, help="Comma-separated B list, e.g. 0,1.")
-    parser.add_argument("--Acode", choices=["2_1_2", "6_3_3", "8_4_4"], default="6_3_3")
-    parser.add_argument("--Bcode", choices=["2_1_2", "6_3_3", "8_4_4"], default="2_1_2")
     parser.add_argument("--A1-variant", type=int, default=0)
     parser.add_argument("--B1-variant", type=int, default=0)
     parser.add_argument("--qdistrnd", action="store_true", help="Estimate distances via GAP/QDistRnd.")
@@ -105,10 +81,10 @@ def main() -> None:
         group = smallgroup(args.order, args.gid)
         group_meta = {"type": "smallgroup", "order": args.order, "gid": args.gid}
 
-    C0 = _base_code(args.Acode)
-    C0p = _base_code(args.Bcode)
-    C1 = _apply_variant(C0, args.Acode, args.A1_variant)
-    C1p = _apply_variant(C0p, args.Bcode, args.B1_variant)
+    C0 = hamming_6_3_3_shortened()
+    C0p = hamming_6_3_3_shortened()
+    C1 = _apply_variant(C0, args.A1_variant)
+    C1p = _apply_variant(C0p, args.B1_variant)
 
     hx_rows, hz_rows, n_cols = build_hx_hz(group, A, B, C0, C1, C0p, C1p)
     if not css_commutes(hx_rows, hz_rows):
@@ -128,15 +104,24 @@ def main() -> None:
         "group": group_meta,
         "A": A,
         "B": B,
-        "Acode": args.Acode,
-        "Bcode": args.Bcode,
-        "A1_variant": args.A1_variant,
-        "B1_variant": args.B1_variant,
+        "local_codes": {
+            "C0": C0.name,
+            "C1": C1.name,
+            "C0p": C0p.name,
+            "C1p": C1p.name,
+            "a1v": args.A1_variant,
+            "b1v": args.B1_variant,
+        },
         "n": n_cols,
         "k": k,
         "hx_rows": len(hx_rows),
         "hz_rows": len(hz_rows),
         "column_order": "col = ((i*nB + j)*|G| + g), g fastest",
+        "distance_estimate": {
+            "method": "QDistRnd" if args.qdistrnd else "none",
+            "trials": args.qd_num if args.qdistrnd else 0,
+            "rng_seed": args.qd_seed,
+        },
     }
 
     if args.qdistrnd:

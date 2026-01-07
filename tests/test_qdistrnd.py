@@ -6,7 +6,7 @@ import pytest
 
 from qtanner.group import FiniteGroup
 from qtanner.lift_matrices import build_hx_hz
-from qtanner.local_codes import repetition_2
+from qtanner.local_codes import hamming_6_3_3_shortened
 from qtanner.mtx import write_mtx, write_mtx_from_bitrows
 from qtanner.qdistrnd import (
     _build_gap_script,
@@ -82,13 +82,13 @@ def test_qdistrnd_optional(tmp_path):
     if not qdistrnd_is_available():
         pytest.skip("GAP QDistRnd package is not available.")
 
-    group = FiniteGroup.cyclic(3)
-    A = [0, 1]
-    B = [0, 1]
-    C0 = repetition_2()
-    C1 = repetition_2()
-    C0p = repetition_2()
-    C1p = repetition_2()
+    group = FiniteGroup.cyclic(1)
+    A = [0, 0, 0, 0, 0, 0]
+    B = [0, 0, 0, 0, 0, 0]
+    C0 = hamming_6_3_3_shortened()
+    C1 = hamming_6_3_3_shortened()
+    C0p = hamming_6_3_3_shortened()
+    C1p = hamming_6_3_3_shortened()
     hx_rows, hz_rows, n_cols = build_hx_hz(group, A, B, C0, C1, C0p, C1p)
 
     hx_path = tmp_path / "Hx.mtx"

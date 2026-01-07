@@ -66,13 +66,6 @@ def is_orthogonal(H_rows: Iterable[int], G_rows: Iterable[int]) -> bool:
     return True
 
 
-def repetition_2() -> LocalCode:
-    """Canonical [2,1,2] repetition code."""
-    H = [row_from_bits([1, 1])]
-    G = [row_from_bits([1, 1])]
-    return LocalCode(name="repetition_2", n=2, k=1, H_rows=H, G_rows=G)
-
-
 def hamming_6_3_3_shortened() -> LocalCode:
     """Canonical shortened Hamming [6,3,3] code."""
     G = [
@@ -86,23 +79,6 @@ def hamming_6_3_3_shortened() -> LocalCode:
         row_from_bits([0, 1, 1, 0, 0, 1]),
     ]
     return LocalCode(name="hamming_6_3_3_shortened", n=6, k=3, H_rows=H, G_rows=G)
-
-
-def hamming_8_4_4_extended() -> LocalCode:
-    """Canonical extended Hamming [8,4,4] code."""
-    G = [
-        row_from_bits([1, 0, 0, 0, 1, 1, 0, 1]),
-        row_from_bits([0, 1, 0, 0, 1, 0, 1, 1]),
-        row_from_bits([0, 0, 1, 0, 0, 1, 1, 1]),
-        row_from_bits([0, 0, 0, 1, 1, 1, 1, 0]),
-    ]
-    H = [
-        row_from_bits([1, 1, 0, 1, 1, 0, 0, 0]),
-        row_from_bits([1, 0, 1, 1, 0, 1, 0, 0]),
-        row_from_bits([0, 1, 1, 1, 0, 0, 1, 0]),
-        row_from_bits([1, 1, 1, 0, 0, 0, 0, 1]),
-    ]
-    return LocalCode(name="hamming_8_4_4_extended", n=8, k=4, H_rows=H, G_rows=G)
 
 
 def distinct_column_permutation_representatives(code: LocalCode) -> List[List[int]]:
@@ -123,11 +99,6 @@ def variants_6_3_3() -> List[List[int]]:
     return distinct_column_permutation_representatives(hamming_6_3_3_shortened())
 
 
-def variants_8_4_4() -> List[List[int]]:
-    """Column-permutation representatives for [8,4,4] (expected 30)."""
-    return distinct_column_permutation_representatives(hamming_8_4_4_extended())
-
-
 __all__ = [
     "LocalCode",
     "row_from_bits",
@@ -135,10 +106,7 @@ __all__ = [
     "apply_col_perm_to_rows",
     "span_codewords",
     "is_orthogonal",
-    "repetition_2",
     "hamming_6_3_3_shortened",
-    "hamming_8_4_4_extended",
     "distinct_column_permutation_representatives",
     "variants_6_3_3",
-    "variants_8_4_4",
 ]

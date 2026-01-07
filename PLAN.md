@@ -12,7 +12,7 @@ We keep only candidates we hope satisfy:
 - k*d >= n
 
 ## Implementation milestones
-1) Local codes library: repetition [2,1,2], [6,3,3], [8,4,4], then [7,4,3]/[7,3,4].
+1) Local codes library: [6,3,3] only.
 2) GAP interface for group enumeration + regular actions.
 3) Matrix builder for Hx, Hz (lift formula).
 4) Exact k from GF(2) rank.
