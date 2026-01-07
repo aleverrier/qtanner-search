@@ -324,6 +324,38 @@ def _filter_slice_candidates(
     return kept
 
 
+def _mult_stats(mult: Sequence[int]) -> Tuple[int, Optional[float]]:
+    uniq = len(mult)
+    if uniq == 0:
+        return 0, None
+    return uniq, sum(mult) / uniq
+
+
+def _qd_side_stats(
+    *,
+    d_signed: int,
+    rounds_done: int,
+    vec_count_total: int,
+    mult: List[int],
+) -> Dict[str, object]:
+    uniq, avg = _mult_stats(mult)
+    return {
+        "d_signed": d_signed,
+        "rounds_done": rounds_done,
+        "vec_count_total": vec_count_total,
+        "mult": mult,
+        "uniq": uniq,
+        "avg": avg,
+        "early_stop": d_signed < 0,
+    }
+
+
+def _format_avg(avg: Optional[float]) -> str:
+    if avg is None:
+        return "n/a"
+    return f"{avg:.3f}"
+
+
 def _record_best_so_far(
     best_by_nk: Dict[Tuple[int, int], Dict[str, object]],
     *,
@@ -331,6 +363,9 @@ def _record_best_so_far(
     dx: int,
     dz: int,
     d: int,
+    trials_requested: int,
+    qd_x: Dict[str, object],
+    qd_z: Dict[str, object],
 ) -> None:
     key = (int(entry["n"]), int(entry["k"]))
     current = best_by_nk.get(key)
@@ -342,14 +377,24 @@ def _record_best_so_far(
         "d": d,
         "dx": dx,
         "dz": dz,
+        "trials_requested": trials_requested,
+        "qd_x": qd_x,
+        "qd_z": qd_z,
         "candidate_id": entry["candidate_id"],
     }
     print("[pilot] best so far by (n,k):")
     for n_key, k_key in sorted(best_by_nk):
         rec = best_by_nk[(n_key, k_key)]
+        qd_x = rec["qd_x"]
+        qd_z = rec["qd_z"]
         print(
             f"  n={rec['n']} k={rec['k']} d={rec['d']} "
-            f"dx={rec['dx']} dz={rec['dz']} id={rec['candidate_id']}"
+            f"dx={rec['dx']} dz={rec['dz']} "
+            f"trials={rec['trials_requested']} "
+            f"dx: done={qd_x['rounds_done']} avg={_format_avg(qd_x['avg'])} "
+            f"uniq={qd_x['uniq']} "
+            f"dz: done={qd_z['rounds_done']} avg={_format_avg(qd_z['avg'])} "
+            f"uniq={qd_z['uniq']} id={rec['candidate_id']}"
         )
 
 
@@ -428,6 +473,102 @@ def _gap_read_mmgf2_lines() -> list[str]:
     ]
 
 
+def _gap_dist_rand_css_stats_lines() -> list[str]:
+    return [
+        "DistRandCSS_stats := function(GX, GZ, num, mindist)",
+        "  local DistBound, i, j, dimsWZ, rowsWZ, colsWZ, WZ, WX,",
+        "        TempVec, TempWeight, per, WZ1, WZ2, VecCount,",
+        "        CodeWords, mult, pos, early_stop, rounds_done,",
+        "        d_signed, uniq, avg, s1, s2, x2;",
+        "  WZ := NullspaceMat(TransposedMatMutable(GX));",
+        "  WX := NullspaceMat(TransposedMatMutable(GZ));",
+        "  dimsWZ := DimensionsMat(WZ);",
+        "  rowsWZ := dimsWZ[1];",
+        "  colsWZ := dimsWZ[2];",
+        "  DistBound := colsWZ + 1;",
+        "  VecCount := 0;",
+        "  CodeWords := [];",
+        "  mult := [];",
+        "  early_stop := false;",
+        "  rounds_done := 0;",
+        "  for i in [1..num] do",
+        "    rounds_done := i;",
+        "    if colsWZ > 1 then",
+        "      per := Random(SymmetricGroup(colsWZ));",
+        "    else",
+        "      per := ();",
+        "    fi;",
+        "    WZ1 := PermutedCols(WZ, per);",
+        "    WZ2 := TriangulizedMat(WZ1);",
+        "    WZ2 := PermutedCols(WZ2, Inverse(per));",
+        "    for j in [1..rowsWZ] do",
+        "      TempVec := WZ2[j];",
+        "      TempWeight := WeightVecFFE(TempVec);",
+        "      if (TempWeight > 0) and (TempWeight <= DistBound) then",
+        "        if WeightVecFFE(WX * TempVec) > 0 then",
+        "          if TempWeight < DistBound then",
+        "            DistBound := TempWeight;",
+        "            VecCount := 1;",
+        "            CodeWords := [TempVec];",
+        "            mult := [1];",
+        "          elif TempWeight = DistBound then",
+        "            VecCount := VecCount + 1;",
+        "            pos := Position(CodeWords, TempVec);",
+        "            if (pos = fail) and (Length(mult) < 100) then",
+        "              Add(CodeWords, TempVec);",
+        "              Add(mult, 1);",
+        "            elif (pos <> fail) then",
+        "              mult[pos] := mult[pos] + 1;",
+        "            fi;",
+        "          fi;",
+        "        fi;",
+        "      fi;",
+        "      if DistBound <= mindist then",
+        "        early_stop := true;",
+        "        break;",
+        "      fi;",
+        "    od;",
+        "    if early_stop then",
+        "      break;",
+        "    fi;",
+        "  od;",
+        "  if early_stop then",
+        "    d_signed := -DistBound;",
+        "  else",
+        "    d_signed := DistBound;",
+        "  fi;",
+        "  uniq := Length(mult);",
+        "  if uniq > 0 then",
+        "    avg := QDR_AverageCalc(mult);",
+        "  else",
+        "    avg := fail;",
+        "  fi;",
+        "  if uniq > 1 then",
+        "    s1 := Sum(mult);",
+        "    s2 := Sum(mult, x -> x^2);",
+        "    x2 := Float(s2 * uniq - s1^2) / s1;",
+        "  else",
+        "    x2 := fail;",
+        "  fi;",
+        "  return rec(",
+        "    d_signed := d_signed,",
+        "    rounds_done := rounds_done,",
+        "    vec_count_total := VecCount,",
+        "    mult := mult,",
+        "    uniq := uniq,",
+        "    avg := avg,",
+        "    x2 := x2",
+        "  );",
+        "end;",
+        "QDR_ListString := function(list)",
+        "  if Length(list) = 0 then",
+        '    return "[]";',
+        "  fi;",
+        '  return Concatenation("[", JoinStringsWithSeparator(List(list, String), ","), "]");',
+        "end;",
+    ]
+
+
 def _build_gap_batch_script(
     batch: Sequence[Tuple[int, str, str]],
     *,
@@ -446,6 +587,7 @@ def _build_gap_batch_script(
         "  QuitGap(2);",
         "fi;",
         *_gap_read_mmgf2_lines(),
+        *_gap_dist_rand_css_stats_lines(),
     ]
     if seed is not None:
         lines.append(f"Reset(GlobalMersenneTwister, {seed});")
@@ -456,13 +598,57 @@ def _build_gap_batch_script(
             [
                 f'HX := ReadMMGF2("{hx_literal}");;',
                 f'HZ := ReadMMGF2("{hz_literal}");;',
-                f"dZ_raw := DistRandCSS(HX, HZ, {num}, {mindist}, {debug} : field := GF(2));;",
-                f"dX_raw := DistRandCSS(HZ, HX, {num}, {mindist}, {debug} : field := GF(2));;",
-                f'Print("QDISTRESULT {idx} ", dX_raw, " ", dZ_raw, "\\n");',
+                f"zz := DistRandCSS_stats(HX, HZ, {num}, {mindist});;",
+                f"zx := DistRandCSS_stats(HZ, HX, {num}, {mindist});;",
+                f'Print("QDR|{idx}|dx=", zx.d_signed, "|dz=", zz.d_signed,',
+                '      "|rx=", zx.rounds_done, "|rz=", zz.rounds_done,',
+                '      "|vx=", zx.vec_count_total, "|vz=", zz.vec_count_total,',
+                '      "|mx=", QDR_ListString(zx.mult), "|mz=", QDR_ListString(zz.mult), "\\n");',
             ]
         )
     lines.append("QuitGap(0);")
     return "\n".join(lines) + "\n"
+
+
+def _parse_mult_list(text: str) -> List[int]:
+    stripped = text.strip()
+    if not stripped.startswith("[") or not stripped.endswith("]"):
+        raise ValueError(f"Invalid mult list: {text}")
+    inner = stripped[1:-1].strip()
+    if not inner:
+        return []
+    parts = [part.strip() for part in inner.split(",") if part.strip()]
+    return [int(part) for part in parts]
+
+
+def _parse_qdr_line(line: str) -> Tuple[int, Dict[str, object]]:
+    parts = [part for part in line.strip().split("|") if part != ""]
+    if len(parts) < 3 or parts[0] != "QDR":
+        raise ValueError(f"Invalid QDR line: {line}")
+    try:
+        idx = int(parts[1])
+    except ValueError as exc:
+        raise ValueError(f"Invalid QDR index in line: {line}") from exc
+    fields: Dict[str, str] = {}
+    for part in parts[2:]:
+        key, sep, value = part.partition("=")
+        if sep != "=":
+            raise ValueError(f"Invalid QDR field '{part}' in line: {line}")
+        fields[key] = value
+    required = ("dx", "dz", "rx", "rz", "vx", "vz", "mx", "mz")
+    missing = [key for key in required if key not in fields]
+    if missing:
+        raise ValueError(f"Missing QDR fields {missing} in line: {line}")
+    return idx, {
+        "dx_signed": int(fields["dx"]),
+        "dz_signed": int(fields["dz"]),
+        "rx": int(fields["rx"]),
+        "rz": int(fields["rz"]),
+        "vx": int(fields["vx"]),
+        "vz": int(fields["vz"]),
+        "mx": _parse_mult_list(fields["mx"]),
+        "mz": _parse_mult_list(fields["mz"]),
+    }
 
 
 def _parse_batch_output(
@@ -471,7 +657,7 @@ def _parse_batch_output(
     stderr: str,
     expected: Iterable[int],
     log_path: Path,
-) -> Dict[int, Tuple[int, int]]:
+) -> Dict[int, Dict[str, object]]:
     errors = []
     for line in stdout.splitlines():
         if "QDISTERROR" in line or "QTANNER_GAP_ERROR" in line:
@@ -491,20 +677,16 @@ def _parse_batch_output(
             f"See log at {log_path}.\n"
             f"errors (first {len(errors[:20])} lines):\n{preview}"
         )
-    results: Dict[int, Tuple[int, int]] = {}
+    results: Dict[int, Dict[str, object]] = {}
     for line in stdout.splitlines():
-        if "QDISTRESULT" not in line:
+        if not line.startswith("QDR|"):
             continue
-        parts = line.split()
-        if len(parts) >= 4 and parts[0] == "QDISTRESULT":
-            idx = int(parts[1])
-            dX_raw = int(parts[2])
-            dZ_raw = int(parts[3])
-            results[idx] = (dX_raw, dZ_raw)
+        idx, parsed = _parse_qdr_line(line)
+        results[idx] = parsed
     missing = [idx for idx in expected if idx not in results]
     if missing:
         raise RuntimeError(
-            "Missing QDISTRESULT lines for some candidates. "
+            "Missing QDR lines for some candidates. "
             f"See log at {log_path}. Missing indices: {missing}"
         )
     return results
@@ -521,7 +703,7 @@ def _run_gap_batch(
     batch_id: int,
     gap_cmd: str = "gap",
     timeout_sec: Optional[float] = None,
-) -> Tuple[Dict[int, Tuple[int, int]], float]:
+) -> Tuple[Dict[int, Dict[str, object]], float]:
     script = _build_gap_batch_script(batch, num=num, mindist=mindist, debug=debug, seed=seed)
     script_path = outdir / f"qdistrnd_batch_{batch_id:04d}.g"
     log_path = outdir / f"qdistrnd_batch_{batch_id:04d}.log"
@@ -808,14 +990,6 @@ def main() -> int:
                             rank_hx = gf2_rank(hx_rows[:], n_cols)
                             rank_hz = gf2_rank(hz_rows[:], n_cols)
                             k = n_cols - rank_hx - rank_hz
-
-                            cand_dir = tmp_root / candidate_id
-                            cand_dir.mkdir(parents=True, exist_ok=True)
-                            hx_path = cand_dir / "Hx.mtx"
-                            hz_path = cand_dir / "Hz.mtx"
-                            write_mtx_from_bitrows(str(hx_path), hx_rows, n_cols)
-                            write_mtx_from_bitrows(str(hz_path), hz_rows, n_cols)
-
                             entry = {
                                 "candidate_id": candidate_id,
                                 "group": {"type": "cyclic", "order": m},
@@ -838,6 +1012,20 @@ def main() -> int:
                                 "seed": seed,
                                 "column_order": "col = ((i*nB + j)*|G| + g), g fastest",
                             }
+                            if k == 0:
+                                entry["skipped_reason"] = "k=0"
+                                results_file.write(
+                                    json.dumps(entry, sort_keys=True) + "\n"
+                                )
+                                results_file.flush()
+                                continue
+
+                            cand_dir = tmp_root / candidate_id
+                            cand_dir.mkdir(parents=True, exist_ok=True)
+                            hx_path = cand_dir / "Hx.mtx"
+                            hz_path = cand_dir / "Hz.mtx"
+                            write_mtx_from_bitrows(str(hx_path), hx_rows, n_cols)
+                            write_mtx_from_bitrows(str(hz_path), hz_rows, n_cols)
 
                             idx = len(batch_items)
                             batch_items.append((idx, str(hx_path), str(hz_path), entry))
@@ -856,24 +1044,45 @@ def main() -> int:
                                     timeout_sec=args.qd_timeout,
                                 )
                                 for idx_key, _, _, entry in batch_items:
-                                    dX_raw, dZ_raw = qd_results[idx_key]
-                                    dx = abs(dX_raw)
-                                    dz = abs(dZ_raw)
+                                    qd_stats = qd_results[idx_key]
+                                    dx_signed = int(qd_stats["dx_signed"])
+                                    dz_signed = int(qd_stats["dz_signed"])
+                                    dx = abs(dx_signed)
+                                    dz = abs(dz_signed)
                                     d_ub = min(dx, dz)
+                                    qd_x = _qd_side_stats(
+                                        d_signed=dx_signed,
+                                        rounds_done=int(qd_stats["rx"]),
+                                        vec_count_total=int(qd_stats["vx"]),
+                                        mult=list(qd_stats["mx"]),
+                                    )
+                                    qd_z = _qd_side_stats(
+                                        d_signed=dz_signed,
+                                        rounds_done=int(qd_stats["rz"]),
+                                        vec_count_total=int(qd_stats["vz"]),
+                                        mult=list(qd_stats["mz"]),
+                                    )
                                     _record_best_so_far(
-                                        best_by_nk, entry=entry, dx=dx, dz=dz, d=d_ub
+                                        best_by_nk,
+                                        entry=entry,
+                                        dx=dx,
+                                        dz=dz,
+                                        d=d_ub,
+                                        trials_requested=args.trials,
+                                        qd_x=qd_x,
+                                        qd_z=qd_z,
                                     )
                                     target = math.isqrt(entry["n"])
                                     promising = d_ub >= target and entry["k"] * d_ub >= entry["n"]
                                     qd = {
-                                        "dX_raw": dX_raw,
-                                        "dZ_raw": dZ_raw,
-                                        "d_ub": d_ub,
-                                        "terminated_early_X": dX_raw < 0,
-                                        "terminated_early_Z": dZ_raw < 0,
-                                        "num": args.trials,
+                                        "trials_requested": args.trials,
                                         "mindist": args.mindist,
-                                        "debug": args.qd_debug,
+                                        "dx": dx,
+                                        "dz": dz,
+                                        "d": d_ub,
+                                        "d_ub": d_ub,
+                                        "qd_x": qd_x,
+                                        "qd_z": qd_z,
                                         "seed": batch_seed,
                                         "runtime_sec": runtime_sec,
                                         "gap_cmd": args.gap_cmd,
@@ -894,14 +1103,15 @@ def main() -> int:
                                         "k": entry["k"],
                                         "distance_estimate": {
                                             "method": "QDistRnd",
-                                            "trials": args.trials,
+                                            "trials_requested": args.trials,
                                             "mindist": args.mindist,
                                             "rng_seed": batch_seed,
-                                            "dX_raw": dX_raw,
-                                            "dZ_raw": dZ_raw,
+                                            "dx": dx,
+                                            "dz": dz,
+                                            "d": d_ub,
                                             "d_ub": d_ub,
-                                            "terminated_early_X": dX_raw < 0,
-                                            "terminated_early_Z": dZ_raw < 0,
+                                            "qd_x": qd_x,
+                                            "qd_z": qd_z,
                                         },
                                         "slice_scores": entry["slice_scores"],
                                     }
@@ -950,24 +1160,45 @@ def main() -> int:
                     timeout_sec=args.qd_timeout,
                 )
                 for idx_key, _, _, entry in batch_items:
-                    dX_raw, dZ_raw = qd_results[idx_key]
-                    dx = abs(dX_raw)
-                    dz = abs(dZ_raw)
+                    qd_stats = qd_results[idx_key]
+                    dx_signed = int(qd_stats["dx_signed"])
+                    dz_signed = int(qd_stats["dz_signed"])
+                    dx = abs(dx_signed)
+                    dz = abs(dz_signed)
                     d_ub = min(dx, dz)
+                    qd_x = _qd_side_stats(
+                        d_signed=dx_signed,
+                        rounds_done=int(qd_stats["rx"]),
+                        vec_count_total=int(qd_stats["vx"]),
+                        mult=list(qd_stats["mx"]),
+                    )
+                    qd_z = _qd_side_stats(
+                        d_signed=dz_signed,
+                        rounds_done=int(qd_stats["rz"]),
+                        vec_count_total=int(qd_stats["vz"]),
+                        mult=list(qd_stats["mz"]),
+                    )
                     _record_best_so_far(
-                        best_by_nk, entry=entry, dx=dx, dz=dz, d=d_ub
+                        best_by_nk,
+                        entry=entry,
+                        dx=dx,
+                        dz=dz,
+                        d=d_ub,
+                        trials_requested=args.trials,
+                        qd_x=qd_x,
+                        qd_z=qd_z,
                     )
                     target = math.isqrt(entry["n"])
                     promising = d_ub >= target and entry["k"] * d_ub >= entry["n"]
                     qd = {
-                        "dX_raw": dX_raw,
-                        "dZ_raw": dZ_raw,
-                        "d_ub": d_ub,
-                        "terminated_early_X": dX_raw < 0,
-                        "terminated_early_Z": dZ_raw < 0,
-                        "num": args.trials,
+                        "trials_requested": args.trials,
                         "mindist": args.mindist,
-                        "debug": args.qd_debug,
+                        "dx": dx,
+                        "dz": dz,
+                        "d": d_ub,
+                        "d_ub": d_ub,
+                        "qd_x": qd_x,
+                        "qd_z": qd_z,
                         "seed": batch_seed,
                         "runtime_sec": runtime_sec,
                         "gap_cmd": args.gap_cmd,
@@ -988,14 +1219,15 @@ def main() -> int:
                         "k": entry["k"],
                         "distance_estimate": {
                             "method": "QDistRnd",
-                            "trials": args.trials,
+                            "trials_requested": args.trials,
                             "mindist": args.mindist,
                             "rng_seed": batch_seed,
-                            "dX_raw": dX_raw,
-                            "dZ_raw": dZ_raw,
+                            "dx": dx,
+                            "dz": dz,
+                            "d": d_ub,
                             "d_ub": d_ub,
-                            "terminated_early_X": dX_raw < 0,
-                            "terminated_early_Z": dZ_raw < 0,
+                            "qd_x": qd_x,
+                            "qd_z": qd_z,
                         },
                         "slice_scores": entry["slice_scores"],
                     }
