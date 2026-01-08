@@ -103,6 +103,63 @@ def _match_perm(
     return None
 
 
+def _match_perm_with_inverse(
+    perm: Sequence[int],
+    *,
+    left_map: Dict[Tuple[int, ...], int],
+    left_inv_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+    right_inv_map: Dict[Tuple[int, ...], int],
+    prefer: Sequence[str],
+) -> Optional[Tuple[str, int, bool]]:
+    match = _match_perm(
+        perm,
+        left_map=left_map,
+        left_inv_map=left_inv_map,
+        right_map=right_map,
+        right_inv_map=right_inv_map,
+        prefer=prefer,
+    )
+    if match:
+        return match[0], match[1], False
+    inv_perm = _perm_inverse(perm)
+    match = _match_perm(
+        inv_perm,
+        left_map=left_map,
+        left_inv_map=left_inv_map,
+        right_map=right_map,
+        right_inv_map=right_inv_map,
+        prefer=prefer,
+    )
+    if match:
+        return match[0], match[1], True
+    return None
+
+
+def _element_from_match_left(match_type: str, elem: int, inverse_used: bool, group: FiniteGroup) -> int:
+    if match_type == "L":
+        return int(group.inv(elem)) if inverse_used else int(elem)
+    if match_type == "L_inv":
+        return int(elem) if inverse_used else int(group.inv(elem))
+    if match_type == "R":
+        return int(group.inv(elem)) if inverse_used else int(elem)
+    if match_type == "R_inv":
+        return int(elem) if inverse_used else int(group.inv(elem))
+    return int(elem)
+
+
+def _element_from_match_right(match_type: str, elem: int, inverse_used: bool, group: FiniteGroup) -> int:
+    if match_type == "R":
+        return int(elem) if inverse_used else int(group.inv(elem))
+    if match_type == "R_inv":
+        return int(group.inv(elem)) if inverse_used else int(elem)
+    if match_type == "L":
+        return int(elem) if inverse_used else int(group.inv(elem))
+    if match_type == "L_inv":
+        return int(group.inv(elem)) if inverse_used else int(elem)
+    return int(elem)
+
+
 def _build_left_right_maps(group: FiniteGroup) -> Tuple[Dict[Tuple[int, ...], int], Dict[Tuple[int, ...], int]]:
     left_map: Dict[Tuple[int, ...], int] = {}
     right_map: Dict[Tuple[int, ...], int] = {}
@@ -151,6 +208,170 @@ def _map_index(idx: int, *, m: int, num_blocks: int, mode: str) -> Tuple[int, in
     if mode == "group-major":
         return idx % num_blocks, idx // num_blocks
     raise ValueError(f"Unknown mapping mode {mode!r}.")
+
+
+def _decode3(idx: int, sizes: Sequence[int], order: Sequence[int]) -> List[int]:
+    coords = [0, 0, 0]
+    rem = int(idx)
+    for axis in reversed(order):
+        size = int(sizes[axis])
+        rem, val = divmod(rem, size)
+        coords[axis] = val
+    if rem != 0:
+        raise ValueError(f"Index {idx} out of range for sizes {sizes} with order {order}.")
+    return coords
+
+
+def _build_block_maps3(
+    entries: Iterable[Tuple[int, int]],
+    *,
+    row_sizes: Sequence[int],
+    row_axes: Sequence[str],
+    row_order: Sequence[int],
+    col_sizes: Sequence[int],
+    col_axes: Sequence[str],
+    col_order: Sequence[int],
+) -> Tuple[Dict[Tuple[int, int], Dict[int, set[int]]], Dict[Tuple[int, int], int], List[set[int]]]:
+    row_non_g = [name for name in row_axes if name != "g"]
+    col_order_names = [col_axes[idx] for idx in col_order]
+    col_non_g = [name for name in col_order_names if name != "g"]
+    row_sizes_map = {name: size for name, size in zip(row_axes, row_sizes)}
+    col_sizes_map = {name: size for name, size in zip(col_axes, col_sizes)}
+    row_block_count = int(row_sizes_map[row_non_g[0]] * row_sizes_map[row_non_g[1]])
+    row_blocks = [set() for _ in range(row_block_count)]
+    block_perm: Dict[Tuple[int, int], Dict[int, set[int]]] = {}
+    block_nnz: Dict[Tuple[int, int], int] = {}
+    for r, c in entries:
+        row_vals = _decode3(r, row_sizes, row_order)
+        col_vals = _decode3(c, col_sizes, col_order)
+        row_val_map = {name: row_vals[idx] for idx, name in enumerate(row_axes)}
+        col_val_map = {name: col_vals[idx] for idx, name in enumerate(col_axes)}
+        row_block = (
+            row_val_map[row_non_g[0]] * row_sizes_map[row_non_g[1]]
+            + row_val_map[row_non_g[1]]
+        )
+        col_block = (
+            col_val_map[col_non_g[0]] * col_sizes_map[col_non_g[1]]
+            + col_val_map[col_non_g[1]]
+        )
+        row_blocks[int(row_block)].add(int(col_block))
+        gr = row_val_map["g"]
+        gc = col_val_map["g"]
+        key = (int(row_block), int(col_block))
+        block_perm.setdefault(key, {}).setdefault(int(gr), set()).add(int(gc))
+        block_nnz[key] = block_nnz.get(key, 0) + 1
+    return block_perm, block_nnz, row_blocks
+
+
+def _score_block_maps(
+    block_perm: Dict[Tuple[int, int], Dict[int, set[int]]],
+    block_nnz: Dict[Tuple[int, int], int],
+    *,
+    m: int,
+) -> Tuple[int, int, int, int]:
+    full = 0
+    eq_m = 0
+    good = 0
+    total = 0
+    for key, gr_map in block_perm.items():
+        nnz = block_nnz.get(key, 0)
+        if nnz <= 0:
+            continue
+        total += 1
+        if nnz == m:
+            eq_m += 1
+        gc_seen: set[int] = set()
+        is_good = True
+        for gcs in gr_map.values():
+            if len(gcs) != 1:
+                is_good = False
+                break
+            gc = next(iter(gcs))
+            if gc in gc_seen:
+                is_good = False
+                break
+            gc_seen.add(gc)
+        if is_good:
+            good += 1
+            if len(gr_map) == m:
+                full += 1
+    return full, eq_m, good, total
+
+
+def _order_label(order: Sequence[int], axes: Sequence[str]) -> str:
+    return ",".join(axes[idx] for idx in order)
+
+
+def _select_axes_mapping(
+    *,
+    hx_entries: Iterable[Tuple[int, int]],
+    hz_entries: Iterable[Tuple[int, int]],
+    hx_row_axes: Sequence[str],
+    hx_row_sizes: Sequence[int],
+    hz_row_axes: Sequence[str],
+    hz_row_sizes: Sequence[int],
+    col_axes: Sequence[str],
+    col_sizes: Sequence[int],
+    nA: int,
+    nB: int,
+    m: int,
+) -> Dict[str, object]:
+    perms = list(itertools.permutations(range(3)))
+    best: Optional[Dict[str, object]] = None
+    for row_order_hx in perms:
+        for row_order_hz in perms:
+            for col_order in perms:
+                hx_block_perm, hx_block_nnz, hx_row_blocks = _build_block_maps3(
+                    hx_entries,
+                    row_sizes=hx_row_sizes,
+                    row_axes=hx_row_axes,
+                    row_order=row_order_hx,
+                    col_sizes=col_sizes,
+                    col_axes=col_axes,
+                    col_order=col_order,
+                )
+                hz_block_perm, hz_block_nnz, hz_row_blocks = _build_block_maps3(
+                    hz_entries,
+                    row_sizes=hz_row_sizes,
+                    row_axes=hz_row_axes,
+                    row_order=row_order_hz,
+                    col_sizes=col_sizes,
+                    col_axes=col_axes,
+                    col_order=col_order,
+                )
+                hx_score = _score_block_maps(hx_block_perm, hx_block_nnz, m=m)
+                hz_score = _score_block_maps(hz_block_perm, hz_block_nnz, m=m)
+                full = hx_score[0] + hz_score[0]
+                eq_m = hx_score[1] + hz_score[1]
+                good = hx_score[2] + hz_score[2]
+                total = hx_score[3] + hz_score[3]
+                cb_to_ij = _cb_to_ij_from_col_order(
+                    col_order=col_order, col_axes=col_axes, nA=nA, nB=nB
+                )
+                hx_const_j, _ = _count_const_rows(hx_row_blocks, cb_to_ij=cb_to_ij)
+                _, hz_const_i = _count_const_rows(hz_row_blocks, cb_to_ij=cb_to_ij)
+                class_score = hx_const_j + hz_const_i
+                score = (full, eq_m, good, -total, class_score)
+                record = {
+                    "row_order_hx": tuple(row_order_hx),
+                    "row_order_hz": tuple(row_order_hz),
+                    "col_order": tuple(col_order),
+                    "score": score,
+                    "hx_score": hx_score,
+                    "hz_score": hz_score,
+                    "class_score": class_score,
+                    "hx_block_perm": hx_block_perm,
+                    "hx_block_nnz": hx_block_nnz,
+                    "hx_row_blocks": hx_row_blocks,
+                    "hz_block_perm": hz_block_perm,
+                    "hz_block_nnz": hz_block_nnz,
+                    "hz_row_blocks": hz_row_blocks,
+                }
+                if best is None or record["score"] > best["score"]:
+                    best = record
+    if best is None:
+        raise RuntimeError("Unable to select axis mapping.")
+    return best
 
 
 def _build_block_maps(
@@ -348,6 +569,22 @@ def _cb_to_ij_option(nA: int, nB: int, option: str):
     if option == "j_nA_i":
         return lambda cb: (cb % nA, cb // nA)
     raise ValueError(f"Unknown option {option!r}.")
+
+
+def _cb_to_ij_from_col_order(
+    *,
+    col_order: Sequence[int],
+    col_axes: Sequence[str],
+    nA: int,
+    nB: int,
+):
+    order_names = [col_axes[idx] for idx in col_order]
+    non_g = [name for name in order_names if name != "g"]
+    if non_g == ["i", "j"]:
+        return _cb_to_ij_option(nA, nB, "i_nB_j")
+    if non_g == ["j", "i"]:
+        return _cb_to_ij_option(nA, nB, "j_nA_i")
+    raise ValueError(f"Unexpected column axes order {non_g!r}.")
 
 
 def _classify_row_blocks(
@@ -762,13 +999,13 @@ def _collect_pairs(root: Path) -> List[dict]:
     return sorted(results, key=lambda e: (e["folder"], e["group_tag"] or "", e["n"], e["k"], e["d"]))
 
 
-def _local_dims_from_folder(folder: str) -> Tuple[int, int]:
+def _local_dims_from_folder(folder: str) -> Tuple[int, int, int, int]:
     if folder == "633x633":
-        return 6, 6
+        return 6, 3, 6, 3
     if folder == "633x212":
-        return 6, 2
+        return 6, 3, 2, 1
     if folder == "844x212":
-        return 8, 2
+        return 8, 4, 2, 1
     raise ValueError(f"Unrecognized local code folder {folder!r}.")
 
 
@@ -785,7 +1022,7 @@ def _extract_from_pair(
     cache_dir: Path,
     debug: bool = False,
 ) -> dict:
-    nA, nB = _local_dims_from_folder(folder)
+    nA, rA, nB, rB = _local_dims_from_folder(folder)
     hx_m, hx_n, hx_rows = read_mtx_coordinate_binary(hx_path)
     hz_m, hz_n, hz_rows = read_mtx_coordinate_binary(hz_path)
     if hx_n != hz_n:
@@ -793,46 +1030,69 @@ def _extract_from_pair(
     if hx_n % (nA * nB) != 0:
         raise ValueError(f"n={hx_n} is not divisible by nA*nB={nA*nB}.")
     m = hx_n // (nA * nB)
-    n_blocks = nA * nB
+    if hx_n != nA * nB * m:
+        raise ValueError(f"Unexpected n={hx_n}; expected nA*nB*m={nA*nB*m}.")
+    if hx_m != rA * nB * m:
+        raise ValueError(f"HX rows {hx_m} != rA*nB*m={rA*nB*m}.")
+    if hz_m != nA * rB * m:
+        raise ValueError(f"HZ rows {hz_m} != nA*rB*m={nA*rB*m}.")
 
     hx_entries = list(_iter_nonzero_entries(hx_rows))
     hz_entries = list(_iter_nonzero_entries(hz_rows))
 
-    mapping_choice = _select_fiber_mappings(
+    hx_row_axes = ["r", "j", "g"]
+    hx_row_sizes = [rA, nB, m]
+    hz_row_axes = ["i", "r", "g"]
+    hz_row_sizes = [nA, rB, m]
+    col_axes = ["i", "j", "g"]
+    col_sizes = [nA, nB, m]
+
+    mapping_choice = _select_axes_mapping(
         hx_entries=hx_entries,
         hz_entries=hz_entries,
-        hx_shape=(hx_m, hx_n),
-        hz_shape=(hz_m, hz_n),
-        m=m,
-    )
-    row_mode = mapping_choice["row_mode"]
-    col_mode = mapping_choice["col_mode"]
-
-    hx_block_perm, hx_row_blocks = _build_block_maps(
-        hx_entries, n_rows=hx_m, n_cols=hx_n, m=m, row_mode=row_mode, col_mode=col_mode
-    )
-    hz_block_perm, hz_row_blocks = _build_block_maps(
-        hz_entries, n_rows=hz_m, n_cols=hz_n, m=m, row_mode=row_mode, col_mode=col_mode
-    )
-
-    cb_choice = _select_cb_mapping(
+        hx_row_axes=hx_row_axes,
+        hx_row_sizes=hx_row_sizes,
+        hz_row_axes=hz_row_axes,
+        hz_row_sizes=hz_row_sizes,
+        col_axes=col_axes,
+        col_sizes=col_sizes,
         nA=nA,
         nB=nB,
-        hx_row_blocks=hx_row_blocks,
-        hz_row_blocks=hz_row_blocks,
+        m=m,
     )
-    cb_to_ij = cb_choice["cb_to_ij"]
+
+    row_order_hx = mapping_choice["row_order_hx"]
+    row_order_hz = mapping_choice["row_order_hz"]
+    col_order = mapping_choice["col_order"]
+
+    hx_block_perm = mapping_choice["hx_block_perm"]
+    hx_block_nnz = mapping_choice["hx_block_nnz"]
+    hx_row_blocks = mapping_choice["hx_row_blocks"]
+    hz_block_perm = mapping_choice["hz_block_perm"]
+    hz_block_nnz = mapping_choice["hz_block_nnz"]
+    hz_row_blocks = mapping_choice["hz_row_blocks"]
+
+    cb_to_ij = _cb_to_ij_from_col_order(
+        col_order=col_order, col_axes=col_axes, nA=nA, nB=nB
+    )
+    col_non_g = [col_axes[idx] for idx in col_order if col_axes[idx] != "g"]
+    cb_option = "i_nB_j" if col_non_g == ["i", "j"] else "j_nA_i"
 
     hx_types, hx_counts = _classify_row_blocks(hx_row_blocks, cb_to_ij=cb_to_ij)
     hz_types, hz_counts = _classify_row_blocks(hz_row_blocks, cb_to_ij=cb_to_ij)
 
-    def collect_perms(block_perm):
+    def collect_perms(block_perm, block_nnz):
         perms = {}
-        stats = {"nonzero": 0, "valid": 0, "invalid": 0}
+        stats = {"blocks": 0, "eq_m": 0, "valid": 0, "invalid": 0}
         for key, gr_map in block_perm.items():
-            if not gr_map:
+            nnz = block_nnz.get(key, 0)
+            if nnz <= 0:
                 continue
-            stats["nonzero"] += 1
+            stats["blocks"] += 1
+            if nnz == m:
+                stats["eq_m"] += 1
+            if nnz != m:
+                continue
             perm, ok = _perm_from_block_map(gr_map, m=m)
             if perm is None or not ok:
                 stats["invalid"] += 1
@@ -841,8 +1101,8 @@ def _extract_from_pair(
             stats["valid"] += 1
         return perms, stats
 
-    hx_perms, hx_perm_stats = collect_perms(hx_block_perm)
-    hz_perms, hz_perm_stats = collect_perms(hz_block_perm)
+    hx_perms, hx_perm_stats = collect_perms(hx_block_perm, hx_block_nnz)
+    hz_perms, hz_perm_stats = collect_perms(hz_block_perm, hz_block_nnz)
 
     left_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "A"]
     right_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "B"]
@@ -880,85 +1140,52 @@ def _extract_from_pair(
     if group is not None:
         left_map, left_inv_map, right_map, right_inv_map = _build_perm_maps(group)
 
-    def accumulate_votes(perms, row_types, *, use_left: bool):
-        votes = [Counter() for _ in range(nA if use_left else nB)]
-        mismatches = 0
-        total = 0
-        match_counts = Counter()
-        for (rb, cb), perm in perms.items():
-            classification = row_types[rb]
-            if not classification:
-                continue
-            kind, _ = classification
-            if use_left and kind != "A":
-                continue
-            if not use_left and kind != "B":
-                continue
+    a_votes = [Counter() for _ in range(nA)]
+    b_votes = [Counter() for _ in range(nB)]
+    a_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
+    b_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
+
+    def apply_votes(perms):
+        for (_, cb), perm in perms.items():
             i_val, j_val = cb_to_ij(cb)
-            total += 1
-            if use_left:
-                prefer = ("L", "L_inv", "R", "R_inv")
-                match = _match_perm(
-                    perm,
-                    left_map=left_map,
-                    left_inv_map=left_inv_map,
-                    right_map=right_map,
-                    right_inv_map=right_inv_map,
-                    prefer=prefer,
-                )
-                target_idx = i_val
-                elem = match[1] if match else None
+            a_stats["total"] += 1
+            matchA = _match_perm_with_inverse(
+                perm,
+                left_map=left_map,
+                left_inv_map=left_inv_map,
+                right_map=right_map,
+                right_inv_map=right_inv_map,
+                prefer=("L", "L_inv", "R", "R_inv"),
+            )
+            if matchA and group is not None and matchA[0].startswith("L"):
+                match_type, elem, inverse_used = matchA
+                elem_val = _element_from_match_left(match_type, elem, inverse_used, group)
+                a_votes[i_val][int(elem_val)] += 1
+                key = f"{match_type}{'_T' if inverse_used else ''}"
+                a_stats["match_counts"][key] += 1
             else:
-                prefer = ("R_inv", "R", "L_inv", "L")
-                match = _match_perm(
-                    perm,
-                    left_map=left_map,
-                    left_inv_map=left_inv_map,
-                    right_map=right_map,
-                    right_inv_map=right_inv_map,
-                    prefer=prefer,
-                )
-                target_idx = j_val
-                if match is None:
-                    elem = None
-                else:
-                    match_type, elem = match
-                    if match_type == "R" and group is not None:
-                        elem = int(group.inv(elem))
-            if elem is None:
-                mismatches += 1
-                continue
-            if match:
-                match_counts[match[0]] += 1
-            votes[target_idx][int(elem)] += 1
-        return votes, {"total": total, "mismatches": mismatches, "match_counts": dict(match_counts)}
+                a_stats["mismatches"] += 1
 
-    a_votes_hx, a_stats_hx = accumulate_votes(hx_perms, hx_types, use_left=True)
-    b_votes_hx, b_stats_hx = accumulate_votes(hx_perms, hx_types, use_left=False)
-    a_votes_hz, a_stats_hz = accumulate_votes(hz_perms, hz_types, use_left=True)
-    b_votes_hz, b_stats_hz = accumulate_votes(hz_perms, hz_types, use_left=False)
+            b_stats["total"] += 1
+            matchB = _match_perm_with_inverse(
+                perm,
+                left_map=left_map,
+                left_inv_map=left_inv_map,
+                right_map=right_map,
+                right_inv_map=right_inv_map,
+                prefer=("R", "R_inv", "L", "L_inv"),
+            )
+            if matchB and group is not None and matchB[0].startswith("R"):
+                match_type, elem, inverse_used = matchB
+                elem_val = _element_from_match_right(match_type, elem, inverse_used, group)
+                b_votes[j_val][int(elem_val)] += 1
+                key = f"{match_type}{'_T' if inverse_used else ''}"
+                b_stats["match_counts"][key] += 1
+            else:
+                b_stats["mismatches"] += 1
 
-    def count_blocks(block_perm, row_types, kind: str) -> int:
-        total = 0
-        for (rb, _), gr_map in block_perm.items():
-            if not gr_map:
-                continue
-            classification = row_types[rb]
-            if classification and classification[0] == kind:
-                total += 1
-        return total
-
-    def merge_votes(v1, v2):
-        merged = []
-        for c1, c2 in zip(v1, v2):
-            out = Counter()
-            out.update(c1)
-            out.update(c2)
-            merged.append(out)
-        return merged
-
-    a_votes = merge_votes(a_votes_hx, a_votes_hz)
-    b_votes = merge_votes(b_votes_hx, b_votes_hz)
+    apply_votes(hx_perms)
+    apply_votes(hz_perms)
 
     def finalize_votes(votes):
         result = []
@@ -1021,21 +1248,17 @@ def _extract_from_pair(
         "hx": hx_perm_stats,
         "hz": hz_perm_stats,
     }
-    a_match_counts = Counter()
-    b_match_counts = Counter()
-    for stats in (a_stats_hx, a_stats_hz):
-        a_match_counts.update(stats.get("match_counts", {}))
-    for stats in (b_stats_hx, b_stats_hz):
-        b_match_counts.update(stats.get("match_counts", {}))
-    total_left = count_blocks(hx_block_perm, hx_types, "A") + count_blocks(
-        hz_block_perm, hz_types, "A"
-    )
-    total_right = count_blocks(hx_block_perm, hx_types, "B") + count_blocks(
-        hz_block_perm, hz_types, "B"
-    )
+    a_match_counts = Counter(a_stats["match_counts"])
+    b_match_counts = Counter(b_stats["match_counts"])
+    total_left = int(a_stats.get("total", 0))
+    total_right = int(b_stats.get("total", 0))
     perm_match = {
-        "left_matches": int(a_match_counts.get("L", 0) + a_match_counts.get("L_inv", 0)),
-        "right_matches": int(b_match_counts.get("R", 0) + b_match_counts.get("R_inv", 0)),
+        "left_matches": int(
+            sum(count for key, count in a_match_counts.items() if key.startswith("L"))
+        ),
+        "right_matches": int(
+            sum(count for key, count in b_match_counts.items() if key.startswith("R"))
+        ),
         "total_left": total_left,
         "total_right": total_right,
         "match_counts_A": dict(a_match_counts),
@@ -1045,42 +1268,72 @@ def _extract_from_pair(
     debug_examples = []
     if debug and group is not None:
         for (rb, cb), perm in list(hx_perms.items())[:8]:
-            classification = hx_types[rb]
-            if not classification:
-                continue
-            kind, _ = classification
-            prefer = ("L", "L_inv", "R", "R_inv") if kind == "A" else ("R_inv", "R", "L_inv", "L")
-            match = _match_perm(
+            i_val, j_val = cb_to_ij(cb)
+            matchA = _match_perm_with_inverse(
                 perm,
                 left_map=left_map,
                 left_inv_map=left_inv_map,
                 right_map=right_map,
                 right_inv_map=right_inv_map,
-                prefer=prefer,
+                prefer=("L", "L_inv", "R", "R_inv"),
             )
-            i_val, j_val = cb_to_ij(cb)
-            if match:
+            matchB = _match_perm_with_inverse(
+                perm,
+                left_map=left_map,
+                left_inv_map=left_inv_map,
+                right_map=right_map,
+                right_inv_map=right_inv_map,
+                prefer=("R", "R_inv", "L", "L_inv"),
+            )
+            if matchA:
+                match_type, elem, inverse_used = matchA
+                elem_val = _element_from_match_left(match_type, elem, inverse_used, group)
                 debug_examples.append(
                     {
                         "rb": rb,
                         "cb": cb,
-                        "kind": kind,
+                        "kind": "A",
                         "i": i_val,
                         "j": j_val,
-                        "match": match[0],
-                        "elem": group.repr(match[1]),
+                        "match": f"{match_type}{'_T' if inverse_used else ''}",
+                        "elem": group.repr(elem_val),
+                    }
+                )
+            elif matchB:
+                match_type, elem, inverse_used = matchB
+                elem_val = _element_from_match_right(match_type, elem, inverse_used, group)
+                debug_examples.append(
+                    {
+                        "rb": rb,
+                        "cb": cb,
+                        "kind": "B",
+                        "i": i_val,
+                        "j": j_val,
+                        "match": f"{match_type}{'_T' if inverse_used else ''}",
+                        "elem": group.repr(elem_val),
                     }
                 )
 
     if debug:
         print(f"[paper_extract] debug {hx_path.stem}")
         print(
-            f"  fiber map row={row_mode} col={col_mode} score={mapping_choice['score']}"
+            "  row_order_hx="
+            f"{_order_label(row_order_hx, hx_row_axes)} col_order="
+            f"{_order_label(col_order, col_axes)}"
         )
-        print(f"  cb mapping={cb_choice['option']} orientation={cb_choice['orientation']}")
         print(
-            f"  row blocks HX={hx_counts} HZ={hz_counts}"
+            "  row_order_hz="
+            f"{_order_label(row_order_hz, hz_row_axes)}"
         )
+        print(
+            "  mapping score="
+            f"{mapping_choice['score']} hx_score={mapping_choice['hx_score']} "
+            f"hz_score={mapping_choice['hz_score']} class_score={mapping_choice.get('class_score')}"
+        )
+        full_blocks, eq_m_blocks = mapping_choice["score"][:2]
+        print(f"  full_blocks={full_blocks} eq_m_blocks={eq_m_blocks}")
+        print(f"  cb mapping={cb_option}")
+        print(f"  row blocks HX={hx_counts} HZ={hz_counts}")
         if debug_examples:
             print("  examples:")
             for ex in debug_examples[:5]:
@@ -1104,15 +1357,18 @@ def _extract_from_pair(
         "k": k_val,
         "d": d_val,
         "nA": nA,
+        "rA": rA,
         "nB": nB,
+        "rB": rB,
         "mapping_choice": {
-            "row_mode": row_mode,
-            "col_mode": col_mode,
+            "row_order_hx": _order_label(row_order_hx, hx_row_axes),
+            "row_order_hz": _order_label(row_order_hz, hz_row_axes),
+            "col_order": _order_label(col_order, col_axes),
             "score": mapping_choice["score"],
             "hx_score": mapping_choice["hx_score"],
             "hz_score": mapping_choice["hz_score"],
-            "cb_option": cb_choice["option"],
-            "cb_orientation": cb_choice["orientation"],
+            "class_score": mapping_choice.get("class_score"),
+            "cb_option": cb_option,
         },
         "row_block_counts": {"hx": hx_counts, "hz": hz_counts},
         "A_ids": A_ids,
@@ -1126,10 +1382,7 @@ def _extract_from_pair(
         "perm_stats": perm_stats,
         "perm_match": perm_match,
         "vote_margins": {"A": A_margins, "B": B_margins},
-        "vote_stats": {
-            "A": {"hx": a_stats_hx, "hz": a_stats_hz},
-            "B": {"hx": b_stats_hx, "hz": b_stats_hz},
-        },
+        "vote_stats": {"A": a_stats, "B": b_stats},
     }
 
 
@@ -1156,9 +1409,9 @@ def _render_markdown(results: List[dict]) -> str:
             lines.append(f"- Group load error: {rec['group_load_error']}")
         mapping = rec.get("mapping_choice", {})
         lines.append(
-            f"- Local dims: nA={rec['nA']}, nB={rec['nB']}, "
-            f"row_map={mapping.get('row_mode')}, col_map={mapping.get('col_mode')}, "
-            f"cb_map={mapping.get('cb_option')} ({mapping.get('cb_orientation')})"
+            f"- Local dims: nA={rec['nA']}, rA={rec.get('rA')}, nB={rec['nB']}, rB={rec.get('rB')}, "
+            f"row_hx={mapping.get('row_order_hx')}, row_hz={mapping.get('row_order_hz')}, "
+            f"col={mapping.get('col_order')}, cb_map={mapping.get('cb_option')}"
         )
         lines.append(f"- A: {rec['A_repr']}")
         lines.append(f"- B: {rec['B_repr']}")
