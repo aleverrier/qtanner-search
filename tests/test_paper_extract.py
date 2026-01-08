@@ -41,3 +41,30 @@ def test_perm_mapping_synthetic_cyclic():
     assert paper_extract._perm_to_element_right(right_perm) == paper_extract._perm_inverse(
         right_perm
     )[0]
+
+
+def test_select_fiber_mapping_prefers_fiber_major():
+    m = 3
+    num_row_blocks = 2
+    num_col_blocks = 4
+    n_rows = num_row_blocks * m
+    n_cols = num_col_blocks * m
+    rows = [0] * n_rows
+    for rb in range(num_row_blocks):
+        for gr in range(m):
+            r = rb * m + gr
+            bits = 0
+            for cb in range(num_col_blocks):
+                c = cb * m + gr
+                bits |= 1 << c
+            rows[r] = bits
+    entries = list(paper_extract._iter_nonzero_entries(rows))
+    choice = paper_extract._select_fiber_mappings(
+        hx_entries=entries,
+        hz_entries=entries,
+        hx_shape=(n_rows, n_cols),
+        hz_shape=(n_rows, n_cols),
+        m=m,
+    )
+    assert choice["row_mode"] == "fiber-major"
+    assert choice["col_mode"] == "fiber-major"

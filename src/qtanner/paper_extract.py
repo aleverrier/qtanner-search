@@ -5,8 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import itertools
+import os
 import re
+import subprocess
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
@@ -74,6 +77,32 @@ def _perm_to_element_right(
     return inv[0]
 
 
+def _match_perm(
+    perm: Sequence[int],
+    *,
+    left_map: Dict[Tuple[int, ...], int],
+    left_inv_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+    right_inv_map: Dict[Tuple[int, ...], int],
+    prefer: Sequence[str],
+) -> Optional[Tuple[str, int]]:
+    perm_t = tuple(int(x) for x in perm)
+    lookup = {
+        "L": left_map,
+        "L_inv": left_inv_map,
+        "R": right_map,
+        "R_inv": right_inv_map,
+    }
+    for key in prefer:
+        table = lookup.get(key)
+        if table is None:
+            continue
+        elem = table.get(perm_t)
+        if elem is not None:
+            return key, int(elem)
+    return None
+
+
 def _build_left_right_maps(group: FiniteGroup) -> Tuple[Dict[Tuple[int, ...], int], Dict[Tuple[int, ...], int]]:
     left_map: Dict[Tuple[int, ...], int] = {}
     right_map: Dict[Tuple[int, ...], int] = {}
@@ -83,6 +112,144 @@ def _build_left_right_maps(group: FiniteGroup) -> Tuple[Dict[Tuple[int, ...], in
         left_map[left_perm] = elem
         right_map[right_perm] = elem
     return left_map, right_map
+
+
+def _build_perm_maps(
+    group: FiniteGroup,
+) -> Tuple[
+    Dict[Tuple[int, ...], int],
+    Dict[Tuple[int, ...], int],
+    Dict[Tuple[int, ...], int],
+    Dict[Tuple[int, ...], int],
+]:
+    left_map: Dict[Tuple[int, ...], int] = {}
+    left_inv_map: Dict[Tuple[int, ...], int] = {}
+    right_map: Dict[Tuple[int, ...], int] = {}
+    right_inv_map: Dict[Tuple[int, ...], int] = {}
+    for elem in group.elements():
+        inv_elem = group.inv(elem)
+        left_map[tuple(group.mul(elem, g) for g in group.elements())] = elem
+        left_inv_map[tuple(group.mul(inv_elem, g) for g in group.elements())] = elem
+        right_map[tuple(group.mul(g, elem) for g in group.elements())] = elem
+        right_inv_map[tuple(group.mul(g, inv_elem) for g in group.elements())] = elem
+    return left_map, left_inv_map, right_map, right_inv_map
+
+
+def _iter_nonzero_entries(rows: Sequence[int]) -> Iterable[Tuple[int, int]]:
+    for r, bits in enumerate(rows):
+        row_bits = int(bits)
+        while row_bits:
+            lsb = row_bits & -row_bits
+            c = lsb.bit_length() - 1
+            yield r, c
+            row_bits ^= lsb
+
+
+def _map_index(idx: int, *, m: int, num_blocks: int, mode: str) -> Tuple[int, int]:
+    if mode == "fiber-major":
+        return idx // m, idx % m
+    if mode == "group-major":
+        return idx % num_blocks, idx // num_blocks
+    raise ValueError(f"Unknown mapping mode {mode!r}.")
+
+
+def _build_block_maps(
+    entries: Iterable[Tuple[int, int]],
+    *,
+    n_rows: int,
+    n_cols: int,
+    m: int,
+    row_mode: str,
+    col_mode: str,
+) -> Tuple[Dict[Tuple[int, int], Dict[int, set[int]]], List[set[int]]]:
+    num_row_blocks = n_rows // m
+    num_col_blocks = n_cols // m
+    row_blocks = [set() for _ in range(num_row_blocks)]
+    block_perm: Dict[Tuple[int, int], Dict[int, set[int]]] = {}
+    for r, c in entries:
+        rb, gr = _map_index(r, m=m, num_blocks=num_row_blocks, mode=row_mode)
+        cb, gc = _map_index(c, m=m, num_blocks=num_col_blocks, mode=col_mode)
+        row_blocks[rb].add(cb)
+        key = (rb, cb)
+        if key not in block_perm:
+            block_perm[key] = {}
+        block_perm[key].setdefault(gr, set()).add(gc)
+    return block_perm, row_blocks
+
+
+def _score_block_perm(block_perm: Dict[Tuple[int, int], Dict[int, set[int]]], *, m: int) -> Tuple[int, int, int]:
+    full_good = 0
+    good = 0
+    bad = 0
+    for gr_map in block_perm.values():
+        if not gr_map:
+            continue
+        gc_seen: set[int] = set()
+        is_good = True
+        for gcs in gr_map.values():
+            if len(gcs) != 1:
+                is_good = False
+                break
+            gc = next(iter(gcs))
+            if gc in gc_seen:
+                is_good = False
+                break
+            gc_seen.add(gc)
+        if is_good:
+            good += 1
+            if len(gr_map) == m:
+                full_good += 1
+        else:
+            bad += 1
+    return full_good, good, bad
+
+
+def _select_fiber_mappings(
+    *,
+    hx_entries: Iterable[Tuple[int, int]],
+    hz_entries: Iterable[Tuple[int, int]],
+    hx_shape: Tuple[int, int],
+    hz_shape: Tuple[int, int],
+    m: int,
+) -> Dict[str, object]:
+    options = []
+    row_modes = ["fiber-major", "group-major"]
+    col_modes = ["fiber-major", "group-major"]
+    for row_mode in row_modes:
+        for col_mode in col_modes:
+            hx_block_perm, _ = _build_block_maps(
+                hx_entries,
+                n_rows=hx_shape[0],
+                n_cols=hx_shape[1],
+                m=m,
+                row_mode=row_mode,
+                col_mode=col_mode,
+            )
+            hz_block_perm, _ = _build_block_maps(
+                hz_entries,
+                n_rows=hz_shape[0],
+                n_cols=hz_shape[1],
+                m=m,
+                row_mode=row_mode,
+                col_mode=col_mode,
+            )
+            hx_score = _score_block_perm(hx_block_perm, m=m)
+            hz_score = _score_block_perm(hz_block_perm, m=m)
+            full_good = hx_score[0] + hz_score[0]
+            good = hx_score[1] + hz_score[1]
+            bad = hx_score[2] + hz_score[2]
+            score = (full_good, good, -bad)
+            options.append(
+                {
+                    "row_mode": row_mode,
+                    "col_mode": col_mode,
+                    "score": score,
+                    "hx_score": hx_score,
+                    "hz_score": hz_score,
+                }
+            )
+    options.sort(key=lambda x: x["score"], reverse=True)
+    return options[0]
 
 
 def _block_masks(m: int, total_blocks: int) -> List[int]:
@@ -153,6 +320,28 @@ def _extract_block_perm(
     return tuple(perm), True
 
 
+def _perm_from_block_map(gr_map: Dict[int, set[int]], *, m: int) -> Tuple[Optional[Tuple[int, ...]], bool]:
+    if not gr_map:
+        return None, True
+    if len(gr_map) != m:
+        return None, False
+    perm = [-1] * m
+    seen_gc: set[int] = set()
+    for gr, gcs in gr_map.items():
+        if len(gcs) != 1:
+            return None, False
+        gc = next(iter(gcs))
+        if gc in seen_gc:
+            return None, False
+        seen_gc.add(gc)
+        if gr < 0 or gr >= m:
+            return None, False
+        perm[gr] = gc
+    if any(p < 0 for p in perm):
+        return None, False
+    return tuple(perm), True
+
+
 def _cb_to_ij_option(nA: int, nB: int, option: str):
     if option == "i_nB_j":
         return lambda cb: (cb // nB, cb % nB)
@@ -188,6 +377,59 @@ def _classify_row_blocks(
             classifications.append(None)
             counts["unknown"] += 1
     return classifications, counts
+
+
+def _count_const_rows(
+    row_blocks: Sequence[set[int]],
+    *,
+    cb_to_ij,
+) -> Tuple[int, int]:
+    const_j = 0
+    const_i = 0
+    for touched in row_blocks:
+        if not touched:
+            continue
+        pairs = [cb_to_ij(cb) for cb in touched]
+        if len({j for _, j in pairs}) == 1:
+            const_j += 1
+        if len({i for i, _ in pairs}) == 1:
+            const_i += 1
+    return const_j, const_i
+
+
+def _select_cb_mapping(
+    *,
+    nA: int,
+    nB: int,
+    hx_row_blocks: Sequence[set[int]],
+    hz_row_blocks: Sequence[set[int]],
+) -> Dict[str, object]:
+    best = None
+    for option in ("i_nB_j", "j_nA_i"):
+        cb_to_ij = _cb_to_ij_option(nA, nB, option)
+        hx_const_j, hx_const_i = _count_const_rows(hx_row_blocks, cb_to_ij=cb_to_ij)
+        hz_const_j, hz_const_i = _count_const_rows(hz_row_blocks, cb_to_ij=cb_to_ij)
+        score_a = hx_const_j + hz_const_i
+        score_b = hx_const_i + hz_const_j
+        score = max(score_a, score_b)
+        orientation = "HX:j/HZ:i" if score_a >= score_b else "HX:i/HZ:j"
+        record = {
+            "option": option,
+            "cb_to_ij": cb_to_ij,
+            "score": score,
+            "score_a": score_a,
+            "score_b": score_b,
+            "orientation": orientation,
+            "hx_const_j": hx_const_j,
+            "hx_const_i": hx_const_i,
+            "hz_const_j": hz_const_j,
+            "hz_const_i": hz_const_i,
+        }
+        if best is None or record["score"] > best["score"]:
+            best = record
+    if best is None:
+        raise RuntimeError("Unable to determine column block ordering.")
+    return best
 
 
 def _choose_block_mapping(
@@ -277,25 +519,160 @@ def _parse_stem(stem: str) -> Tuple[Optional[str], int, int, int]:
     raise ValueError(f"Unrecognized filename stem {stem!r}.")
 
 
-def _group_spec_from_tag(tag: Optional[str], *, m: int) -> Tuple[str, str]:
+def _group_spec_from_tag(
+    tag: Optional[str],
+    *,
+    m: int,
+    gap_cmd: str,
+    cache_dir: Path,
+) -> Tuple[str, str, Optional[Dict[str, object]]]:
     if tag is None:
-        return f"C{m}", "inferred_cyclic"
+        return f"C{m}", "inferred_cyclic", None
     clean = tag.strip()
     if re.fullmatch(r"C\d+", clean):
-        return clean, "tag_cyclic"
+        return clean, "tag_cyclic", None
     if re.fullmatch(r"C\d+C\d+", clean):
         left = clean[1:].split("C", 1)[0]
         right = clean.split("C", 2)[2]
-        return f"C{left}xC{right}", "tag_direct_product"
+        return f"C{left}xC{right}", "tag_direct_product", None
     if clean == "C2C2":
-        return "C2xC2", "tag_direct_product"
+        return "C2xC2", "tag_direct_product", None
     if clean == "C6C2":
-        return "C6xC2", "tag_direct_product"
+        return "C6xC2", "tag_direct_product", None
     if clean == "Q8":
-        return "SmallGroup(8,5)", "tag_smallgroup"
+        spec = _resolve_tag_via_gap(
+            tag="Q8",
+            order=8,
+            gap_cmd=gap_cmd,
+            cache_dir=cache_dir,
+        )
+        if spec:
+            return spec, "tag_structure_Q8", {"tag": "Q8"}
+        return "Q8", "tag_unresolved_no_gap", {"tag": "Q8"}
     if clean == "C4rC4":
-        return "SmallGroup(16,1)", "tag_smallgroup_guess"
-    return clean, "tag_raw"
+        spec = _resolve_tag_via_gap(
+            tag="C4rC4",
+            order=16,
+            gap_cmd=gap_cmd,
+            cache_dir=cache_dir,
+        )
+        if spec:
+            return spec, "tag_structure_C4rC4", {"tag": "C4rC4"}
+        return "C4rC4", "tag_unresolved_no_gap", {"tag": "C4rC4"}
+    return clean, "tag_raw", {"tag": clean}
+
+
+def _structure_cache_path(order: int, cache_dir: Path) -> Path:
+    return cache_dir / f"paper_extract_structure_{order}.json"
+
+
+def _tag_cache_path(cache_dir: Path) -> Path:
+    return cache_dir / "paper_extract_tag_map.json"
+
+
+def _load_tag_cache(cache_dir: Path) -> Dict[str, object]:
+    path = _tag_cache_path(cache_dir)
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_tag_cache(cache_dir: Path, payload: Dict[str, object]) -> None:
+    path = _tag_cache_path(cache_dir)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _gap_structure_map(order: int, *, gap_cmd: str, cache_dir: Path) -> Dict[str, str]:
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = _structure_cache_path(order, cache_dir)
+    if cache_path.exists():
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict) and payload.get("structures"):
+            return {str(k): str(v) for k, v in payload["structures"].items()}
+    if not gap_is_available(gap_cmd):
+        return {}
+    script = "\n".join(
+        [
+            'if LoadPackage("smallgrp") = fail then',
+            '  Print("QTANNER_GAP_ERROR smallgrp_missing\\n");',
+            "  QuitGap(2);",
+            "fi;",
+            f"n := NrSmallGroups({order});;",
+            "for i in [1..n] do",
+            f"  Print(i, \":\", StructureDescription(SmallGroup({order}, i)), \"\\n\");",
+            "od;",
+            "QuitGap(0);",
+        ]
+    )
+    stdout = ""
+    stderr = ""
+    returncode = -1
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".g", delete=False) as tmp:
+            tmp.write(script)
+            script_path = tmp.name
+        result = subprocess.run(
+            [gap_cmd, "-q", "-b", "--quitonbreak", script_path],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        returncode = result.returncode
+    finally:
+        if "script_path" in locals():
+            try:
+                os.remove(script_path)
+            except OSError:
+                pass
+    if returncode != 0:
+        return {}
+    structures: Dict[str, str] = {}
+    for line in stdout.splitlines():
+        if ":" not in line:
+            continue
+        idx, desc = line.split(":", 1)
+        idx = idx.strip()
+        desc = desc.strip()
+        if idx.isdigit() and desc:
+            structures[idx] = desc
+    cache_path.write_text(
+        json.dumps({"order": order, "structures": structures}, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    return structures
+
+
+def _resolve_tag_via_gap(
+    *,
+    tag: str,
+    order: int,
+    gap_cmd: str,
+    cache_dir: Path,
+) -> Optional[str]:
+    cache = _load_tag_cache(cache_dir)
+    cache_key = f"{tag}_{order}"
+    if cache_key in cache:
+        return cache[cache_key].get("spec")
+    structures = _gap_structure_map(order, gap_cmd=gap_cmd, cache_dir=cache_dir)
+    if not structures:
+        return None
+    spec = None
+    if tag == "Q8":
+        for gid, desc in structures.items():
+            if desc == "Q8":
+                spec = f"SmallGroup({order},{gid})"
+                break
+    elif tag == "C4rC4":
+        for gid, desc in structures.items():
+            if "C4" in desc and ":" in desc:
+                spec = f"SmallGroup({order},{gid})"
+                break
+    if spec:
+        cache[cache_key] = {"spec": spec, "tag": tag, "order": order}
+        _write_tag_cache(cache_dir, cache)
+    return spec
 
 
 def _smallgroup_count(order: int) -> Optional[int]:
@@ -406,6 +783,7 @@ def _extract_from_pair(
     d_val: int,
     gap_cmd: str,
     cache_dir: Path,
+    debug: bool = False,
 ) -> dict:
     nA, nB = _local_dims_from_folder(folder)
     hx_m, hx_n, hx_rows = read_mtx_coordinate_binary(hx_path)
@@ -417,46 +795,69 @@ def _extract_from_pair(
     m = hx_n // (nA * nB)
     n_blocks = nA * nB
 
-    hx_row_blocks = _row_blocks_touched(hx_rows, m=m, n_blocks=n_blocks)
-    mapping_choice, cb_to_ij, hx_types, hx_counts = _choose_block_mapping(
-        hx_row_blocks, nA=nA, nB=nB
+    hx_entries = list(_iter_nonzero_entries(hx_rows))
+    hz_entries = list(_iter_nonzero_entries(hz_rows))
+
+    mapping_choice = _select_fiber_mappings(
+        hx_entries=hx_entries,
+        hz_entries=hz_entries,
+        hx_shape=(hx_m, hx_n),
+        hz_shape=(hz_m, hz_n),
+        m=m,
     )
-    hz_row_blocks = _row_blocks_touched(hz_rows, m=m, n_blocks=n_blocks)
+    row_mode = mapping_choice["row_mode"]
+    col_mode = mapping_choice["col_mode"]
+
+    hx_block_perm, hx_row_blocks = _build_block_maps(
+        hx_entries, n_rows=hx_m, n_cols=hx_n, m=m, row_mode=row_mode, col_mode=col_mode
+    )
+    hz_block_perm, hz_row_blocks = _build_block_maps(
+        hz_entries, n_rows=hz_m, n_cols=hz_n, m=m, row_mode=row_mode, col_mode=col_mode
+    )
+
+    cb_choice = _select_cb_mapping(
+        nA=nA,
+        nB=nB,
+        hx_row_blocks=hx_row_blocks,
+        hz_row_blocks=hz_row_blocks,
+    )
+    cb_to_ij = cb_choice["cb_to_ij"]
+
+    hx_types, hx_counts = _classify_row_blocks(hx_row_blocks, cb_to_ij=cb_to_ij)
     hz_types, hz_counts = _classify_row_blocks(hz_row_blocks, cb_to_ij=cb_to_ij)
 
-    def collect_perms(rows, row_blocks, row_types):
+    def collect_perms(block_perm):
         perms = {}
         stats = {"nonzero": 0, "valid": 0, "invalid": 0}
-        for rb, touched in enumerate(row_blocks):
-            if not touched:
+        for key, gr_map in block_perm.items():
+            if not gr_map:
                 continue
-            for cb in touched:
-                perm, ok = _extract_block_perm(rows, rb=rb, cb=cb, m=m)
-                if perm is None:
-                    if ok:
-                        continue
-                    stats["invalid"] += 1
-                    continue
-                stats["nonzero"] += 1
-                if ok:
-                    perms[(rb, cb)] = perm
-                    stats["valid"] += 1
-                else:
-                    stats["invalid"] += 1
+            stats["nonzero"] += 1
+            perm, ok = _perm_from_block_map(gr_map, m=m)
+            if perm is None or not ok:
+                stats["invalid"] += 1
+                continue
+            perms[key] = perm
+            stats["valid"] += 1
         return perms, stats
 
-    hx_perms, hx_perm_stats = collect_perms(hx_rows, hx_row_blocks, hx_types)
-    hz_perms, hz_perm_stats = collect_perms(hz_rows, hz_row_blocks, hz_types)
+    hx_perms, hx_perm_stats = collect_perms(hx_block_perm)
+    hz_perms, hz_perm_stats = collect_perms(hz_block_perm)
 
     left_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "A"]
     right_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "B"]
 
-    group_spec, spec_source = _group_spec_from_tag(group_tag, m=m)
+    group_spec, spec_source, tag_info = _group_spec_from_tag(
+        group_tag, m=m, gap_cmd=gap_cmd, cache_dir=cache_dir
+    )
     group = None
     group_error = None
     group_spec_final = group_spec
     smallgroup_stats = None
-    if group_spec.startswith("SmallGroup"):
+    if group_spec.startswith("SmallGroup") and spec_source not in (
+        "tag_structure_Q8",
+        "tag_structure_C4rC4",
+    ):
         if gap_is_available(gap_cmd):
             match_spec, match_stats = _select_smallgroup_spec(
                 order=m,
@@ -472,20 +873,23 @@ def _extract_from_pair(
             spec_source = "smallgroup_gap_missing"
     group, group_error = _load_group(group_spec_final, gap_cmd=gap_cmd, cache_dir=cache_dir)
 
-    left_map = None
-    right_map = None
+    left_map = {}
+    left_inv_map = {}
+    right_map = {}
+    right_inv_map = {}
     if group is not None:
-        left_map, right_map = _build_left_right_maps(group)
+        left_map, left_inv_map, right_map, right_inv_map = _build_perm_maps(group)
 
     def accumulate_votes(perms, row_types, *, use_left: bool):
         votes = [Counter() for _ in range(nA if use_left else nB)]
         mismatches = 0
         total = 0
+        match_counts = Counter()
         for (rb, cb), perm in perms.items():
             classification = row_types[rb]
             if not classification:
                 continue
-            kind, fixed_idx = classification
+            kind, _ = classification
             if use_left and kind != "A":
                 continue
             if not use_left and kind != "B":
@@ -493,21 +897,56 @@ def _extract_from_pair(
             i_val, j_val = cb_to_ij(cb)
             total += 1
             if use_left:
-                elem = _perm_to_element_left(perm, left_perm_map=left_map)
+                prefer = ("L", "L_inv", "R", "R_inv")
+                match = _match_perm(
+                    perm,
+                    left_map=left_map,
+                    left_inv_map=left_inv_map,
+                    right_map=right_map,
+                    right_inv_map=right_inv_map,
+                    prefer=prefer,
+                )
                 target_idx = i_val
+                elem = match[1] if match else None
             else:
-                elem = _perm_to_element_right(perm, right_perm_map=right_map, group=group)
+                prefer = ("R_inv", "R", "L_inv", "L")
+                match = _match_perm(
+                    perm,
+                    left_map=left_map,
+                    left_inv_map=left_inv_map,
+                    right_map=right_map,
+                    right_inv_map=right_inv_map,
+                    prefer=prefer,
+                )
                 target_idx = j_val
+                if match is None:
+                    elem = None
+                else:
+                    match_type, elem = match
+                    if match_type == "R" and group is not None:
+                        elem = int(group.inv(elem))
             if elem is None:
                 mismatches += 1
                 continue
+            if match:
+                match_counts[match[0]] += 1
             votes[target_idx][int(elem)] += 1
-        return votes, {"total": total, "mismatches": mismatches}
+        return votes, {"total": total, "mismatches": mismatches, "match_counts": dict(match_counts)}
 
     a_votes_hx, a_stats_hx = accumulate_votes(hx_perms, hx_types, use_left=True)
     b_votes_hx, b_stats_hx = accumulate_votes(hx_perms, hx_types, use_left=False)
     a_votes_hz, a_stats_hz = accumulate_votes(hz_perms, hz_types, use_left=True)
     b_votes_hz, b_stats_hz = accumulate_votes(hz_perms, hz_types, use_left=False)
+
+    def count_blocks(block_perm, row_types, kind: str) -> int:
+        total = 0
+        for (rb, _), gr_map in block_perm.items():
+            if not gr_map:
+                continue
+            classification = row_types[rb]
+            if classification and classification[0] == kind:
+                total += 1
+        return total
 
     def merge_votes(v1, v2):
         merged = []
@@ -582,16 +1021,73 @@ def _extract_from_pair(
         "hx": hx_perm_stats,
         "hz": hz_perm_stats,
     }
-    perm_match = None
-    if left_map is not None and right_map is not None:
-        left_matches = sum(1 for perm in left_perms if perm in left_map)
-        right_matches = sum(1 for perm in right_perms if perm in right_map)
-        perm_match = {
-            "left_matches": left_matches,
-            "right_matches": right_matches,
-            "total_left": len(left_perms),
-            "total_right": len(right_perms),
-        }
+    a_match_counts = Counter()
+    b_match_counts = Counter()
+    for stats in (a_stats_hx, a_stats_hz):
+        a_match_counts.update(stats.get("match_counts", {}))
+    for stats in (b_stats_hx, b_stats_hz):
+        b_match_counts.update(stats.get("match_counts", {}))
+    total_left = count_blocks(hx_block_perm, hx_types, "A") + count_blocks(
+        hz_block_perm, hz_types, "A"
+    )
+    total_right = count_blocks(hx_block_perm, hx_types, "B") + count_blocks(
+        hz_block_perm, hz_types, "B"
+    )
+    perm_match = {
+        "left_matches": int(a_match_counts.get("L", 0) + a_match_counts.get("L_inv", 0)),
+        "right_matches": int(b_match_counts.get("R", 0) + b_match_counts.get("R_inv", 0)),
+        "total_left": total_left,
+        "total_right": total_right,
+        "match_counts_A": dict(a_match_counts),
+        "match_counts_B": dict(b_match_counts),
+    }
+
+    debug_examples = []
+    if debug and group is not None:
+        for (rb, cb), perm in list(hx_perms.items())[:8]:
+            classification = hx_types[rb]
+            if not classification:
+                continue
+            kind, _ = classification
+            prefer = ("L", "L_inv", "R", "R_inv") if kind == "A" else ("R_inv", "R", "L_inv", "L")
+            match = _match_perm(
+                perm,
+                left_map=left_map,
+                left_inv_map=left_inv_map,
+                right_map=right_map,
+                right_inv_map=right_inv_map,
+                prefer=prefer,
+            )
+            i_val, j_val = cb_to_ij(cb)
+            if match:
+                debug_examples.append(
+                    {
+                        "rb": rb,
+                        "cb": cb,
+                        "kind": kind,
+                        "i": i_val,
+                        "j": j_val,
+                        "match": match[0],
+                        "elem": group.repr(match[1]),
+                    }
+                )
+
+    if debug:
+        print(f"[paper_extract] debug {hx_path.stem}")
+        print(
+            f"  fiber map row={row_mode} col={col_mode} score={mapping_choice['score']}"
+        )
+        print(f"  cb mapping={cb_choice['option']} orientation={cb_choice['orientation']}")
+        print(
+            f"  row blocks HX={hx_counts} HZ={hz_counts}"
+        )
+        if debug_examples:
+            print("  examples:")
+            for ex in debug_examples[:5]:
+                print(
+                    f"    rb={ex['rb']} cb={ex['cb']} kind={ex['kind']} "
+                    f"i={ex['i']} j={ex['j']} match={ex['match']} elem={ex['elem']}"
+                )
 
     return {
         "code_id": f"{group_tag or 'C' + str(m)}_{n_val}_{k_val}_{d_val}",
@@ -609,7 +1105,15 @@ def _extract_from_pair(
         "d": d_val,
         "nA": nA,
         "nB": nB,
-        "mapping_choice": mapping_choice,
+        "mapping_choice": {
+            "row_mode": row_mode,
+            "col_mode": col_mode,
+            "score": mapping_choice["score"],
+            "hx_score": mapping_choice["hx_score"],
+            "hz_score": mapping_choice["hz_score"],
+            "cb_option": cb_choice["option"],
+            "cb_orientation": cb_choice["orientation"],
+        },
         "row_block_counts": {"hx": hx_counts, "hz": hz_counts},
         "A_ids": A_ids,
         "A_repr": A_repr,
@@ -650,7 +1154,12 @@ def _render_markdown(results: List[dict]) -> str:
         lines.append(f"- Group: {rec['group_spec']} (tag={rec['group_tag']}, |G|={rec['group_order']})")
         if rec.get("group_load_error"):
             lines.append(f"- Group load error: {rec['group_load_error']}")
-        lines.append(f"- Local dims: nA={rec['nA']}, nB={rec['nB']}, mapping={rec['mapping_choice']}")
+        mapping = rec.get("mapping_choice", {})
+        lines.append(
+            f"- Local dims: nA={rec['nA']}, nB={rec['nB']}, "
+            f"row_map={mapping.get('row_mode')}, col_map={mapping.get('col_mode')}, "
+            f"cb_map={mapping.get('cb_option')} ({mapping.get('cb_orientation')})"
+        )
         lines.append(f"- A: {rec['A_repr']}")
         lines.append(f"- B: {rec['B_repr']}")
         lines.append(
@@ -680,6 +1189,12 @@ def main() -> int:
     parser.add_argument("--out", dest="out_path", required=True, help="Output Markdown path.")
     parser.add_argument("--json", dest="json_path", required=True, help="Output JSON path.")
     parser.add_argument("--gap-cmd", default="gap", help="GAP command (for SmallGroup).")
+    parser.add_argument(
+        "--debug-one",
+        dest="debug_one",
+        default=None,
+        help="HX/HZ stem to debug (e.g. HX_60_2_8).",
+    )
     args = parser.parse_args()
 
     root = Path(args.input_dir)
@@ -694,6 +1209,12 @@ def main() -> int:
 
     results = []
     for pair in pairs:
+        debug = False
+        if args.debug_one:
+            stem_match = args.debug_one.strip()
+            if stem_match not in (pair["hx"].stem, pair["hz"].stem):
+                continue
+            debug = True
         rec = _extract_from_pair(
             hx_path=pair["hx"],
             hz_path=pair["hz"],
@@ -704,6 +1225,7 @@ def main() -> int:
             d_val=pair["d"],
             gap_cmd=args.gap_cmd,
             cache_dir=cache_dir,
+            debug=debug,
         )
         results.append(rec)
 
