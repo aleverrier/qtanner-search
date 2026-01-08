@@ -1,7 +1,14 @@
 """qtanner: small utilities for local code handling."""
 
 from .gf2 import gf2_is_in_rowspan, gf2_rank
-from .group import FiniteGroup
+from .group import (
+    CyclicGroup,
+    DirectProductGroup,
+    FiniteGroup,
+    TableGroup,
+    canonical_group_spec,
+    group_from_spec,
+)
 from .lift_matrices import build_hx_hz, css_commutes
 from .local_codes import (
     LocalCode,
@@ -38,6 +45,11 @@ __all__ = [
     "gf2_rank",
     "gf2_is_in_rowspan",
     "FiniteGroup",
+    "CyclicGroup",
+    "DirectProductGroup",
+    "TableGroup",
+    "canonical_group_spec",
+    "group_from_spec",
     "build_hx_hz",
     "css_commutes",
     "write_mtx",

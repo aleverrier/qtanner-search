@@ -7,8 +7,6 @@ from typing import Iterable, List, Tuple
 from .group import FiniteGroup
 from .local_codes import LocalCode
 
-from .group_ops import ensure_group_ops
-
 
 def _bit_indices(row: int) -> List[int]:
     indices: List[int] = []
@@ -45,9 +43,8 @@ def _lift_block(
     B: List[int],
     perm: str,
 ) -> List[int]:
-    group = ensure_group_ops(group)
     order = group.order
-    b_inv = [group.inv_of(b) for b in B]
+    b_inv = [group.inv(b) for b in B]
     rows: List[int] = []
     for support in supports:
         for g0 in range(order):
@@ -76,12 +73,6 @@ def build_hx_hz(
     C1p: LocalCode,
 ) -> Tuple[List[int], List[int], int]:
     """Build lifted CSS check matrices HX and HZ as bitset rows."""
-    group = ensure_group_ops(group)
-    # qtanner-search compat: accept dict group
-    if isinstance(group, dict):
-        from types import SimpleNamespace
-        group = SimpleNamespace(**group)
-
     nA = C0.n
     nB = C0p.n
     if C1.n != nA or C1p.n != nB:

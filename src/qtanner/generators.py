@@ -16,7 +16,7 @@ def subgroup_generated(group: FiniteGroup, gens: List[int]) -> Set[int]:
     generators = list(gens)
     gens_with_inv = set(generators)
     for g in generators:
-        gens_with_inv.add(group.inv_of(g))
+        gens_with_inv.add(group.inv(g))
     step_gens = sorted(gens_with_inv)
     seen = {0}
     queue = [0]

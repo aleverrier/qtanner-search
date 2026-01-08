@@ -46,7 +46,7 @@ def _rows_la(rows: List[int], order: int, group: FiniteGroup, A: List[int]) -> L
 
 def _rows_rb(rows: List[int], order: int, group: FiniteGroup, B: List[int]) -> List[int]:
     out: List[int] = []
-    b_inv = [group.inv_of(b) for b in B]
+    b_inv = [group.inv(b) for b in B]
     for row in rows:
         support = _bit_indices(row)
         for g in range(order):

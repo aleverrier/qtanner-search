@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from typing import List, Tuple
 
-from .group import FiniteGroup
+from .group import TableGroup
 
 
 def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List[int]]:
@@ -106,7 +106,7 @@ def _run_gap_script(script: str) -> subprocess.CompletedProcess[str]:
                 pass
 
 
-def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") -> FiniteGroup:
+def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") -> TableGroup:
     """Load a GAP SmallGroup as a FiniteGroup, with JSON caching."""
     os.makedirs(cache_dir, exist_ok=True)
     cache_path = os.path.join(cache_dir, f"smallgroup_{order}_{gid}.json")
@@ -114,11 +114,10 @@ def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") 
         with open(cache_path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         if payload.get("format_version") == 2:
-            return FiniteGroup(
+            return TableGroup(
                 name=f"SmallGroup({order},{gid})",
-                order=payload["order"],
                 mul_table=payload["mul_table"],
-                inv=payload["inv"],
+                inv_table=payload["inv"],
             )
 
     script = "\n".join(
@@ -160,11 +159,10 @@ def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") 
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
 
-    return FiniteGroup(
+    return TableGroup(
         name=f"SmallGroup({order},{gid})",
-        order=order,
         mul_table=mul_table,
-        inv=inv,
+        inv_table=inv,
     )
 
 
