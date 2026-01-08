@@ -8,6 +8,7 @@ import math
 import os
 import random
 import re
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -417,6 +418,38 @@ def _add_explore_candidates(
     return selected + extra
 
 
+def _select_above_sqrt(
+    scored: List[SliceCandidate],
+    *,
+    group: FiniteGroup,
+    side: str,
+    d0: int,
+    cap: int,
+) -> Tuple[List[SliceCandidate], List[str]]:
+    eligible = [cand for cand in scored if cand.metrics.d_min >= d0]
+    if not eligible:
+        return [], []
+    if cap > 0 and len(eligible) > cap:
+        ranked = sorted(
+            eligible,
+            key=lambda cand: (
+                -cand.metrics.d_min,
+                -cand.metrics.k_min,
+                _classical_candidate_id(
+                    side=side, group=group, elements=cand.elements, perm_idx=cand.perm_idx
+                ),
+            ),
+        )
+        eligible = ranked[:cap]
+    selected_ids = [
+        _classical_candidate_id(
+            side=side, group=group, elements=cand.elements, perm_idx=cand.perm_idx
+        )
+        for cand in eligible
+    ]
+    return eligible, selected_ids
+
+
 def _write_frontier_file(
     path: Path,
     payloads: List[dict],
@@ -568,122 +601,18 @@ def _format_avg(avg: Optional[float]) -> str:
     return f"{avg:.3f}"
 
 
-def _recompute_best_by_nk(
-    summary_records: List[Dict[str, object]],
-) -> Dict[Tuple[int, int], Dict[str, object]]:
-    best: Dict[Tuple[int, int], Dict[str, object]] = {}
-    for entry in summary_records:
-        k = int(entry.get("k", 0))
-        if k <= 0:
-            continue
-        qd = entry.get("qdistrnd")
-        if not qd or qd.get("d_ub") is None:
-            continue
-        n = int(entry.get("n", 0))
-        key = (n, k)
-        current = best.get(key)
-        if current is None:
-            best[key] = entry
-            continue
-        cur_qd = current.get("qdistrnd") or {}
-        if int(qd.get("d_ub")) > int(cur_qd.get("d_ub", -1)):
-            best[key] = entry
-            continue
-        if int(qd.get("d_ub")) == int(cur_qd.get("d_ub", -1)):
-            if int(qd.get("trials_requested", 0)) < int(cur_qd.get("trials_requested", 0)):
-                best[key] = entry
-    return best
+def _best_by_k_key(entry: Dict[str, object]) -> Tuple[str, int, int]:
+    group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+    return (group_spec, int(entry.get("n", 0)), int(entry.get("k", 0)))
 
 
-def _best_record(entry: Dict[str, object]) -> Dict[str, object]:
-    record = {
-        "candidate_id": entry.get("candidate_id"),
-        "group": entry.get("group"),
-        "A": entry.get("A"),
-        "A_repr": entry.get("A_repr"),
-        "B": entry.get("B"),
-        "B_repr": entry.get("B_repr"),
-        "local_codes": entry.get("local_codes"),
-        "classical_slices": entry.get("classical_slices"),
-        "base": entry.get("base"),
-        "n": entry.get("n"),
-        "k": entry.get("k"),
-        "confirmed": entry.get("confirmed", False),
-        "confirm_trials": entry.get("confirm_trials"),
-        "confirm_side": entry.get("confirm_side"),
-        "qdistrnd": entry.get("qdistrnd"),
-    }
-    return record
-
-
-def _save_best_by_nk(path: Path, best_by_nk: Dict[Tuple[int, int], Dict[str, object]]) -> None:
-    payload: Dict[str, object] = {}
-    for (n, k) in sorted(best_by_nk):
-        payload[f"{n},{k}"] = _best_record(best_by_nk[(n, k)])
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-
-
-def _print_best_by_nk(best_by_nk: Dict[Tuple[int, int], Dict[str, object]]) -> None:
-    if not best_by_nk:
-        return
-    print("[pilot] best so far by (n,k):")
-    for n_key, k_key in sorted(best_by_nk):
-        entry = best_by_nk[(n_key, k_key)]
-        qd = entry.get("qdistrnd") or {}
-        dx_ub = qd.get("dx_ub")
-        dz_ub = qd.get("dz_ub")
-        d_ub = qd.get("d_ub")
-        qd_x = qd.get("qd_x") or {}
-        qd_z = qd.get("qd_z") or {}
-        confirmed = entry.get("confirmed", False)
-        permA = (entry.get("local_codes") or {}).get("permA_idx")
-        permB = (entry.get("local_codes") or {}).get("permB_idx")
-        print(
-            f"  [[{n_key},{k_key},{d_ub}]] dx_ub={dx_ub} dz_ub={dz_ub} "
-            f"permA={permA} permB={permB} confirmed={confirmed} "
-            f"id={entry.get('candidate_id')}"
-        )
-        print(
-            f"    dx: done={qd_x.get('rounds_done')}/{qd.get('trials_requested')} "
-            f"uniq={qd_x.get('uniq')} avg={_format_avg(qd_x.get('avg'))} "
-            f"dz: done={qd_z.get('rounds_done')}/{qd.get('trials_requested')} "
-            f"uniq={qd_z.get('uniq')} avg={_format_avg(qd_z.get('avg'))}"
-        )
-        classical = entry.get("classical_slices") or {}
-        a_info = classical.get("A") or {}
-        b_info = classical.get("B") or {}
-        h_a = a_info.get("H") or {}
-        g_a = a_info.get("G") or {}
-        gp_b = b_info.get("Gp") or {}
-        hp_b = b_info.get("Hp") or {}
-        print(
-            "    "
-            f"A_H: (n={h_a.get('n')},k={h_a.get('k')},d={h_a.get('d_est')}) "
-            f"A_G: (n={g_a.get('n')},k={g_a.get('k')},d={g_a.get('d_est')}) "
-            f"B_Gp: (n={gp_b.get('n')},k={gp_b.get('k')},d={gp_b.get('d_est')}) "
-            f"B_Hp: (n={hp_b.get('n')},k={hp_b.get('k')},d={hp_b.get('d_est')})"
-        )
-        base = entry.get("base") or {}
-        print(f"    base: (n_base={base.get('n_base')}, k_base={base.get('k_base')})")
-
-
-def _is_new_best(
-    best_by_nk: Dict[Tuple[int, int], Dict[str, object]],
-    entry: Dict[str, object],
-) -> bool:
-    k = int(entry.get("k", 0))
-    if k <= 0:
-        return False
+def _is_better_entry(entry: Dict[str, object], current: Dict[str, object]) -> bool:
     qd = entry.get("qdistrnd") or {}
+    cur_qd = current.get("qdistrnd") or {}
     d_ub = qd.get("d_ub")
+    cur_d = cur_qd.get("d_ub")
     if d_ub is None:
         return False
-    key = (int(entry.get("n", 0)), k)
-    current = best_by_nk.get(key)
-    if current is None:
-        return True
-    cur_qd = current.get("qdistrnd") or {}
-    cur_d = cur_qd.get("d_ub")
     if cur_d is None:
         return True
     if int(d_ub) > int(cur_d):
@@ -692,6 +621,261 @@ def _is_new_best(
         if int(qd.get("trials_requested", 0)) < int(cur_qd.get("trials_requested", 0)):
             return True
     return False
+
+
+def _recompute_best_by_k(
+    summary_records: List[Dict[str, object]],
+) -> Dict[Tuple[str, int, int], Dict[str, object]]:
+    best: Dict[Tuple[str, int, int], Dict[str, object]] = {}
+    for entry in summary_records:
+        k = int(entry.get("k", 0))
+        if k <= 0:
+            continue
+        qd = entry.get("qdistrnd")
+        if not qd or qd.get("d_ub") is None:
+            continue
+        key = _best_by_k_key(entry)
+        current = best.get(key)
+        if current is None or _is_better_entry(entry, current):
+            best[key] = entry
+    return best
+
+
+def _best_by_k_row(entry: Dict[str, object], *, uniq_target: int) -> Dict[str, object]:
+    qd = entry.get("qdistrnd") or {}
+    dx_ub = int(qd.get("dx_ub", 0))
+    dz_ub = int(qd.get("dz_ub", 0))
+    limiting_side = "X" if dx_ub <= dz_ub else "Z"
+    qd_x = qd.get("qd_x") or {}
+    qd_z = qd.get("qd_z") or {}
+    uniq_lim = int(qd_x.get("uniq", 0)) if limiting_side == "X" else int(qd_z.get("uniq", 0))
+    avg_lim = qd_x.get("avg") if limiting_side == "X" else qd_z.get("avg")
+    trials_used = entry.get("confirm_trials") or qd.get("trials_requested")
+    confirmed = uniq_lim >= uniq_target
+    return {
+        "k": int(entry.get("k", 0)),
+        "d_ub": qd.get("d_ub"),
+        "trials_used": trials_used,
+        "dx_ub": dx_ub,
+        "dz_ub": dz_ub,
+        "uniq_lim": uniq_lim,
+        "avg_lim": avg_lim,
+        "id": entry.get("candidate_id"),
+        "confirmed": confirmed,
+    }
+
+
+def _best_by_k_table(
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    *,
+    uniq_target: int,
+) -> str:
+    if not best_by_k:
+        return "[best_by_k] (no entries)\n"
+    groups: Dict[Tuple[str, int], List[Dict[str, object]]] = {}
+    for key, entry in best_by_k.items():
+        group_spec, n_val, _ = key
+        groups.setdefault((group_spec, n_val), []).append(entry)
+    lines: List[str] = []
+    for (group_spec, n_val) in sorted(groups):
+        lines.append(f"[best_by_k] group={group_spec} n={n_val}")
+        header = (
+            "k  | d_ub | trials_used | dx_ub | dz_ub | uniq_lim | avg_lim | id | confirmed"
+        )
+        lines.append(header)
+        rows = sorted(groups[(group_spec, n_val)], key=lambda entry: int(entry.get("k", 0)))
+        for entry in rows:
+            row = _best_by_k_row(entry, uniq_target=uniq_target)
+            avg_lim = _format_avg(row["avg_lim"])
+            line = (
+                f"{row['k']:>2} | {str(row['d_ub']):>4} | {str(row['trials_used']):>11} | "
+                f"{row['dx_ub']:>5} | {row['dz_ub']:>5} | {row['uniq_lim']:>8} | "
+                f"{avg_lim:>7} | {row['id']} | {row['confirmed']}"
+            )
+            lines.append(line)
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _write_best_by_k_outputs(
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    *,
+    uniq_target: int,
+    outdir: Path,
+) -> None:
+    table = _best_by_k_table(best_by_k, uniq_target=uniq_target)
+    print(table.rstrip())
+    (outdir / "best_by_k.txt").write_text(table, encoding="utf-8")
+    log_path = outdir / "best_by_k.log"
+    timestamp = _timestamp_utc()
+    with log_path.open("a", encoding="utf-8") as log_file:
+        log_file.write(f"[{timestamp}] best_by_k\n")
+        log_file.write(table)
+        if not table.endswith("\n"):
+            log_file.write("\n")
+    payload: Dict[str, Dict[str, List[Dict[str, object]]]] = {}
+    for key, entry in best_by_k.items():
+        group_spec, n_val, _ = key
+        row = _best_by_k_row(entry, uniq_target=uniq_target)
+        payload.setdefault(group_spec, {}).setdefault(str(n_val), []).append(row)
+    for group_spec in payload:
+        for n_val in payload[group_spec]:
+            payload[group_spec][n_val] = sorted(
+                payload[group_spec][n_val], key=lambda row: row["k"]
+            )
+    (outdir / "best_by_k.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+
+def _coverage_ratios(entry: Dict[str, object]) -> Dict[str, Optional[float]]:
+    q_possible_ge = int(entry.get("Q_possible_ge_sqrt", 0))
+    q_possible_sel = int(entry.get("Q_possible_selected", 0))
+    q_meas = int(entry.get("Q_meas_run", 0))
+    ratio_ge = None if q_possible_ge == 0 else q_meas / q_possible_ge
+    ratio_sel = None if q_possible_sel == 0 else q_meas / q_possible_sel
+    return {"Q_meas_over_possible_ge_sqrt": ratio_ge, "Q_meas_over_possible_selected": ratio_sel}
+
+
+def _coverage_summary(entry: Dict[str, object]) -> str:
+    ratios = _coverage_ratios(entry)
+    r_ge = ratios["Q_meas_over_possible_ge_sqrt"]
+    r_sel = ratios["Q_meas_over_possible_selected"]
+    r_ge_txt = "n/a" if r_ge is None else f"{r_ge:.3f}"
+    r_sel_txt = "n/a" if r_sel is None else f"{r_sel:.3f}"
+    return (
+        f"[coverage] group={entry.get('group')} "
+        f"A_sel={entry.get('A_candidates_selected')} "
+        f"B_sel={entry.get('B_candidates_selected')} "
+        f"Q_meas={entry.get('Q_meas_run')} "
+        f"ratio_ge_sqrt={r_ge_txt} ratio_sel={r_sel_txt}"
+    )
+
+
+def _write_coverage_files(coverage_by_group: Dict[str, Dict[str, object]], outdir: Path) -> None:
+    payload: Dict[str, object] = {}
+    lines: List[str] = []
+    for group_spec in sorted(coverage_by_group):
+        entry = dict(coverage_by_group[group_spec])
+        entry["ratios"] = _coverage_ratios(entry)
+        payload[group_spec] = entry
+        lines.append(_coverage_summary(entry))
+        lines.append(
+            "  "
+            f"A: multisets={entry.get('A_multisets_total')} "
+            f"perm_total={entry.get('A_perm_total')} "
+            f"total={entry.get('A_candidates_total')} "
+            f"ge_sqrt={entry.get('A_candidates_ge_sqrt')} "
+            f"selected={entry.get('A_candidates_selected')}"
+        )
+        lines.append(
+            "  "
+            f"B: multisets={entry.get('B_multisets_total')} "
+            f"perm_total={entry.get('B_perm_total')} "
+            f"total={entry.get('B_candidates_total')} "
+            f"ge_sqrt={entry.get('B_candidates_ge_sqrt')} "
+            f"selected={entry.get('B_candidates_selected')}"
+        )
+        lines.append(
+            "  "
+            f"Q: possible_ge_sqrt={entry.get('Q_possible_ge_sqrt')} "
+            f"possible_selected={entry.get('Q_possible_selected')} "
+            f"pairs_iterated={entry.get('Q_pairs_iterated')} "
+            f"k_pos={entry.get('Q_k_pos')} "
+            f"filter_run={entry.get('Q_filter_run')} "
+            f"filter_pass={entry.get('Q_filter_pass')} "
+            f"meas_run={entry.get('Q_meas_run')} "
+            f"confirm_run={entry.get('Q_confirm_run')}"
+        )
+        lines.append("")
+    (outdir / "coverage.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    (outdir / "coverage.txt").write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+
+
+def _build_meta(entry: Dict[str, object]) -> Dict[str, object]:
+    qd = entry.get("qdistrnd") or {}
+    meta = {
+        "group": entry.get("group"),
+        "A": entry.get("A_repr") or entry.get("A"),
+        "A_ids": entry.get("A"),
+        "B": entry.get("B_repr") or entry.get("B"),
+        "B_ids": entry.get("B"),
+        "local_codes": entry.get("local_codes"),
+        "n": entry.get("n"),
+        "k": entry.get("k"),
+        "distance_estimate": {
+            "method": "QDistRnd",
+            "trials_requested": qd.get("trials_requested"),
+            "mindist": 0,
+            "rng_seed": qd.get("seed"),
+            "dx_ub": qd.get("dx_ub"),
+            "dz_ub": qd.get("dz_ub"),
+            "d_ub": qd.get("d_ub"),
+            "qd_x": qd.get("qd_x"),
+            "qd_z": qd.get("qd_z"),
+            "confirmed": entry.get("confirmed", False),
+            "confirm_side": entry.get("confirm_side"),
+            "confirm_trials": entry.get("confirm_trials"),
+        },
+        "classical_slices": entry.get("classical_slices"),
+        "base": entry.get("base"),
+        "seed": entry.get("seed"),
+    }
+    return meta
+
+
+def _save_best_code(
+    entry: Dict[str, object],
+    *,
+    best_root: Path,
+    tmp_root: Path,
+    promising_root: Path,
+) -> None:
+    group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+    n_val = int(entry.get("n", 0))
+    k_val = int(entry.get("k", 0))
+    dest = best_root / group_spec / f"n{n_val}" / f"k{k_val}" / str(entry.get("candidate_id"))
+    dest.mkdir(parents=True, exist_ok=True)
+    src_dir = tmp_root / str(entry.get("candidate_id"))
+    hx_path = src_dir / "Hx.mtx"
+    hz_path = src_dir / "Hz.mtx"
+    if not hx_path.exists() or not hz_path.exists():
+        saved_path = entry.get("saved_path")
+        if saved_path:
+            src_dir = Path(saved_path)
+            hx_path = src_dir / "Hx.mtx"
+            hz_path = src_dir / "Hz.mtx"
+        else:
+            alt_dir = promising_root / str(entry.get("candidate_id"))
+            hx_path = alt_dir / "Hx.mtx"
+            hz_path = alt_dir / "Hz.mtx"
+    if not hx_path.exists() or not hz_path.exists():
+        return
+    shutil.copy2(hx_path, dest / "Hx.mtx")
+    shutil.copy2(hz_path, dest / "Hz.mtx")
+    (dest / "meta.json").write_text(
+        json.dumps(_build_meta(entry), indent=2, sort_keys=True), encoding="utf-8"
+    )
+    entry["best_saved_path"] = str(dest)
+
+
+def _is_new_best_by_k(
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    entry: Dict[str, object],
+) -> bool:
+    k = int(entry.get("k", 0))
+    if k <= 0:
+        return False
+    qd = entry.get("qdistrnd") or {}
+    if qd.get("d_ub") is None:
+        return False
+    key = _best_by_k_key(entry)
+    current = best_by_k.get(key)
+    if current is None:
+        return True
+    return _is_better_entry(entry, current)
 
 
 def _confirm_best_entries(
@@ -703,6 +887,9 @@ def _confirm_best_entries(
     outdir: Path,
     trials_measure: int,
     best_confirm_start: int,
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    coverage_by_group: Dict[str, Dict[str, object]],
+    summary_records: List[Dict[str, object]],
 ) -> int:
     if not entries:
         return batch_id
@@ -729,6 +916,9 @@ def _confirm_best_entries(
         num = _next_confirm_num(num, args.best_confirm_mult)
     while pending and num <= args.best_confirm_max:
         confirm_seed = (seed + batch_id) % (1 << 31)
+        for entry in pending:
+            group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+            coverage_by_group[group_spec]["Q_confirm_run"] += 1
         batch = []
         for idx, entry in enumerate(pending):
             cand_dir = Path(entry["saved_path"]) if entry.get("saved_path") else None
@@ -779,6 +969,9 @@ def _confirm_best_entries(
                 still_pending.append(entry)
         pending = still_pending
         num = _next_confirm_num(num, args.best_confirm_mult)
+        best_by_k.clear()
+        best_by_k.update(_recompute_best_by_k(summary_records))
+        _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
     for entry in pending:
         entry["confirmed"] = False
         entry["confirm_trials"] = min(num, args.best_confirm_max)
@@ -1222,13 +1415,14 @@ def _process_qdistrnd_batch(
     outdir: Path,
     tmp_root: Path,
     promising_root: Path,
+    best_codes_root: Path,
     trials_filter: int,
     trials_measure: int,
     best_confirm_start: int,
-    best_by_nk_path: Path,
     results_file,
     summary_records: List[Dict[str, object]],
-    best_by_nk: Dict[Tuple[int, int], Dict[str, object]],
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    coverage_by_group: Dict[str, Dict[str, object]],
 ) -> int:
     if not batch_items:
         return batch_id
@@ -1245,6 +1439,10 @@ def _process_qdistrnd_batch(
         timeout_sec=args.qd_timeout,
     )
     batch_id += 1
+    for _, _, _, entry in batch_items:
+        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+        coverage_by_group[group_spec]["Q_filter_run"] += 1
+    _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
     survivors: List[Tuple[int, str, str, dict]] = []
     for idx_key, hx, hz, entry in batch_items:
         qd_stats = qd_results.get(idx_key)
@@ -1315,8 +1513,11 @@ def _process_qdistrnd_batch(
             results_file.flush()
             continue
         survivors.append((idx_key, hx, hz, entry))
+        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+        coverage_by_group[group_spec]["Q_filter_pass"] += 1
 
     if not survivors:
+        _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
         return batch_id
 
     measure_seed = (seed + batch_id) % (1 << 31)
@@ -1332,6 +1533,9 @@ def _process_qdistrnd_batch(
         timeout_sec=args.qd_timeout,
     )
     batch_id += 1
+    for _, _, _, entry in survivors:
+        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+        coverage_by_group[group_spec]["Q_meas_run"] += 1
     measured_entries: List[Dict[str, object]] = []
     new_best_entries: List[Dict[str, object]] = []
     for idx_key, _, _, entry in survivors:
@@ -1386,8 +1590,7 @@ def _process_qdistrnd_batch(
         entry["confirm_trials"] = qd.get("trials_requested")
         measured_entries.append(entry)
         summary_records.append(entry)
-        if _is_new_best(best_by_nk, entry):
-            best_by_nk[(int(entry["n"]), int(entry["k"]))] = entry
+        if _is_new_best_by_k(best_by_k, entry):
             new_best_entries.append(entry)
 
         n = entry["n"]
@@ -1406,13 +1609,26 @@ def _process_qdistrnd_batch(
             outdir=outdir,
             trials_measure=trials_measure,
             best_confirm_start=best_confirm_start,
+            best_by_k=best_by_k,
+            coverage_by_group=coverage_by_group,
+            summary_records=summary_records,
         )
 
     if measured_entries:
-        best_by_nk.clear()
-        best_by_nk.update(_recompute_best_by_nk(summary_records))
-        _save_best_by_nk(best_by_nk_path, best_by_nk)
-        _print_best_by_nk(best_by_nk)
+        old_best = dict(best_by_k)
+        best_by_k.clear()
+        best_by_k.update(_recompute_best_by_k(summary_records))
+        for key, entry in best_by_k.items():
+            previous = old_best.get(key)
+            if previous is None or previous.get("candidate_id") != entry.get("candidate_id"):
+                if entry in measured_entries:
+                    _save_best_code(
+                        entry,
+                        best_root=best_codes_root,
+                        tmp_root=tmp_root,
+                        promising_root=promising_root,
+                    )
+        _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
 
     for entry in measured_entries:
         cand_dir = tmp_root / entry["candidate_id"]
@@ -1436,33 +1652,7 @@ def _process_qdistrnd_batch(
         entry["save_reason"] = save_reason
         entry["saved_path"] = None
 
-        meta = {
-            "group": entry["group"],
-            "A": entry.get("A_repr") or entry.get("A"),
-            "A_ids": entry.get("A"),
-            "B": entry.get("B_repr") or entry.get("B"),
-            "B_ids": entry.get("B"),
-            "local_codes": entry["local_codes"],
-            "n": entry["n"],
-            "k": entry["k"],
-            "distance_estimate": {
-                "method": "QDistRnd",
-                "trials_requested": qd.get("trials_requested"),
-                "mindist": 0,
-                "rng_seed": qd.get("seed"),
-                "dx_ub": qd.get("dx_ub"),
-                "dz_ub": qd.get("dz_ub"),
-                "d_ub": qd.get("d_ub"),
-                "qd_x": qd.get("qd_x"),
-                "qd_z": qd.get("qd_z"),
-                "confirmed": entry.get("confirmed", False),
-                "confirm_side": entry.get("confirm_side"),
-                "confirm_trials": entry.get("confirm_trials"),
-            },
-            "classical_slices": entry.get("classical_slices"),
-            "base": entry.get("base"),
-            "seed": entry.get("seed"),
-        }
+        meta = _build_meta(entry)
 
         if save:
             out_path = promising_root / entry["candidate_id"]
@@ -1492,7 +1682,7 @@ def _process_qdistrnd_batch(
         results_file.write(json.dumps(entry, sort_keys=True) + "\n")
         results_file.flush()
     if not measured_entries:
-        _save_best_by_nk(best_by_nk_path, best_by_nk)
+        _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
     return batch_id
 
 
@@ -1621,6 +1811,24 @@ def main() -> int:
         default=500,
         help="Max total candidates to keep after frontier selection.",
     )
+    parser.add_argument(
+        "--classical-keep",
+        choices=["frontier", "above_sqrt"],
+        default="frontier",
+        help="Classical candidate selection mode.",
+    )
+    parser.add_argument(
+        "--classical-cap-per-side",
+        type=int,
+        default=0,
+        help="Cap classical candidates per side when --classical-keep=above_sqrt (0=uncapped).",
+    )
+    parser.add_argument(
+        "--max-quantum",
+        type=int,
+        default=0,
+        help="Max quantum pairs to sample (0 = full cartesian product).",
+    )
     args = parser.parse_args()
 
     group_specs: List[str] = []
@@ -1674,6 +1882,10 @@ def main() -> int:
         raise ValueError("--frontier-max-per-point must be positive.")
     if args.frontier_max_total <= 0:
         raise ValueError("--frontier-max-total must be positive.")
+    if args.classical_cap_per_side < 0:
+        raise ValueError("--classical-cap-per-side must be nonnegative.")
+    if args.max_quantum < 0:
+        raise ValueError("--max-quantum must be nonnegative.")
     if not gap_is_available(args.gap_cmd):
         raise RuntimeError(f"GAP is not available on PATH as '{args.gap_cmd}'.")
     if not qdistrnd_is_available(args.gap_cmd):
@@ -1690,6 +1902,9 @@ def main() -> int:
     topB_k = args.topB_k if args.topB_k is not None else args.topB
     frontier_max_per_point = args.frontier_max_per_point
     frontier_max_total = args.frontier_max_total
+    classical_keep = args.classical_keep
+    classical_cap_per_side = args.classical_cap_per_side
+    max_quantum = args.max_quantum
 
     seed = args.seed
     if seed is None:
@@ -1735,6 +1950,9 @@ def main() -> int:
         "best_confirm_max": args.best_confirm_max,
         "frontier_max_per_point": frontier_max_per_point,
         "frontier_max_total": frontier_max_total,
+        "classical_keep": classical_keep,
+        "classical_cap_per_side": classical_cap_per_side,
+        "max_quantum": max_quantum,
         "slice_scoring": {"max_k_exact": 10, "samples": 1 << 10},
         "note": "slice scores use all 30 C1/C1p permutations",
     }
@@ -1760,10 +1978,11 @@ def main() -> int:
     classical_b_path = outdir / "classical_B.jsonl"
     classical_a_frontier_path = outdir / "classical_A_frontier.json"
     classical_b_frontier_path = outdir / "classical_B_frontier.json"
-    best_by_nk_path = outdir / "best_by_nk.json"
+    best_codes_root = outdir / "best_codes"
     group_cache_dir = outdir / "groups"
     summary_records: List[Dict[str, object]] = []
-    best_by_nk: Dict[Tuple[int, int], Dict[str, object]] = {}
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]] = {}
+    coverage_by_group: Dict[str, Dict[str, object]] = {}
     candidate_counter = 0
     batch_id = 0
     a_frontier_payloads: List[dict] = []
@@ -1881,18 +2100,48 @@ def main() -> int:
                 frontier_max_per_point=frontier_max_per_point,
                 frontier_max_total=frontier_max_total,
             )
+            if classical_keep == "above_sqrt":
+                A_keep_base, selected_ids = _select_above_sqrt(
+                    a_scored,
+                    group=group,
+                    side="A",
+                    d0=d0,
+                    cap=classical_cap_per_side,
+                )
+                payloadA["selected_ids"] = selected_ids
+                payloadA["selection_mode"] = "above_sqrt"
+                payloadA["selection_cap"] = classical_cap_per_side
+                A_keep = _add_explore_candidates(
+                    a_scored,
+                    A_keep_base,
+                    explore_n=args.exploreA,
+                    rng=rng,
+                    side="A",
+                )
+            else:
+                payloadA["selection_mode"] = "frontier"
+                payloadA["selection_cap"] = frontier_max_total
+                A_keep = _add_explore_candidates(
+                    a_scored,
+                    A_frontier,
+                    explore_n=args.exploreA,
+                    rng=rng,
+                    side="A",
+                )
+            payloadA["selected_ids"] = [
+                _classical_candidate_id(
+                    side="A",
+                    group=group,
+                    elements=cand.elements,
+                    perm_idx=cand.perm_idx,
+                )
+                for cand in A_keep
+            ]
             a_frontier_payloads.append(payloadA)
             _write_frontier_file(
                 classical_a_frontier_path,
                 a_frontier_payloads,
                 single_group=single_group,
-            )
-            A_keep = _add_explore_candidates(
-                a_scored,
-                A_frontier,
-                explore_n=args.exploreA,
-                rng=rng,
-                side="A",
             )
 
             B_frontier, payloadB = _frontier_select(
@@ -1903,18 +2152,85 @@ def main() -> int:
                 frontier_max_per_point=frontier_max_per_point,
                 frontier_max_total=frontier_max_total,
             )
+            if classical_keep == "above_sqrt":
+                B_keep_base, selected_ids = _select_above_sqrt(
+                    b_scored,
+                    group=group,
+                    side="B",
+                    d0=d0,
+                    cap=classical_cap_per_side,
+                )
+                payloadB["selected_ids"] = selected_ids
+                payloadB["selection_mode"] = "above_sqrt"
+                payloadB["selection_cap"] = classical_cap_per_side
+                B_keep = _add_explore_candidates(
+                    b_scored,
+                    B_keep_base,
+                    explore_n=args.exploreB,
+                    rng=rng,
+                    side="B",
+                )
+            else:
+                payloadB["selection_mode"] = "frontier"
+                payloadB["selection_cap"] = frontier_max_total
+                B_keep = _add_explore_candidates(
+                    b_scored,
+                    B_frontier,
+                    explore_n=args.exploreB,
+                    rng=rng,
+                    side="B",
+                )
+            payloadB["selected_ids"] = [
+                _classical_candidate_id(
+                    side="B",
+                    group=group,
+                    elements=cand.elements,
+                    perm_idx=cand.perm_idx,
+                )
+                for cand in B_keep
+            ]
             b_frontier_payloads.append(payloadB)
             _write_frontier_file(
                 classical_b_frontier_path,
                 b_frontier_payloads,
                 single_group=single_group,
             )
-            B_keep = _add_explore_candidates(
-                b_scored,
-                B_frontier,
-                explore_n=args.exploreB,
-                rng=rng,
-                side="B",
+
+            group_spec = group.name
+            coverage_by_group[group_spec] = {
+                "group": group_spec,
+                "order": group.order,
+                "n_quantum": n_est,
+                "A_multisets_total": len(A_sets),
+                "A_perm_total": perm_total,
+                "A_candidates_total": len(A_sets) * perm_total,
+                "A_candidates_ge_sqrt": sum(
+                    1 for cand in a_scored if cand.metrics.d_min >= d0
+                ),
+                "A_candidates_selected": len(A_keep),
+                "B_multisets_total": len(B_sets),
+                "B_perm_total": perm_total,
+                "B_candidates_total": len(B_sets) * perm_total,
+                "B_candidates_ge_sqrt": sum(
+                    1 for cand in b_scored if cand.metrics.d_min >= d0
+                ),
+                "B_candidates_selected": len(B_keep),
+                "Q_possible_ge_sqrt": 0,
+                "Q_possible_selected": 0,
+                "Q_pairs_iterated": 0,
+                "Q_k_pos": 0,
+                "Q_filter_run": 0,
+                "Q_filter_pass": 0,
+                "Q_meas_run": 0,
+                "Q_confirm_run": 0,
+            }
+            coverage_by_group[group_spec]["Q_possible_ge_sqrt"] = (
+                coverage_by_group[group_spec]["A_candidates_ge_sqrt"]
+                * coverage_by_group[group_spec]["B_candidates_ge_sqrt"]
+            )
+            coverage_by_group[group_spec]["Q_possible_selected"] = (
+                coverage_by_group[group_spec]["A_candidates_selected"]
+                * coverage_by_group[group_spec]["B_candidates_selected"]
             )
 
             print(
@@ -1924,106 +2240,127 @@ def main() -> int:
             )
 
             batch_items: List[Tuple[int, str, str, dict]] = []
-            for A_info in A_keep:
-                for B_info in B_keep:
-                    permA = A_info.perm_idx
-                    permB = B_info.perm_idx
-                    candidate_id = f"{group_tag}_c{candidate_counter:05d}"
-                    candidate_counter += 1
-                    C1 = variant_codes[permA]
-                    C1p = variant_codes[permB]
-                    hx_rows, hz_rows, n_cols = build_hx_hz(
-                        group,
-                        A_info.elements,
-                        B_info.elements,
-                        base_code,
-                        C1,
-                        base_code,
-                        C1p,
+            total_pairs = len(A_keep) * len(B_keep)
+            pair_indices = None
+            if max_quantum > 0 and total_pairs > max_quantum:
+                sampled = rng.sample(range(total_pairs), max_quantum)
+                pair_indices = [divmod(idx, len(B_keep)) for idx in sampled]
+            coverage_by_group[group_spec]["Q_pairs_iterated"] = (
+                len(pair_indices) if pair_indices is not None else total_pairs
+            )
+
+            def _pair_iter():
+                if pair_indices is not None:
+                    for a_idx, b_idx in pair_indices:
+                        yield A_keep[a_idx], B_keep[b_idx]
+                else:
+                    for A_info in A_keep:
+                        for B_info in B_keep:
+                            yield A_info, B_info
+
+            for A_info, B_info in _pair_iter():
+                permA = A_info.perm_idx
+                permB = B_info.perm_idx
+                candidate_id = f"{group_tag}_c{candidate_counter:05d}"
+                candidate_counter += 1
+                C1 = variant_codes[permA]
+                C1p = variant_codes[permB]
+                hx_rows, hz_rows, n_cols = build_hx_hz(
+                    group,
+                    A_info.elements,
+                    B_info.elements,
+                    base_code,
+                    C1,
+                    base_code,
+                    C1p,
+                )
+                if not css_commutes(hx_rows, hz_rows):
+                    raise RuntimeError(f"HX/HZ do not commute for {candidate_id}.")
+                rank_hx = gf2_rank(hx_rows[:], n_cols)
+                rank_hz = gf2_rank(hz_rows[:], n_cols)
+                k = n_cols - rank_hx - rank_hz
+                entry = {
+                    "candidate_id": candidate_id,
+                    "group": _group_record(group),
+                    "A": list(A_info.elements),
+                    "A_repr": [group.repr(x) for x in A_info.elements],
+                    "B": list(B_info.elements),
+                    "B_repr": [group.repr(x) for x in B_info.elements],
+                    "local_codes": {
+                        "C0": base_code.name,
+                        "C1": C1.name,
+                        "C0p": base_code.name,
+                        "C1p": C1p.name,
+                        "permA_idx": permA,
+                        "permB_idx": permB,
+                    },
+                    "classical_slices": {
+                        "A": {
+                            "perm_idx": permA,
+                            "H": _slice_stats_summary(A_info.metrics.h),
+                            "G": _slice_stats_summary(A_info.metrics.g),
+                            "d_min": A_info.metrics.d_min,
+                            "k_sum": A_info.metrics.k_sum,
+                            "k_min": A_info.metrics.k_min,
+                        },
+                        "B": {
+                            "perm_idx": permB,
+                            "Hp": _slice_stats_summary(B_info.metrics.h),
+                            "Gp": _slice_stats_summary(B_info.metrics.g),
+                            "d_min": B_info.metrics.d_min,
+                            "k_sum": B_info.metrics.k_sum,
+                            "k_min": B_info.metrics.k_min,
+                        },
+                    },
+                    "base": {
+                        "n_base": 36,
+                        "k_base": base_k_table[permA][permB],
+                    },
+                    "n": n_cols,
+                    "k": k,
+                    "seed": seed,
+                    "column_order": "col = ((i*nB + j)*|G| + g), g fastest",
+                }
+                if k == 0:
+                    entry["skipped_reason"] = "k=0"
+                    entry["saved"] = False
+                    entry["save_reason"] = None
+                    entry["saved_path"] = None
+                    entry["promising"] = False
+                    results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+                    results_file.flush()
+                    continue
+
+                coverage_by_group[group_spec]["Q_k_pos"] += 1
+                cand_dir = tmp_root / candidate_id
+                cand_dir.mkdir(parents=True, exist_ok=True)
+                hx_path = cand_dir / "Hx.mtx"
+                hz_path = cand_dir / "Hz.mtx"
+                write_mtx_from_bitrows(str(hx_path), hx_rows, n_cols)
+                write_mtx_from_bitrows(str(hz_path), hz_rows, n_cols)
+
+                idx = len(batch_items)
+                batch_items.append((idx, str(hx_path), str(hz_path), entry))
+
+                if len(batch_items) >= args.batch_size:
+                    batch_id = _process_qdistrnd_batch(
+                        batch_items=batch_items,
+                        args=args,
+                        seed=seed,
+                        batch_id=batch_id,
+                        outdir=outdir,
+                        tmp_root=tmp_root,
+                        promising_root=promising_root,
+                        best_codes_root=best_codes_root,
+                        trials_filter=trials_filter,
+                        trials_measure=trials_measure,
+                        best_confirm_start=best_confirm_start,
+                        results_file=results_file,
+                        summary_records=summary_records,
+                        best_by_k=best_by_k,
+                        coverage_by_group=coverage_by_group,
                     )
-                    if not css_commutes(hx_rows, hz_rows):
-                        raise RuntimeError(f"HX/HZ do not commute for {candidate_id}.")
-                    rank_hx = gf2_rank(hx_rows[:], n_cols)
-                    rank_hz = gf2_rank(hz_rows[:], n_cols)
-                    k = n_cols - rank_hx - rank_hz
-                    entry = {
-                        "candidate_id": candidate_id,
-                        "group": _group_record(group),
-                        "A": list(A_info.elements),
-                        "A_repr": [group.repr(x) for x in A_info.elements],
-                        "B": list(B_info.elements),
-                        "B_repr": [group.repr(x) for x in B_info.elements],
-                        "local_codes": {
-                            "C0": base_code.name,
-                            "C1": C1.name,
-                            "C0p": base_code.name,
-                            "C1p": C1p.name,
-                            "permA_idx": permA,
-                            "permB_idx": permB,
-                        },
-                        "classical_slices": {
-                            "A": {
-                                "perm_idx": permA,
-                                "H": _slice_stats_summary(A_info.metrics.h),
-                                "G": _slice_stats_summary(A_info.metrics.g),
-                                "d_min": A_info.metrics.d_min,
-                                "k_sum": A_info.metrics.k_sum,
-                            },
-                            "B": {
-                                "perm_idx": permB,
-                                "Hp": _slice_stats_summary(B_info.metrics.h),
-                                "Gp": _slice_stats_summary(B_info.metrics.g),
-                                "d_min": B_info.metrics.d_min,
-                                "k_sum": B_info.metrics.k_sum,
-                            },
-                        },
-                        "base": {
-                            "n_base": 36,
-                            "k_base": base_k_table[permA][permB],
-                        },
-                        "n": n_cols,
-                        "k": k,
-                        "seed": seed,
-                        "column_order": "col = ((i*nB + j)*|G| + g), g fastest",
-                    }
-                    if k == 0:
-                        entry["skipped_reason"] = "k=0"
-                        entry["saved"] = False
-                        entry["save_reason"] = None
-                        entry["saved_path"] = None
-                        entry["promising"] = False
-                        results_file.write(json.dumps(entry, sort_keys=True) + "\n")
-                        results_file.flush()
-                        continue
-
-                    cand_dir = tmp_root / candidate_id
-                    cand_dir.mkdir(parents=True, exist_ok=True)
-                    hx_path = cand_dir / "Hx.mtx"
-                    hz_path = cand_dir / "Hz.mtx"
-                    write_mtx_from_bitrows(str(hx_path), hx_rows, n_cols)
-                    write_mtx_from_bitrows(str(hz_path), hz_rows, n_cols)
-
-                    idx = len(batch_items)
-                    batch_items.append((idx, str(hx_path), str(hz_path), entry))
-
-                    if len(batch_items) >= args.batch_size:
-                        batch_id = _process_qdistrnd_batch(
-                            batch_items=batch_items,
-                            args=args,
-                            seed=seed,
-                            batch_id=batch_id,
-                            outdir=outdir,
-                            tmp_root=tmp_root,
-                            promising_root=promising_root,
-                            trials_filter=trials_filter,
-                            trials_measure=trials_measure,
-                            best_confirm_start=best_confirm_start,
-                            best_by_nk_path=best_by_nk_path,
-                            results_file=results_file,
-                            summary_records=summary_records,
-                            best_by_nk=best_by_nk,
-                        )
-                        batch_items = []
+                    batch_items = []
 
             if batch_items:
                 batch_id = _process_qdistrnd_batch(
@@ -2034,14 +2371,24 @@ def main() -> int:
                     outdir=outdir,
                     tmp_root=tmp_root,
                     promising_root=promising_root,
+                    best_codes_root=best_codes_root,
                     trials_filter=trials_filter,
                     trials_measure=trials_measure,
                     best_confirm_start=best_confirm_start,
-                    best_by_nk_path=best_by_nk_path,
                     results_file=results_file,
                     summary_records=summary_records,
-                    best_by_nk=best_by_nk,
+                    best_by_k=best_by_k,
+                    coverage_by_group=coverage_by_group,
                 )
+
+            _write_coverage_files(coverage_by_group, outdir)
+            print(_coverage_summary(coverage_by_group[group_spec]))
+
+    if coverage_by_group:
+        _write_coverage_files(coverage_by_group, outdir)
+        print("[coverage] run summary:")
+        for group_spec in sorted(coverage_by_group):
+            print(_coverage_summary(coverage_by_group[group_spec]))
 
     if tmp_root.exists():
         try:

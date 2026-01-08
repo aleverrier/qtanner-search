@@ -13,3 +13,13 @@ Classical selection (A/B candidates):
 - Frontier artifacts are written to `runs/<run>/classical_A_frontier.json` and `runs/<run>/classical_B_frontier.json`.
 - Optional caps: `--frontier-max-per-point` (default 50) and `--frontier-max-total` (default 500).
 - Legacy flags `--topA/--topB/--topA-d/--topA-k` remain accepted but no longer drive selection.
+
+Best-by-k tracking:
+- Tail the live table with: `tail -f runs/<run>/best_by_k.txt`
+
+Distance re-check:
+- `python -m qtanner.check_distance --run <RUN_DIR> --id <CODE_ID> --trials 50000 --uniq-target 5 --gap-cmd gap`
+
+Report generation:
+- `python -m qtanner.report --run <RUN_DIR> --out report.tex`
+- Optional PDF: `python -m qtanner.report --run <RUN_DIR> --out report.tex --pdf`
