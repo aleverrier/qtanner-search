@@ -8,8 +8,10 @@ import math
 import os
 import random
 import re
+import shlex
 import shutil
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from itertools import combinations, combinations_with_replacement
@@ -90,6 +92,72 @@ def _slice_dist_threshold(spec: str, *, n: int) -> int:
 
 def _timestamp_utc() -> str:
     return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+
+
+def _format_command_line() -> Tuple[str, str, str]:
+    argv = list(sys.argv)
+    actual = shlex.join([sys.executable, *argv])
+    module = shlex.join(["python", "-m", "qtanner.search", *argv[1:]])
+    raw = json.dumps(argv)
+    return actual, module, raw
+
+
+def _write_commands_run(outdir: Path, args: argparse.Namespace) -> None:
+    actual_cmd, module_cmd, raw_argv = _format_command_line()
+    outdir_str = str(outdir)
+    trials = args.trials
+    uniq_target = args.best_uniq_target
+    gap_cmd = args.gap_cmd
+    lines = [
+        "# qtanner search run commands",
+        "",
+        "## Command used",
+        f"`{actual_cmd}`",
+        "",
+        "## Reproducible module form",
+        f"`{module_cmd}`",
+        "",
+        "## Raw argv",
+        f"`{raw_argv}`",
+        "",
+        "## Monitor progress",
+        f'OUT="{outdir_str}"',
+        "while true; do",
+        "  clear",
+        "  date",
+        "  echo \"=== ${OUT}/best_by_k.txt ===\"",
+        "  test -f \"${OUT}/best_by_k.txt\" && cat \"${OUT}/best_by_k.txt\" || echo \"(missing)\"",
+        "  echo",
+        "  echo \"=== ${OUT}/coverage.txt ===\"",
+        "  test -f \"${OUT}/coverage.txt\" && cat \"${OUT}/coverage.txt\" || echo \"(missing)\"",
+        "  sleep 2",
+        "done",
+        "",
+        "## Monitor by tailing the log",
+        "tail -n 50 -F \"${OUT}/best_by_k.log\"",
+        "",
+        "## Re-check distance (QDistRnd, mindist=0)",
+        "ID=\"PUT_CODE_ID_HERE\"",
+        (
+            "python -m qtanner.check_distance --run \"${OUT}\" "
+            f"--id \"${{ID}}\" --trials {trials} --uniq-target {uniq_target} --gap-cmd {gap_cmd}"
+        ),
+        "",
+        "Example:",
+        "ID=\"EXAMPLE_CODE_ID\"",
+        (
+            "python -m qtanner.check_distance --run \"${OUT}\" "
+            f"--id \"${{ID}}\" --trials {trials} --uniq-target {uniq_target} --gap-cmd {gap_cmd}"
+        ),
+        "",
+        "## Generate LaTeX report",
+        "python -m qtanner.report --run \"${OUT}\" --out \"${OUT}/report.tex\"",
+        "",
+        "Optional PDF:",
+        "python -m qtanner.report --run \"${OUT}\" --out \"${OUT}/report.tex\" --pdf",
+        "",
+    ]
+    (outdir / "COMMANDS_RUN.md").write_text("\n".join(lines), encoding="utf-8")
 
 
 def _apply_variant_perm(code: LocalCode, perm: List[int], variant_idx: int) -> LocalCode:
@@ -726,6 +794,135 @@ def _write_best_by_k_outputs(
     (outdir / "best_by_k.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
     )
+
+
+def _global_dir() -> Path:
+    global_dir = Path("runs") / "_global"
+    global_dir.mkdir(parents=True, exist_ok=True)
+    return global_dir
+
+
+def _load_json(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _is_better_global(new: Dict[str, object], current: Optional[Dict[str, object]]) -> bool:
+    if current is None:
+        return True
+    new_d = new.get("d_ub")
+    cur_d = current.get("d_ub")
+    if new_d is None:
+        return False
+    if cur_d is None:
+        return True
+    if int(new_d) != int(cur_d):
+        return int(new_d) > int(cur_d)
+    if bool(new.get("confirmed")) != bool(current.get("confirmed")):
+        return bool(new.get("confirmed"))
+    new_trials = int(new.get("trials_used") or 0)
+    cur_trials = int(current.get("trials_used") or 0)
+    if new_trials != cur_trials:
+        return new_trials > cur_trials
+    return str(new.get("id", "")) < str(current.get("id", ""))
+
+
+def _format_global_table(best_overall: Dict[str, Dict[str, Dict[str, dict]]]) -> str:
+    if not best_overall:
+        return "[best_overall] (no entries)\n"
+    lines: List[str] = []
+    for group_spec in sorted(best_overall):
+        for n_str in sorted(best_overall[group_spec], key=lambda x: int(x)):
+            lines.append(f"[best_overall] group={group_spec} n={n_str}")
+            header = (
+                "k  | d_ub | trials_used | dx_ub | dz_ub | id | confirmed | run_dir | timestamp"
+            )
+            lines.append(header)
+            rows = best_overall[group_spec][n_str]
+            for k_str in sorted(rows, key=lambda x: int(x)):
+                row = rows[k_str]
+                line = (
+                    f"{int(row.get('k', 0)):>2} | {str(row.get('d_ub')):>4} | "
+                    f"{str(row.get('trials_used')):>11} | {int(row.get('dx_ub', 0)):>5} | "
+                    f"{int(row.get('dz_ub', 0)):>5} | {row.get('id')} | "
+                    f"{row.get('confirmed')} | {row.get('run_dir')} | {row.get('timestamp')}"
+                )
+                lines.append(line)
+            lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _escape_tex(text: str) -> str:
+    return text.replace("_", "\\_")
+
+
+def _write_best_overall_outputs(best_overall: Dict[str, Dict[str, Dict[str, dict]]]) -> None:
+    global_dir = _global_dir()
+    table = _format_global_table(best_overall)
+    (global_dir / "best_overall.txt").write_text(table, encoding="utf-8")
+    (global_dir / "best_overall.json").write_text(
+        json.dumps(best_overall, indent=2, sort_keys=True), encoding="utf-8"
+    )
+    tex_lines = [
+        r"\begin{tabular}{llrrrrll}",
+        r"\toprule",
+        r"Group & $n$ & $k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & id \\",
+        r"\midrule",
+    ]
+    for group_spec in sorted(best_overall):
+        for n_str in sorted(best_overall[group_spec], key=lambda x: int(x)):
+            for k_str in sorted(best_overall[group_spec][n_str], key=lambda x: int(x)):
+                row = best_overall[group_spec][n_str][k_str]
+                tex_lines.append(
+                    f"{_escape_tex(group_spec)} & {n_str} & {row.get('k')} & "
+                    f"{row.get('d_ub')} & {row.get('trials_used')} & "
+                    f"{row.get('dx_ub')} & {row.get('dz_ub')} & "
+                    f"{_escape_tex(str(row.get('id')))} \\\\"
+                )
+    tex_lines.extend([r"\bottomrule", r"\end{tabular}", ""])
+    (global_dir / "best_overall.tex").write_text("\n".join(tex_lines), encoding="utf-8")
+
+
+def _update_global_best(
+    *,
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    uniq_target: int,
+    run_dir: Path,
+    timestamp: str,
+) -> None:
+    global_dir = _global_dir()
+    best_path = global_dir / "best_overall.json"
+    best_overall = _load_json(best_path)
+    history_path = global_dir / "history.jsonl"
+    if not isinstance(best_overall, dict):
+        best_overall = {}
+    for key, entry in best_by_k.items():
+        group_spec, n_val, k_val = key
+        row = _best_by_k_row(entry, uniq_target=uniq_target)
+        if row.get("d_ub") is None:
+            continue
+        new_entry = {
+            "group": group_spec,
+            "n": int(n_val),
+            "k": int(k_val),
+            "d_ub": row.get("d_ub"),
+            "trials_used": row.get("trials_used"),
+            "id": row.get("id"),
+            "run_dir": str(run_dir),
+            "timestamp": timestamp,
+            "confirmed": row.get("confirmed"),
+            "dx_ub": row.get("dx_ub"),
+            "dz_ub": row.get("dz_ub"),
+        }
+        best_overall.setdefault(group_spec, {}).setdefault(str(n_val), {})
+        current = best_overall[group_spec][str(n_val)].get(str(k_val))
+        if _is_better_global(new_entry, current):
+            best_overall[group_spec][str(n_val)][str(k_val)] = new_entry
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        with history_path.open("a", encoding="utf-8") as history_file:
+            history_file.write(json.dumps(new_entry, sort_keys=True) + "\n")
+    _write_best_overall_outputs(best_overall)
 
 
 def _coverage_ratios(entry: Dict[str, object]) -> Dict[str, Optional[float]]:
@@ -1957,6 +2154,7 @@ def main() -> int:
         "note": "slice scores use all 30 C1/C1p permutations",
     }
     (outdir / "run_meta.json").write_text(json.dumps(run_meta, indent=2), encoding="utf-8")
+    _write_commands_run(outdir, args)
 
     base_code = hamming_6_3_3_shortened()
     variant_codes = _build_variant_codes(base_code)
@@ -2421,6 +2619,13 @@ def main() -> int:
             f"d_ub={qd['d_ub']} permA={permA} permB={permB} "
             f"saved={bool(rec.get('saved_path'))}"
         )
+
+    _update_global_best(
+        best_by_k=best_by_k,
+        uniq_target=args.best_uniq_target,
+        run_dir=outdir,
+        timestamp=_timestamp_utc(),
+    )
 
     return 0
 

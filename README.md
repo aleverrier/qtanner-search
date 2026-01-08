@@ -23,3 +23,13 @@ Distance re-check:
 Report generation:
 - `python -m qtanner.report --run <RUN_DIR> --out report.tex`
 - Optional PDF: `python -m qtanner.report --run <RUN_DIR> --out report.tex --pdf`
+
+Docs:
+- `docs/COMMANDS.md` (command cheat sheet)
+- `docs/groups_under_20.txt` (SmallGroup identifiers)
+
+Global logs:
+- `runs/_global/best_overall.json`
+- `runs/_global/best_overall.txt`
+- `runs/_global/best_overall.tex`
+- `runs/_global/history.jsonl`

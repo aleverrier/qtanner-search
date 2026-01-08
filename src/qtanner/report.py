@@ -48,6 +48,11 @@ def _collect_best_codes(run_dir: Path) -> List[dict]:
     return results
 
 
+def _load_global_best() -> dict:
+    global_path = Path("runs") / "_global" / "best_overall.json"
+    return _load_json(global_path)
+
+
 def _best_by_k_lookup(best_by_k: dict) -> Dict[str, dict]:
     lookup: Dict[str, dict] = {}
     for group_spec, n_map in best_by_k.items():
@@ -73,6 +78,7 @@ def main() -> int:
     best_by_k = _load_json(run_dir / "best_by_k.json")
     best_codes = _collect_best_codes(run_dir)
     best_lookup = _best_by_k_lookup(best_by_k)
+    global_best = _load_global_best()
 
     lines = [
         r"\documentclass{article}",
@@ -84,7 +90,35 @@ def main() -> int:
     ]
     for key in sorted(run_meta):
         lines.append(f"  \\item {_escape(str(key))}: {_escape(str(run_meta[key]))}")
-    lines.extend([r"\end{itemize}", r"\section*{Coverage}"])
+    lines.extend([r"\end{itemize}", r"\section*{Methodology}"])
+    selection_mode = run_meta.get("classical_keep", "unknown")
+    if selection_mode == "frontier":
+        selection_desc = "frontier selection on the $(k,d)$ tradeoff curve"
+    elif selection_mode == "above_sqrt":
+        selection_desc = "keep all candidates with $d_{min} \ge d_0$"
+    else:
+        selection_desc = "selection policy from run metadata"
+    lines.extend(
+        [
+            r"\begin{itemize}",
+            r"\item Parameterization: choose a finite group $G$, multisets $A,B$ of size 6, "
+            r"and local $[6,3,3]$ column permutations (30 variants) for each side.",
+            r"\item Classical exploration: for each side and permutation, compute two slice Tanner codes. "
+            r"Define $k_{min}=\min(k_{slice1},k_{slice2})$ and $d_{min}=\min(d_{slice1},d_{slice2})$.",
+            rf"\item Classical selection: use {selection_desc}. The threshold $d_0=\lceil\sqrt{{36|G|}}\rceil$ "
+            r"compares classical slice distance to the quantum block length $n=36|G|$.",
+            r"\item Quantum stage: build $H_X,H_Z$, compute $k=n-\mathrm{rank}(H_X)-\mathrm{rank}(H_Z)$, "
+            r"and skip candidates with $k=0$.",
+            r"\item QDistRnd pipeline: (a) filter stage with $mindist>0$ for fast rejection, "
+            r"(b) measurement stage with $mindist=0$ for upper bounds $d_X,d_Z$, "
+            r"(c) confirmation for best-by-$(n,k)$ entries until the limiting side has "
+            r"$\mathrm{uniq}\ge$ best\_uniq\_target.",
+            r"\item Upper bounds: QDistRnd reports distance upper bounds; higher $\mathrm{uniq}$ on the limiting "
+            r"side increases confidence that the bound is meaningful rather than a sampling artifact.",
+            r"\end{itemize}",
+            r"\section*{Coverage}",
+        ]
+    )
 
     if coverage:
         lines.append(r"\begin{tabular}{lllllll}")
@@ -105,23 +139,47 @@ def main() -> int:
     else:
         lines.append(r"No coverage.json found.")
 
+    lines.append(r"\section*{Best Quantum Codes Found in This Run}")
+    if best_by_k:
+        lines.append(r"\begin{tabular}{llrrrrll}")
+        lines.append(r"\toprule")
+        lines.append(r"Group & $|G|$ & $n$ & $k$ & $d_{ub}$ & trials & id & confirmed \\")
+        lines.append(r"\midrule")
+        for group_spec in sorted(best_by_k):
+            order = coverage.get(group_spec, {}).get("order", "n/a")
+            for n_val in sorted(best_by_k[group_spec], key=lambda x: int(x)):
+                for row in best_by_k[group_spec][n_val]:
+                    confirmed = "yes" if row.get("confirmed") else "no"
+                    lines.append(
+                        f"{_escape(group_spec)} & {order} & {n_val} & {row.get('k')} & "
+                        f"{row.get('d_ub')} & {row.get('trials_used')} & "
+                        f"{_escape(str(row.get('id')))} & {confirmed} \\\\"
+                    )
+        lines.append(r"\bottomrule")
+        lines.append(r"\end{tabular}")
+    else:
+        lines.append(r"No best\_by\_k.json found.")
+
     lines.append(r"\section*{Best-by-k Tables}")
     if best_by_k:
         for group_spec in sorted(best_by_k):
             lines.append(f"\\subsection*{{Group {_escape(group_spec)}}}")
             for n_val in sorted(best_by_k[group_spec], key=lambda x: int(x)):
                 lines.append(f"\\paragraph*{{$n={n_val}$}}")
-                lines.append(r"\begin{tabular}{rrrrrrrl}")
+                lines.append(r"\begin{tabular}{rrrrrrrll}")
                 lines.append(r"\toprule")
-                lines.append(r"$k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & uniq & avg & id \\")
+                lines.append(
+                    r"$k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & uniq & avg & id & confirmed \\"
+                )
                 lines.append(r"\midrule")
                 for row in best_by_k[group_spec][n_val]:
                     avg = row.get("avg_lim")
                     avg_txt = "n/a" if avg is None else f"{avg:.3f}"
+                    confirmed = "yes" if row.get("confirmed") else "no"
                     lines.append(
                         f"{row.get('k')} & {row.get('d_ub')} & {row.get('trials_used')} & "
                         f"{row.get('dx_ub')} & {row.get('dz_ub')} & {row.get('uniq_lim')} & "
-                        f"{avg_txt} & {_escape(str(row.get('id')))} \\\\"
+                        f"{avg_txt} & {_escape(str(row.get('id')))} & {confirmed} \\\\"
                     )
                 lines.append(r"\bottomrule")
                 lines.append(r"\end{tabular}")
@@ -142,6 +200,27 @@ def main() -> int:
         lines.append(r"\end{tabular}")
     else:
         lines.append(r"No best codes saved.")
+
+    lines.append(r"\section*{Global Best So Far (All Runs)}")
+    if global_best:
+        lines.append(r"\begin{tabular}{llrrrrll}")
+        lines.append(r"\toprule")
+        lines.append(r"Group & $n$ & $k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & id \\")
+        lines.append(r"\midrule")
+        for group_spec in sorted(global_best):
+            for n_val in sorted(global_best[group_spec], key=lambda x: int(x)):
+                for k_val in sorted(global_best[group_spec][n_val], key=lambda x: int(x)):
+                    row = global_best[group_spec][n_val][k_val]
+                    lines.append(
+                        f"{_escape(group_spec)} & {row.get('n')} & {row.get('k')} & "
+                        f"{row.get('d_ub')} & {row.get('trials_used')} & "
+                        f"{row.get('dx_ub')} & {row.get('dz_ub')} & "
+                        f"{_escape(str(row.get('id')))} \\\\"
+                    )
+        lines.append(r"\bottomrule")
+        lines.append(r"\end{tabular}")
+    else:
+        lines.append(r"No global best file found at runs/\_global/best\_overall.json.")
 
     lines.append(r"\section*{How to Reproduce/Check}")
     if best_codes:
