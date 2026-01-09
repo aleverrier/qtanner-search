@@ -8,7 +8,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 
 class FiniteGroup:
@@ -31,6 +31,19 @@ class FiniteGroup:
 
     def repr(self, a: int) -> str:
         return str(a)
+
+    def automorphisms(
+        self,
+        *,
+        gap_cmd: str = "gap",
+        cache_dir: Optional[Path] = None,
+    ) -> List[List[int]]:
+        """Return automorphisms as permutations of element IDs."""
+        if hasattr(self, "_automorphisms") and self._automorphisms is not None:
+            return list(self._automorphisms)
+        perms = _load_automorphisms(self, gap_cmd=gap_cmd, cache_dir=cache_dir)
+        self._automorphisms = perms
+        return list(perms)
 
     # Backwards-compatible aliases.
     def mul_of(self, a: int, b: int) -> int:
@@ -167,6 +180,9 @@ def _normalize_table(
 _SMALLGROUP_RE = re.compile(r"SmallGroup\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)")
 _CYCLIC_RE = re.compile(r"([CZ])(\d+)$", re.IGNORECASE)
 _DIRECT_RE = re.compile(r"([CZ])(\d+)x([CZ])(\d+)$", re.IGNORECASE)
+_AUT_BEGIN = "AUT_BEGIN"
+_AUT_END = "AUT_END"
+_AUT_CACHE_VERSION = 1
 
 
 def canonical_group_spec(spec: str) -> str:
@@ -381,6 +397,201 @@ def _parse_gap_marked_output(output: str, n: int) -> tuple[List[List[int]], List
         raise RuntimeError(f"GAP output has {len(inv_tokens)} inverses; expected {n}.")
     inv = [int(token) for token in inv_tokens]
     return mul_table, inv
+
+
+def _parse_gap_aut_output(output: str, n: int) -> List[List[int]]:
+    lines = output.splitlines()
+    begin = None
+    end = None
+    for idx, line in enumerate(lines):
+        marker = line.strip()
+        if marker == _AUT_BEGIN:
+            begin = idx
+        elif marker == _AUT_END:
+            end = idx
+    if begin is None or end is None or begin >= end:
+        raise RuntimeError("GAP output missing AUT_BEGIN/AUT_END markers.")
+    perm_lines = [line.strip() for line in lines[begin + 1 : end] if line.strip()]
+    perms: List[List[int]] = []
+    for line in perm_lines:
+        parts = [p for p in line.split(",") if p != ""]
+        if len(parts) != n:
+            raise RuntimeError(
+                f"GAP output permutation has {len(parts)} entries; expected {n}."
+            )
+        perm = [int(part) for part in parts]
+        perms.append(perm)
+    if not perms:
+        perms = [list(range(n))]
+    return perms
+
+
+def _normalize_aut_perms(perms: Sequence[Sequence[int]], n: int) -> List[List[int]]:
+    seen: Dict[Tuple[int, ...], None] = {}
+    for perm in perms:
+        if len(perm) != n:
+            raise ValueError(f"Automorphism length {len(perm)} but order={n}.")
+        norm = tuple(int(x) for x in perm)
+        if any(x < 0 or x >= n for x in norm):
+            raise ValueError("Automorphism entries out of range.")
+        if len(set(norm)) != n:
+            raise ValueError("Automorphism is not a permutation.")
+        seen[norm] = None
+    if tuple(range(n)) not in seen:
+        seen[tuple(range(n))] = None
+    return [list(perm) for perm in sorted(seen)]
+
+
+def _aut_cache_path(cache_dir: Optional[Path], spec_norm: str) -> Optional[Path]:
+    if cache_dir is None:
+        cache_dir = Path(".cache") / "qtanner" / "aut"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return cache_dir / f"{spec_norm}.json"
+
+
+def _gap_automorphisms_for_spec(
+    spec_norm: str,
+    *,
+    gap_cmd: str,
+    timeout_s: int = 60,
+) -> List[List[int]]:
+    m = _SMALLGROUP_RE.fullmatch(spec_norm)
+    if m:
+        order = int(m.group(1))
+        gid = int(m.group(2))
+        script_lines = [
+            'if LoadPackage("smallgrp") = fail then',
+            '  Print("QTANNER_GAP_ERROR smallgrp_missing\\n");',
+            "  QuitGap(2);",
+            "fi;",
+            f"G := SmallGroup({order},{gid});;",
+            "elts := ShallowCopy(Elements(G));;",
+            "id := One(G);;",
+            "pos := Position(elts, id);;",
+            "if pos <> 1 then",
+            "  tmp := elts[1];; elts[1] := elts[pos];; elts[pos] := tmp;;",
+            "fi;",
+        ]
+    else:
+        m = _DIRECT_RE.fullmatch(spec_norm)
+        if m:
+            left = int(m.group(2))
+            right = int(m.group(4))
+            order = left * right
+            script_lines = [
+                f"G1 := CyclicGroup({left});;",
+                f"G2 := CyclicGroup({right});;",
+                "G := DirectProduct(G1, G2);;",
+                "g1 := G.1;;",
+                "g2 := G.2;;",
+                "elts := [];",
+                f"for a in [0..{left - 1}] do",
+                f"  for b in [0..{right - 1}] do",
+                "    Add(elts, g1^a * g2^b);",
+                "  od;",
+                "od;",
+            ]
+        else:
+            m = _CYCLIC_RE.fullmatch(spec_norm)
+            if not m:
+                raise ValueError(f"Unsupported group spec for automorphisms: {spec_norm!r}")
+            order = int(m.group(2))
+            script_lines = [
+                f"G := CyclicGroup({order});;",
+                "g := G.1;;",
+                f"elts := List([0..{order - 1}], k -> g^k);;",
+            ]
+    script_lines.extend(
+        [
+            "auts := Elements(AutomorphismGroup(G));;",
+            "n := Length(elts);;",
+            f'Print("{_AUT_BEGIN}\\n");',
+            "for phi in auts do",
+            "  for i in [1..n] do",
+            "    Print(Position(elts, Image(phi, elts[i])) - 1);",
+            "    if i < n then",
+            '      Print(",");',
+            "    fi;",
+            "  od;",
+            '  Print("\\n");',
+            "od;",
+            f'Print("{_AUT_END}\\n");',
+            "QuitGap(0);",
+        ]
+    )
+    script = "\n".join(script_lines)
+    stdout = ""
+    stderr = ""
+    returncode = -1
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".g", delete=False) as tmp:
+            tmp.write(script)
+            script_path = tmp.name
+        result = subprocess.run(
+            [gap_cmd, "-q", "-b", "--quitonbreak", script_path],
+            text=True,
+            capture_output=True,
+            timeout=timeout_s,
+            check=False,
+        )
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        returncode = result.returncode
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        raise RuntimeError(
+            f"GAP timed out after {timeout_s} seconds while building automorphisms for {spec_norm}."
+        ) from exc
+    finally:
+        if "script_path" in locals():
+            try:
+                os.remove(script_path)
+            except OSError:
+                pass
+    if returncode != 0:
+        raise RuntimeError(
+            "GAP exited with non-zero status while building automorphisms.\n"
+            f"stdout_tail:\n{_tail(stdout)}\n\nstderr_tail:\n{_tail(stderr)}"
+        )
+    perms = _parse_gap_aut_output(stdout, order)
+    return perms
+
+
+def _load_automorphisms(
+    group: FiniteGroup,
+    *,
+    gap_cmd: str,
+    cache_dir: Optional[Path],
+) -> List[List[int]]:
+    spec_norm = None
+    try:
+        spec_norm = canonical_group_spec(group.name)
+    except ValueError:
+        spec_norm = group.name
+    cache_path = _aut_cache_path(cache_dir, spec_norm)
+    if cache_path is not None and cache_path.exists():
+        payload = json.loads(cache_path.read_text(encoding="utf-8"))
+        perms = payload.get("perms") or payload.get("automorphisms")
+        if (
+            payload.get("format_version") == _AUT_CACHE_VERSION
+            and int(payload.get("order", 0)) == group.order
+            and isinstance(perms, list)
+        ):
+            return _normalize_aut_perms(perms, group.order)
+    perms = _gap_automorphisms_for_spec(spec_norm, gap_cmd=gap_cmd)
+    perms = _normalize_aut_perms(perms, group.order)
+    if cache_path is not None:
+        payload = {
+            "format_version": _AUT_CACHE_VERSION,
+            "spec": spec_norm,
+            "order": group.order,
+            "perms": perms,
+        }
+        cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    return perms
 
 
 __all__ = [

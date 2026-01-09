@@ -284,6 +284,40 @@ def _enumerate_sets(
     return _sample_combinations(m=m, count=target, rng=rng)
 
 
+def canonical_multiset(
+    group: FiniteGroup,
+    multiset: Sequence[int],
+    *,
+    automorphisms: Optional[Sequence[Sequence[int]]] = None,
+) -> Tuple[int, ...]:
+    base = tuple(sorted(int(x) for x in multiset))
+    if automorphisms is None:
+        automorphisms = group.automorphisms()
+    best = base
+    for perm in automorphisms:
+        mapped = tuple(sorted(perm[x] for x in base))
+        if mapped < best:
+            best = mapped
+    return best
+
+
+def _dedup_multisets(
+    group: FiniteGroup,
+    sets: List[List[int]],
+    *,
+    automorphisms: Sequence[Sequence[int]],
+) -> Tuple[List[List[int]], int, int]:
+    raw_count = len(sets)
+    if raw_count == 0:
+        return [], 0, 0
+    deduped: List[List[int]] = []
+    for mult in sets:
+        key = tuple(sorted(int(x) for x in mult))
+        if key == canonical_multiset(group, key, automorphisms=automorphisms):
+            deduped.append(list(key))
+    return deduped, raw_count, len(deduped)
+
+
 def _analyze_slice(
     rows: Sequence[int],
     ncols: int,
@@ -718,6 +752,11 @@ def _best_by_k_row(entry: Dict[str, object], *, uniq_target: int) -> Dict[str, o
     qd_z = qd.get("qd_z") or {}
     uniq_lim = int(qd_x.get("uniq", 0)) if limiting_side == "X" else int(qd_z.get("uniq", 0))
     avg_lim = qd_x.get("avg") if limiting_side == "X" else qd_z.get("avg")
+    done_lim = (
+        int(qd_x.get("rounds_done", 0))
+        if limiting_side == "X"
+        else int(qd_z.get("rounds_done", 0))
+    )
     trials_used = entry.get("confirm_trials") or qd.get("trials_requested")
     confirmed = uniq_lim >= uniq_target
     return {
@@ -727,6 +766,7 @@ def _best_by_k_row(entry: Dict[str, object], *, uniq_target: int) -> Dict[str, o
         "dx_ub": dx_ub,
         "dz_ub": dz_ub,
         "uniq_lim": uniq_lim,
+        "done_lim": done_lim,
         "avg_lim": avg_lim,
         "id": entry.get("candidate_id"),
         "confirmed": confirmed,
@@ -748,7 +788,7 @@ def _best_by_k_table(
     for (group_spec, n_val) in sorted(groups):
         lines.append(f"[best_by_k] group={group_spec} n={n_val}")
         header = (
-            "k  | d_ub | trials_used | dx_ub | dz_ub | uniq_lim | avg_lim | id | confirmed"
+            "k  | d_ub | trials_used | dx_ub | dz_ub | uniq_lim | done_lim | avg_lim | id | confirmed"
         )
         lines.append(header)
         rows = sorted(groups[(group_spec, n_val)], key=lambda entry: int(entry.get("k", 0)))
@@ -758,7 +798,7 @@ def _best_by_k_table(
             line = (
                 f"{row['k']:>2} | {str(row['d_ub']):>4} | {str(row['trials_used']):>11} | "
                 f"{row['dx_ub']:>5} | {row['dz_ub']:>5} | {row['uniq_lim']:>8} | "
-                f"{avg_lim:>7} | {row['id']} | {row['confirmed']}"
+                f"{row['done_lim']:>8} | {avg_lim:>7} | {row['id']} | {row['confirmed']}"
             )
             lines.append(line)
         lines.append("")
@@ -1075,6 +1115,20 @@ def _is_new_best_by_k(
     return _is_better_entry(entry, current)
 
 
+def _confirmed_best_d_ub(
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    entry: Dict[str, object],
+) -> Optional[int]:
+    best = best_by_k.get(_best_by_k_key(entry))
+    if not best or not best.get("confirmed"):
+        return None
+    qd = best.get("qdistrnd") or {}
+    d_ub = qd.get("d_ub")
+    if d_ub is None:
+        return None
+    return int(d_ub)
+
+
 def _confirm_best_entries(
     entries: List[Dict[str, object]],
     *,
@@ -1355,8 +1409,28 @@ def _gap_dist_rand_css_stats_lines() -> list[str]:
     ]
 
 
+def _normalize_gap_batch_item(
+    item: Sequence[object],
+    *,
+    num_default: int,
+    mindist_default: int,
+) -> Tuple[int, str, str, int, int]:
+    if len(item) == 3:
+        idx, hx_path, hz_path = item
+        opts: Dict[str, object] = {}
+    elif len(item) == 4:
+        idx, hx_path, hz_path, opts = item
+        if opts is None:
+            opts = {}
+    else:
+        raise ValueError(f"Invalid batch item length {len(item)}; expected 3 or 4.")
+    num = int(opts.get("num", num_default))
+    mindist = int(opts.get("mindist", mindist_default))
+    return int(idx), str(hx_path), str(hz_path), num, mindist
+
+
 def _build_gap_batch_script(
-    batch: Sequence[Tuple[int, str, str]],
+    batch: Sequence[Sequence[object]],
     *,
     num: int,
     mindist: int,
@@ -1377,18 +1451,23 @@ def _build_gap_batch_script(
     ]
     if seed is not None:
         lines.append(f"Reset(GlobalMersenneTwister, {seed});")
-    for idx, hx_path, hz_path in batch:
+    normalized = [
+        _normalize_gap_batch_item(item, num_default=num, mindist_default=mindist)
+        for item in batch
+    ]
+    for idx, hx_path, hz_path, num_i, mindist_i in normalized:
         hx_literal = _gap_string_literal(os.path.abspath(hx_path))
         hz_literal = _gap_string_literal(os.path.abspath(hz_path))
         lines.extend(
             [
                 f'HX := ReadMMGF2("{hx_literal}");;',
                 f'HZ := ReadMMGF2("{hz_literal}");;',
-                f"dz_rec := DistRandCSS_stats(HX, HZ, {num}, {mindist});;",
-                f"dx_rec := DistRandCSS_stats(HZ, HX, {num}, {mindist});;",
+                f"dz_rec := DistRandCSS_stats(HX, HZ, {num_i}, {mindist_i});;",
+                f"dx_rec := DistRandCSS_stats(HZ, HX, {num_i}, {mindist_i});;",
                 (
                     f'Print("QDR|", {idx}, "|dx=", dx_rec.d_signed, "|dz=", dz_rec.d_signed, '
                     '"|rx=", dx_rec.rounds_done, "|rz=", dz_rec.rounds_done, '
+                    f'"|num=", {num_i}, "|mind=", {mindist_i}, '
                     '"|vx=", ToIntOrZero(dx_rec.vec_count_total), '
                     '"|vz=", ToIntOrZero(dz_rec.vec_count_total), '
                     '"|mx=", ListToJson(dx_rec.mult), "|mz=", ListToJson(dz_rec.mult), "\\n");'
@@ -1465,6 +1544,8 @@ def _parse_qdr_line(line: str) -> Tuple[int, Dict[str, object]]:
         "rz": int(fields["rz"]),
         "vx": 0 if vx_raw == "" else int(vx_raw),
         "vz": 0 if vz_raw == "" else int(vz_raw),
+        "num": int(fields["num"]) if "num" in fields else None,
+        "mind": int(fields["mind"]) if "mind" in fields else None,
         "mx": [] if mx_raw == "" else json.loads(mx_raw),
         "mz": [] if mz_raw == "" else json.loads(mz_raw),
     }
@@ -1523,7 +1604,7 @@ def _parse_batch_output(
 
 def _run_gap_batch(
     *,
-    batch: Sequence[Tuple[int, str, str]],
+    batch: Sequence[Sequence[object]],
     num: int,
     mindist: int,
     debug: int,
@@ -1593,7 +1674,7 @@ def _run_gap_batch(
         runtime_sec=runtime_sec,
         include_tail=result.returncode != 0,
     )
-    expected = [idx for idx, _, _ in batch]
+    expected = [int(item[0]) for item in batch]
     if result.returncode != 0:
         results = {idx: {"qd_failed": True} for idx in expected}
         return results, runtime_sec
@@ -1623,103 +1704,142 @@ def _process_qdistrnd_batch(
 ) -> int:
     if not batch_items:
         return batch_id
-    filter_seed = (seed + batch_id) % (1 << 31)
-    qd_results, _ = _run_gap_batch(
-        batch=[(i, hx, hz) for i, hx, hz, _ in batch_items],
-        num=trials_filter,
-        mindist=args.mindist,
-        debug=args.qd_debug,
-        seed=filter_seed,
-        outdir=outdir,
-        batch_id=batch_id,
-        gap_cmd=args.gap_cmd,
-        timeout_sec=args.qd_timeout,
-    )
-    batch_id += 1
-    for _, _, _, entry in batch_items:
-        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
-        coverage_by_group[group_spec]["Q_filter_run"] += 1
-    _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
-    survivors: List[Tuple[int, str, str, dict]] = []
+    filter_batch: List[Tuple[int, str, str, dict]] = []
+    direct_measure: List[Tuple[int, str, str, dict]] = []
+    dynamic_keys: Dict[Tuple[str, int, int, int], None] = {}
     for idx_key, hx, hz, entry in batch_items:
-        qd_stats = qd_results.get(idx_key)
-        if not qd_stats or qd_stats.get("qd_failed"):
-            entry["qd_failed"] = True
-            entry["failed_filter"] = True
-            entry["filter_hit_dx"] = None
-            entry["filter_hit_dz"] = None
-            entry["filter_early_stop_dx"] = None
-            entry["filter_early_stop_dz"] = None
-            entry["promising"] = False
-            entry["saved"] = False
-            entry["save_reason"] = None
-            entry["saved_path"] = None
-            print(
-                f"[pilot] QD_FAILED filter "
-                f"id={entry['candidate_id']}"
-            )
-            cand_dir = tmp_root / entry["candidate_id"]
-            hx_path = cand_dir / "Hx.mtx"
-            hz_path = cand_dir / "Hz.mtx"
-            if hx_path.exists():
-                hx_path.unlink()
-            if hz_path.exists():
-                hz_path.unlink()
-            if cand_dir.exists():
-                try:
-                    cand_dir.rmdir()
-                except OSError:
-                    pass
-            results_file.write(json.dumps(entry, sort_keys=True) + "\n")
-            results_file.flush()
-            continue
-        dx_signed = int(qd_stats["dx_signed"])
-        dz_signed = int(qd_stats["dz_signed"])
-        filter_early_stop_dx = dx_signed < 0
-        filter_early_stop_dz = dz_signed < 0
-        filter_hit_dx = abs(dx_signed)
-        filter_hit_dz = abs(dz_signed)
-        entry["filter_hit_dx"] = filter_hit_dx
-        entry["filter_hit_dz"] = filter_hit_dz
-        entry["filter_early_stop_dx"] = filter_early_stop_dx
-        entry["filter_early_stop_dz"] = filter_early_stop_dz
-        entry["failed_filter"] = filter_early_stop_dx or filter_early_stop_dz
-        if entry["failed_filter"]:
-            entry["promising"] = False
-            entry["saved"] = False
-            entry["save_reason"] = None
-            entry["saved_path"] = None
-            print(
-                f"[pilot] FILTER_FAIL hit<=mindist "
-                f"(dx_hit={filter_hit_dx}, dz_hit={filter_hit_dz}) "
-                f"id={entry['candidate_id']}"
-            )
-            cand_dir = tmp_root / entry["candidate_id"]
-            hx_path = cand_dir / "Hx.mtx"
-            hz_path = cand_dir / "Hz.mtx"
-            if hx_path.exists():
-                hx_path.unlink()
-            if hz_path.exists():
-                hz_path.unlink()
-            if cand_dir.exists():
-                try:
-                    cand_dir.rmdir()
-                except OSError:
-                    pass
-            results_file.write(json.dumps(entry, sort_keys=True) + "\n")
-            results_file.flush()
-            continue
-        survivors.append((idx_key, hx, hz, entry))
-        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
-        coverage_by_group[group_spec]["Q_filter_pass"] += 1
+        d_best = _confirmed_best_d_ub(best_by_k, entry)
+        entry["dynamic_mindist"] = d_best
+        if d_best is not None:
+            group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+            dynamic_keys[(group_spec, int(entry.get("n", 0)), int(entry.get("k", 0)), int(d_best))] = None
+        if d_best is not None and d_best >= args.mindist:
+            entry["filter_skipped"] = True
+            direct_measure.append((idx_key, hx, hz, entry))
+        else:
+            entry["filter_skipped"] = False
+            filter_batch.append((idx_key, hx, hz, entry))
 
-    if not survivors:
+    if dynamic_keys:
+        keys = sorted(dynamic_keys)
+        sample = keys[:3]
+        sample_str = ", ".join(
+            f"{g} n={n} k={k} d_best={d}" for g, n, k, d in sample
+        )
+        suffix = "" if len(keys) <= 3 else " ..."
+        print(
+            f"[pilot] dynamic mindist pruning active for {len(keys)} key(s): "
+            f"{sample_str}{suffix}"
+        )
+
+    survivors: List[Tuple[int, str, str, dict]] = []
+    if filter_batch:
+        filter_seed = (seed + batch_id) % (1 << 31)
+        qd_results, _ = _run_gap_batch(
+            batch=[(i, hx, hz) for i, hx, hz, _ in filter_batch],
+            num=trials_filter,
+            mindist=args.mindist,
+            debug=args.qd_debug,
+            seed=filter_seed,
+            outdir=outdir,
+            batch_id=batch_id,
+            gap_cmd=args.gap_cmd,
+            timeout_sec=args.qd_timeout,
+        )
+        batch_id += 1
+        for _, _, _, entry in filter_batch:
+            group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+            coverage_by_group[group_spec]["Q_filter_run"] += 1
+        _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
+        for idx_key, hx, hz, entry in filter_batch:
+            qd_stats = qd_results.get(idx_key)
+            if not qd_stats or qd_stats.get("qd_failed"):
+                entry["qd_failed"] = True
+                entry["failed_filter"] = True
+                entry["filter_hit_dx"] = None
+                entry["filter_hit_dz"] = None
+                entry["filter_early_stop_dx"] = None
+                entry["filter_early_stop_dz"] = None
+                entry["promising"] = False
+                entry["saved"] = False
+                entry["save_reason"] = None
+                entry["saved_path"] = None
+                print(
+                    f"[pilot] QD_FAILED filter "
+                    f"id={entry['candidate_id']}"
+                )
+                cand_dir = tmp_root / entry["candidate_id"]
+                hx_path = cand_dir / "Hx.mtx"
+                hz_path = cand_dir / "Hz.mtx"
+                if hx_path.exists():
+                    hx_path.unlink()
+                if hz_path.exists():
+                    hz_path.unlink()
+                if cand_dir.exists():
+                    try:
+                        cand_dir.rmdir()
+                    except OSError:
+                        pass
+                results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+                results_file.flush()
+                continue
+            dx_signed = int(qd_stats["dx_signed"])
+            dz_signed = int(qd_stats["dz_signed"])
+            filter_early_stop_dx = dx_signed < 0
+            filter_early_stop_dz = dz_signed < 0
+            filter_hit_dx = abs(dx_signed)
+            filter_hit_dz = abs(dz_signed)
+            entry["filter_hit_dx"] = filter_hit_dx
+            entry["filter_hit_dz"] = filter_hit_dz
+            entry["filter_early_stop_dx"] = filter_early_stop_dx
+            entry["filter_early_stop_dz"] = filter_early_stop_dz
+            entry["failed_filter"] = filter_early_stop_dx or filter_early_stop_dz
+            if entry["failed_filter"]:
+                entry["promising"] = False
+                entry["saved"] = False
+                entry["save_reason"] = None
+                entry["saved_path"] = None
+                dx_done = int(qd_stats.get("rx", 0))
+                dz_done = int(qd_stats.get("rz", 0))
+                print(
+                    f"[pilot] FILTER_FAIL hit<=mindist mind={args.mindist} "
+                    f"trials={trials_filter} dx_hit={filter_hit_dx} dx_done={dx_done} "
+                    f"dz_hit={filter_hit_dz} dz_done={dz_done} id={entry['candidate_id']}"
+                )
+                cand_dir = tmp_root / entry["candidate_id"]
+                hx_path = cand_dir / "Hx.mtx"
+                hz_path = cand_dir / "Hz.mtx"
+                if hx_path.exists():
+                    hx_path.unlink()
+                if hz_path.exists():
+                    hz_path.unlink()
+                if cand_dir.exists():
+                    try:
+                        cand_dir.rmdir()
+                    except OSError:
+                        pass
+                results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+                results_file.flush()
+                continue
+            survivors.append((idx_key, hx, hz, entry))
+            group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+            coverage_by_group[group_spec]["Q_filter_pass"] += 1
+
+    measure_items = survivors + direct_measure
+    if not measure_items:
         _write_best_by_k_outputs(best_by_k, uniq_target=args.best_uniq_target, outdir=outdir)
         return batch_id
 
     measure_seed = (seed + batch_id) % (1 << 31)
+    measure_batch: List[Tuple[int, str, str, dict]] = []
+    measure_mindist: Dict[int, int] = {}
+    for idx_key, hx, hz, entry in measure_items:
+        mindist_value = entry.get("dynamic_mindist")
+        mindist_meas = 0 if mindist_value is None else int(mindist_value)
+        measure_mindist[idx_key] = mindist_meas
+        measure_batch.append((idx_key, hx, hz, {"mindist": mindist_meas}))
     qd_results, runtime_sec = _run_gap_batch(
-        batch=[(i, hx, hz) for i, hx, hz, _ in survivors],
+        batch=measure_batch,
         num=trials_measure,
         mindist=0,
         debug=args.qd_debug,
@@ -1730,21 +1850,22 @@ def _process_qdistrnd_batch(
         timeout_sec=args.qd_timeout,
     )
     batch_id += 1
-    for _, _, _, entry in survivors:
+    for _, _, _, entry in measure_items:
         group_spec = (entry.get("group") or {}).get("spec") or "unknown"
         coverage_by_group[group_spec]["Q_meas_run"] += 1
     measured_entries: List[Dict[str, object]] = []
     new_best_entries: List[Dict[str, object]] = []
-    for idx_key, _, _, entry in survivors:
+    for idx_key, _, _, entry in measure_items:
         qd_stats = qd_results.get(idx_key)
         cand_dir = tmp_root / entry["candidate_id"]
         hx_path = cand_dir / "Hx.mtx"
         hz_path = cand_dir / "Hz.mtx"
+        mindist_meas = measure_mindist.get(idx_key, 0)
         if not qd_stats or qd_stats.get("qd_failed"):
             entry["qd_failed"] = True
             entry["qdistrnd"] = {
                 "trials_requested": trials_measure,
-                "mindist": 0,
+                "mindist": mindist_meas,
                 "seed": measure_seed,
                 "runtime_sec": runtime_sec,
                 "gap_cmd": args.gap_cmd,
@@ -1771,10 +1892,51 @@ def _process_qdistrnd_batch(
             results_file.flush()
             summary_records.append(entry)
             continue
+        dx_signed = int(qd_stats["dx_signed"])
+        dz_signed = int(qd_stats["dz_signed"])
+        meas_early_stop_dx = dx_signed < 0
+        meas_early_stop_dz = dz_signed < 0
+        if mindist_meas > 0 and (meas_early_stop_dx or meas_early_stop_dz):
+            qd, qd_x, qd_z, dx_ub, dz_ub, d_ub = _qd_summary_from_stats(
+                qd_stats,
+                num=trials_measure,
+                mindist=mindist_meas,
+                seed=measure_seed,
+                runtime_sec=runtime_sec,
+                gap_cmd=args.gap_cmd,
+            )
+            entry["qdistrnd"] = qd
+            entry["failed_measure"] = True
+            entry["measure_hit_dx"] = abs(dx_signed)
+            entry["measure_hit_dz"] = abs(dz_signed)
+            entry["measure_early_stop_dx"] = meas_early_stop_dx
+            entry["measure_early_stop_dz"] = meas_early_stop_dz
+            entry["promising"] = False
+            entry["saved"] = False
+            entry["save_reason"] = None
+            entry["saved_path"] = None
+            print(
+                f"[pilot] MEAS_FAIL hit<=mindist mind={mindist_meas} trials={trials_measure} "
+                f"dx_hit={abs(dx_signed)} dx_done={qd_x.get('rounds_done')} "
+                f"dz_hit={abs(dz_signed)} dz_done={qd_z.get('rounds_done')} "
+                f"id={entry['candidate_id']}"
+            )
+            if hx_path.exists():
+                hx_path.unlink()
+            if hz_path.exists():
+                hz_path.unlink()
+            if cand_dir.exists():
+                try:
+                    cand_dir.rmdir()
+                except OSError:
+                    pass
+            results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+            results_file.flush()
+            continue
         qd, qd_x, qd_z, dx_ub, dz_ub, d_ub = _qd_summary_from_stats(
             qd_stats,
             num=trials_measure,
-            mindist=0,
+            mindist=mindist_meas,
             seed=measure_seed,
             runtime_sec=runtime_sec,
             gap_cmd=args.gap_cmd,
@@ -1794,8 +1956,16 @@ def _process_qdistrnd_batch(
         k = entry["k"]
         print(
             f"[pilot] MEAS n={n} k={k} dx_ub={dx_ub} "
-            f"dz_ub={dz_ub} d_ub={d_ub} id={entry['candidate_id']}"
+            f"dz_ub={dz_ub} d_ub={d_ub} trials={trials_measure} "
+            f"dx_done={qd_x.get('rounds_done')} dz_done={qd_z.get('rounds_done')} "
+            f"id={entry['candidate_id']}"
         )
+        if entry in new_best_entries:
+            print(
+                f"[pilot] BEST n={n} k={k} d_ub={d_ub} trials={trials_measure} "
+                f"dx_done={qd_x.get('rounds_done')} dz_done={qd_z.get('rounds_done')} "
+                f"id={entry['candidate_id']}"
+            )
 
     if new_best_entries:
         batch_id = _confirm_best_entries(
@@ -2178,6 +2348,7 @@ def main() -> int:
     classical_b_frontier_path = outdir / "classical_B_frontier.json"
     best_codes_root = outdir / "best_codes"
     group_cache_dir = outdir / "groups"
+    aut_cache_dir = outdir / "cache" / "aut"
     summary_records: List[Dict[str, object]] = []
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]] = {}
     coverage_by_group: Dict[str, Dict[str, object]] = {}
@@ -2226,8 +2397,28 @@ def main() -> int:
                 feasible_limit=feasible_limit,
                 allow_repeats=args.allow_repeats,
             )
+            automorphisms = group.automorphisms(
+                gap_cmd=args.gap_cmd,
+                cache_dir=aut_cache_dir,
+            )
+            A_sets, A_raw, A_unique = _dedup_multisets(
+                group, A_sets, automorphisms=automorphisms
+            )
+            B_sets, B_raw, B_unique = _dedup_multisets(
+                group, B_sets, automorphisms=automorphisms
+            )
+            print(
+                f"[pilot] A multisets raw={A_raw} cayley_unique={A_unique} "
+                f"perms={perm_total} -> total scored = {A_unique * perm_total}"
+            )
+            print(
+                f"[pilot] B multisets raw={B_raw} cayley_unique={B_unique} "
+                f"perms={perm_total} -> total scored = {B_unique * perm_total}"
+            )
             if not A_sets or not B_sets:
-                print(f"[pilot] no A/B sets for {group.name}; skipping.")
+                print(
+                    f"[pilot] no A/B sets for {group.name} after Cayley dedup; skipping."
+                )
                 continue
 
             a_scored: List[SliceCandidate] = []
@@ -2399,14 +2590,18 @@ def main() -> int:
                 "group": group_spec,
                 "order": group.order,
                 "n_quantum": n_est,
+                "A_multisets_raw": A_raw,
                 "A_multisets_total": len(A_sets),
+                "A_multisets_cayley": len(A_sets),
                 "A_perm_total": perm_total,
                 "A_candidates_total": len(A_sets) * perm_total,
                 "A_candidates_ge_sqrt": sum(
                     1 for cand in a_scored if cand.metrics.d_min >= d0
                 ),
                 "A_candidates_selected": len(A_keep),
+                "B_multisets_raw": B_raw,
                 "B_multisets_total": len(B_sets),
+                "B_multisets_cayley": len(B_sets),
                 "B_perm_total": perm_total,
                 "B_candidates_total": len(B_sets) * perm_total,
                 "B_candidates_ge_sqrt": sum(

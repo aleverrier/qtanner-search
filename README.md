@@ -10,6 +10,7 @@ Quick start:
 
 Classical selection (A/B candidates):
 - Uses a (k,d)-tradeoff frontier based on k_min=min(k_slice) and d_min=min(d_slice).
+- Multisets are deduplicated up to Aut(G) (Cayley-unique) before scoring.
 - Frontier artifacts are written to `runs/<run>/classical_A_frontier.json` and `runs/<run>/classical_B_frontier.json`.
 - Optional caps: `--frontier-max-per-point` (default 50) and `--frontier-max-total` (default 500).
 - Legacy flags `--topA/--topB/--topA-d/--topA-k` remain accepted but no longer drive selection.

@@ -1,8 +1,12 @@
+import random
 from pathlib import Path
 
 import pytest
 
-from qtanner.group import CyclicGroup
+from qtanner.group import CyclicGroup, group_from_spec
+from qtanner.mtx import write_mtx_from_bitrows
+from qtanner.qdistrnd import gap_is_available
+from qtanner.lift_matrices import build_hx_hz
 from qtanner import paper_extract
 
 
@@ -116,3 +120,65 @@ def test_decode3_scoring_synthetic_c3():
         m=m,
     )
     assert choice["score"][0] >= hx_score[0]
+
+
+def test_sigma_recovery_c2x2_synthetic(tmp_path):
+    if not gap_is_available("gap"):
+        pytest.skip("GAP not available for sigma recovery.")
+    group = group_from_spec("C2xC2")
+    nA, nB = 6, 2
+    rA, rB = 3, 1
+    m = group.order
+
+    C0 = paper_extract._local_code_canonical(nA)
+    C1 = paper_extract._permute_local_code(C0, list(range(nA)), name="C1")
+    C0p = paper_extract._local_code_canonical(nB)
+    C1p = paper_extract._permute_local_code(C0p, list(range(nB)), name="C1p")
+
+    A = [0, 1, 2, 3, 1, 2]
+    B = [1, 2]
+    hx_rows, hz_rows, n_cols = build_hx_hz(group, A, B, C0, C1, C0p, C1p)
+
+    rng = random.Random(0)
+    sigma = list(range(m))
+    rng.shuffle(sigma)
+    sigma_inv = paper_extract._perm_inverse(sigma)
+
+    col_perm = paper_extract._build_col_perm(
+        nA=nA, nB=nB, m=m, col_order=(0, 1, 2), sigma_inv=sigma_inv
+    )
+    hx_obs = paper_extract._apply_col_perm_to_bitrows(hx_rows, col_perm)
+    hz_obs = paper_extract._apply_col_perm_to_bitrows(hz_rows, col_perm)
+
+    kA = len(C0.G_rows)
+    kB = len(C0p.G_rows)
+    row_perm_hx = paper_extract._build_row_perm_hx(
+        rA=rA, nB=nB, kB=kB, m=m, row_order=(0, 1, 2), sigma_inv=sigma_inv
+    )
+    row_perm_hz = paper_extract._build_row_perm_hz(
+        nA=nA, rB=rB, kA=kA, m=m, row_order=(0, 1, 2), sigma_inv=sigma_inv
+    )
+    hx_obs = paper_extract._reorder_rows(hx_obs, row_perm_hx)
+    hz_obs = paper_extract._reorder_rows(hz_obs, row_perm_hz)
+
+    folder = tmp_path / "633x212"
+    folder.mkdir()
+    hx_path = folder / "HX_C2C2_48_0_0.mtx"
+    hz_path = folder / "HZ_C2C2_48_0_0.mtx"
+    write_mtx_from_bitrows(hx_path, hx_obs, n_cols)
+    write_mtx_from_bitrows(hz_path, hz_obs, n_cols)
+
+    rec = paper_extract._extract_from_pair(
+        hx_path=hx_path,
+        hz_path=hz_path,
+        folder="633x212",
+        group_tag="C2C2",
+        n_val=n_cols,
+        k_val=0,
+        d_val=0,
+        gap_cmd="gap",
+        cache_dir=tmp_path,
+    )
+    assert rec["reconstruction_ok"] is True
+    assert all(a is not None for a in rec["A_ids"])
+    assert all(b is not None for b in rec["B_ids"])

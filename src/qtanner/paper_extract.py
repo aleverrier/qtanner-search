@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import itertools
+import math
 import os
 import re
 import subprocess
@@ -16,6 +17,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from .classical_distance import read_mtx_coordinate_binary
 from .group import CyclicGroup, FiniteGroup, group_from_spec
+from .lift_matrices import build_hx_hz
+from .local_codes import LocalCode, apply_col_perm_to_rows, row_from_bits
 from .qdistrnd import gap_is_available
 
 
@@ -25,11 +28,24 @@ _H_6_3_3 = [
     [0, 0, 1, 1, 1, 0],
 ]
 
+_G_6_3_3 = [
+    [0, 1, 1, 1, 0, 0],
+    [1, 0, 1, 0, 1, 0],
+    [1, 1, 0, 0, 0, 1],
+]
+
 _H_8_4_4 = [
     [1, 0, 0, 0, 0, 1, 1, 1],
     [0, 1, 0, 0, 1, 0, 1, 1],
     [0, 0, 1, 0, 1, 1, 0, 1],
     [0, 0, 0, 1, 1, 1, 1, 0],
+]
+
+_G_8_4_4 = [
+    [0, 1, 1, 1, 1, 0, 0, 0],
+    [1, 0, 1, 1, 0, 1, 0, 0],
+    [1, 1, 0, 1, 0, 0, 1, 0],
+    [1, 1, 1, 0, 0, 0, 0, 1],
 ]
 
 
@@ -43,11 +59,150 @@ def _canonical_supports(n: int) -> List[frozenset[int]]:
     raise ValueError(f"Unsupported local code length {n}.")
 
 
+def _canonical_supports_g(n: int) -> List[frozenset[int]]:
+    if n == 2:
+        return [frozenset({0, 1})]
+    if n == 6:
+        return [frozenset(idx for idx, v in enumerate(row) if v) for row in _G_6_3_3]
+    if n == 8:
+        return [frozenset(idx for idx, v in enumerate(row) if v) for row in _G_8_4_4]
+    raise ValueError(f"Unsupported local code length {n}.")
+
+
+def _local_code_canonical(n: int) -> LocalCode:
+    if n == 2:
+        H = [row_from_bits([1, 1])]
+        G = [row_from_bits([1, 1])]
+        return LocalCode(name="rep_2_1_2", n=2, k=1, H_rows=H, G_rows=G)
+    if n == 6:
+        H = [row_from_bits(row) for row in _H_6_3_3]
+        G = [row_from_bits(row) for row in _G_6_3_3]
+        return LocalCode(name="hamming_6_3_3", n=6, k=3, H_rows=H, G_rows=G)
+    if n == 8:
+        H = [row_from_bits(row) for row in _H_8_4_4]
+        G = [row_from_bits(row) for row in _G_8_4_4]
+        return LocalCode(name="hamming_8_4_4", n=8, k=4, H_rows=H, G_rows=G)
+    raise ValueError(f"Unsupported local code length {n}.")
+
+
+def _permute_local_code(code: LocalCode, perm: Sequence[int], name: str) -> LocalCode:
+    perm_list = [int(x) for x in perm]
+    return LocalCode(
+        name=name,
+        n=code.n,
+        k=code.k,
+        H_rows=apply_col_perm_to_rows(code.H_rows, perm_list, code.n),
+        G_rows=apply_col_perm_to_rows(code.G_rows, perm_list, code.n),
+    )
+
+
 def _perm_inverse(perm: Sequence[int]) -> Tuple[int, ...]:
     inv = [0] * len(perm)
     for i, j in enumerate(perm):
         inv[int(j)] = int(i)
     return tuple(inv)
+
+
+def _perm_comp(p: Sequence[int], q: Sequence[int]) -> Tuple[int, ...]:
+    return tuple(int(p[int(i)]) for i in q)
+
+
+def _perm_order(perm: Sequence[int]) -> int:
+    m = len(perm)
+    seen = [False] * m
+    order = 1
+    for i in range(m):
+        if seen[i]:
+            continue
+        length = 0
+        j = i
+        while not seen[j]:
+            seen[j] = True
+            j = int(perm[j])
+            length += 1
+        if length > 0:
+            order = math.lcm(order, length)
+    return order
+
+
+def _perm_group_closure(
+    generators: Sequence[Tuple[int, ...]],
+    *,
+    m: int,
+    max_size: Optional[int] = None,
+) -> set[Tuple[int, ...]]:
+    identity = tuple(range(m))
+    gens = list(generators)
+    gens.extend([_perm_inverse(g) for g in generators])
+    seen = {identity}
+    frontier = [identity]
+    while frontier:
+        cur = frontier.pop()
+        for gen in gens:
+            nxt = _perm_comp(gen, cur)
+            if nxt in seen:
+                continue
+            seen.add(nxt)
+            if max_size is not None and len(seen) > max_size:
+                return seen
+            frontier.append(nxt)
+    return seen
+
+
+def _permute_supports(
+    supports: Iterable[frozenset[int]],
+    perm: Sequence[int],
+) -> set[frozenset[int]]:
+    return {frozenset(int(perm[i]) for i in s) for s in supports}
+
+
+def _perm_candidates_from_supports(
+    n: int,
+    support_sets: Iterable[frozenset[int]],
+    *,
+    canonical_supports: Optional[Sequence[frozenset[int]]] = None,
+) -> List[Tuple[int, ...]]:
+    if n == 2:
+        return [tuple(range(n))]
+    canonical = canonical_supports or _canonical_supports(n)
+    support_set = set(support_sets)
+    candidates: List[Tuple[int, ...]] = []
+    for perm in itertools.permutations(range(n)):
+        permuted = _permute_supports(canonical, perm)
+        if permuted.issubset(support_set):
+            candidates.append(tuple(perm))
+    return list(dict.fromkeys(candidates))
+
+
+def _select_perm_generators(perms: Sequence[Tuple[int, ...]], *, m: int) -> Tuple[List[Tuple[int, ...]], set]:
+    unique = list(dict.fromkeys(perms))
+    gens: List[Tuple[int, ...]] = []
+    group = _perm_group_closure(gens, m=m, max_size=m)
+    for perm in unique:
+        candidate = _perm_group_closure(gens + [perm], m=m, max_size=m)
+        if len(candidate) > len(group):
+            gens.append(perm)
+            group = candidate
+            if len(group) == m:
+                break
+    return gens, group
+
+
+def _conjugate_perm(
+    perm: Sequence[int],
+    *,
+    sigma: Sequence[int],
+    sigma_inv: Sequence[int],
+) -> Tuple[int, ...]:
+    m = len(perm)
+    return tuple(int(sigma[int(perm[int(sigma_inv[i])])]) for i in range(m))
+
+
+def _encode3(vals: Sequence[int], sizes: Sequence[int], order: Sequence[int]) -> int:
+    idx = 0
+    for axis in order:
+        idx = idx * int(sizes[axis]) + int(vals[axis])
+    return idx
 
 
 def _perm_to_element_left(
@@ -75,6 +230,22 @@ def _perm_to_element_right(
         return int(group.inv(t))
     inv = _perm_inverse(perm_t)
     return inv[0]
+
+
+def _decompose_perm_lr(perm: Sequence[int], group: FiniteGroup) -> Optional[Tuple[int, int]]:
+    perm_t = tuple(int(x) for x in perm)
+    if not perm_t:
+        return None
+    for x in group.elements():
+        y = group.mul(group.inv(x), perm_t[0])
+        ok = True
+        for g in group.elements():
+            if group.mul(group.mul(x, g), y) != perm_t[g]:
+                ok = False
+                break
+        if ok:
+            return int(x), int(y)
+    return None
 
 
 def _match_perm(
@@ -192,6 +363,260 @@ def _build_perm_maps(
     return left_map, left_inv_map, right_map, right_inv_map
 
 
+def _is_abelian(group: FiniteGroup) -> bool:
+    for a in group.elements():
+        for b in group.elements():
+            if group.mul(a, b) != group.mul(b, a):
+                return False
+    return True
+
+
+def _sigma_cache_path(code_id: str, cache_dir: Path) -> Path:
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", code_id)
+    return cache_dir / f"paper_extract_sigma_{safe}.json"
+
+
+def _load_sigma_cache(code_id: str, cache_dir: Path) -> Optional[dict]:
+    path = _sigma_cache_path(code_id, cache_dir)
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict) and payload.get("sigma"):
+        return payload
+    return None
+
+
+def _write_sigma_cache(code_id: str, cache_dir: Path, payload: dict) -> None:
+    path = _sigma_cache_path(code_id, cache_dir)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def _score_sigma_matches(
+    perms: Sequence[Tuple[int, ...]],
+    *,
+    sigma: Sequence[int],
+    left_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+) -> Tuple[int, int, int]:
+    sigma_inv = _perm_inverse(sigma)
+    left_hits = 0
+    right_hits = 0
+    for perm in perms:
+        conj = _conjugate_perm(perm, sigma=sigma, sigma_inv=sigma_inv)
+        if conj in left_map:
+            left_hits += 1
+        if conj in right_map:
+            right_hits += 1
+    return left_hits + right_hits, left_hits, right_hits
+
+
+def _infer_sigma_cyclic(
+    perms: Sequence[Tuple[int, ...]],
+    *,
+    m: int,
+    left_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+) -> Optional[Dict[str, object]]:
+    generators = [perm for perm in perms if _perm_order(perm) == m]
+    if not generators:
+        return None
+    best = None
+    for perm in generators[:5]:
+        for start in range(m):
+            for direction in (1, -1):
+                sigma = [0] * m
+                cur = start
+                for step in range(m):
+                    sigma[cur] = step if direction == 1 else (-step) % m
+                    cur = perm[cur]
+                score, left_hits, right_hits = _score_sigma_matches(
+                    perms, sigma=sigma, left_map=left_map, right_map=right_map
+                )
+                record = {
+                    "sigma": sigma,
+                    "score": score,
+                    "left_hits": left_hits,
+                    "right_hits": right_hits,
+                    "method": "cyclic_cycle",
+                    "generator_index": start,
+                    "direction": direction,
+                }
+                if best is None or record["score"] > best["score"]:
+                    best = record
+    if best is None:
+        return None
+    return best
+
+
+def _gap_list(perms: Sequence[Sequence[int]]) -> str:
+    parts = []
+    for perm in perms:
+        parts.append("[" + ",".join(str(int(x) + 1) for x in perm) + "]")
+    return "[" + ",".join(parts) + "]"
+
+
+def _infer_sigma_gap(
+    observed_perms: Sequence[Tuple[int, ...]],
+    canonical_perms: Sequence[Tuple[int, ...]],
+    *,
+    m: int,
+    gap_cmd: str,
+) -> Tuple[Optional[List[int]], Optional[str]]:
+    if not observed_perms or not canonical_perms:
+        return None, "empty_perms"
+    if not gap_is_available(gap_cmd):
+        return None, "gap_missing"
+    script = "\n".join(
+        [
+            f"obs := {_gap_list(observed_perms)};",
+            f"can := {_gap_list(canonical_perms)};",
+            "P := Group(List(obs, PermList));",
+            "Q := Group(List(can, PermList));",
+            f"if Size(P) <> {m} then Print(\"QTANNER_GAP_ERROR P_size\\n\"); QuitGap(2); fi;",
+            f"if Size(Q) <> {m} then Print(\"QTANNER_GAP_ERROR Q_size\\n\"); QuitGap(2); fi;",
+            "iso := IsomorphismGroups(P, Q);",
+            "if iso = fail then Print(\"QTANNER_GAP_ERROR iso_fail\\n\"); QuitGap(2); fi;",
+            "sigma := [];",
+            "for x in [1..Size(P)] do",
+            "  p := RepresentativeAction(P, 1, x);",
+            "  if p = fail then Print(\"QTANNER_GAP_ERROR rep_fail\\n\"); QuitGap(2); fi;",
+            "  y := Image(iso, p)(1);",
+            "  sigma[x] := y;",
+            "od;",
+            "Print(\"QTANNER_SIGMA \", sigma, \"\\n\");",
+            "QuitGap(0);",
+        ]
+    )
+    stdout = ""
+    stderr = ""
+    returncode = -1
+    try:
+        with tempfile.NamedTemporaryFile("w", suffix=".g", delete=False) as tmp:
+            tmp.write(script)
+            script_path = tmp.name
+        result = subprocess.run(
+            [gap_cmd, "-q", "-b", "--quitonbreak", script_path],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        stdout = result.stdout or ""
+        stderr = result.stderr or ""
+        returncode = result.returncode
+    finally:
+        if "script_path" in locals():
+            try:
+                os.remove(script_path)
+            except OSError:
+                pass
+    if returncode != 0:
+        return None, f"gap_error:{returncode}"
+    for line in stdout.splitlines():
+        if line.startswith("QTANNER_SIGMA"):
+            payload = line.split("QTANNER_SIGMA", 1)[1].strip()
+            if payload.startswith("[") and payload.endswith("]"):
+                vals = payload.strip("[]").strip()
+                if not vals:
+                    return None, "sigma_empty"
+                sigma = [int(x.strip()) - 1 for x in vals.split(",")]
+                if len(sigma) != m:
+                    return None, "sigma_len"
+                return sigma, None
+    return None, "sigma_missing"
+
+
+def _infer_sigma_bruteforce(
+    perms: Sequence[Tuple[int, ...]],
+    *,
+    left_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+) -> Optional[Dict[str, object]]:
+    if not perms:
+        return None
+    m = len(next(iter(perms)))
+    best = None
+    for sigma in itertools.permutations(range(m)):
+        score, left_hits, right_hits = _score_sigma_matches(
+            perms, sigma=sigma, left_map=left_map, right_map=right_map
+        )
+        record = {
+            "sigma": list(sigma),
+            "score": score,
+            "left_hits": left_hits,
+            "right_hits": right_hits,
+            "method": "bruteforce",
+        }
+        if best is None or record["score"] > best["score"]:
+            best = record
+    return best
+
+
+def _infer_sigma(
+    perms: Sequence[Tuple[int, ...]],
+    *,
+    group: FiniteGroup,
+    left_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+    gap_cmd: str,
+    cache_dir: Path,
+    code_id: str,
+) -> Tuple[Optional[List[int]], Dict[str, object]]:
+    cache = _load_sigma_cache(code_id, cache_dir)
+    if cache and cache.get("sigma"):
+        return list(cache["sigma"]), {"source": "cache", "cached": True}
+
+    m = group.order
+    if isinstance(group, CyclicGroup):
+        result = _infer_sigma_cyclic(perms, m=m, left_map=left_map, right_map=right_map)
+        if result and result.get("sigma"):
+            sigma = list(result["sigma"])
+            payload = {"sigma": sigma, "source": "cyclic", "details": result}
+            _write_sigma_cache(code_id, cache_dir, payload)
+            return sigma, payload
+
+    sigma, error = _infer_sigma_gap(
+        perms,
+        list(left_map.keys()),
+        m=m,
+        gap_cmd=gap_cmd,
+    )
+    info: Dict[str, object] = {"source": "gap", "error": error}
+    if sigma is None and m <= 8:
+        brute = _infer_sigma_bruteforce(perms, left_map=left_map, right_map=right_map)
+        if brute and brute.get("sigma"):
+            sigma = list(brute["sigma"])
+            info = {"source": "bruteforce", "details": brute}
+    if sigma is None:
+        return None, info
+    payload = {"sigma": sigma, "source": "gap", "details": info}
+    _write_sigma_cache(code_id, cache_dir, payload)
+    return sigma, payload
+
+
+def _sigma_candidates_cyclic_affine(
+    *,
+    m: int,
+    perms: Sequence[Tuple[int, ...]],
+    left_map: Dict[Tuple[int, ...], int],
+    right_map: Dict[Tuple[int, ...], int],
+) -> Tuple[List[List[int]], int]:
+    units = [u for u in range(m) if math.gcd(u, m) == 1]
+    best_score = -1
+    best: List[List[int]] = []
+    for u in units:
+        for c in range(m):
+            sigma = [(c + u * x) % m for x in range(m)]
+            score, _left_hits, _right_hits = _score_sigma_matches(
+                perms, sigma=sigma, left_map=left_map, right_map=right_map
+            )
+            if score > best_score:
+                best_score = score
+                best = [sigma]
+            elif score == best_score:
+                best.append(sigma)
+    return best, best_score
+
+
 def _iter_nonzero_entries(rows: Sequence[int]) -> Iterable[Tuple[int, int]]:
     for r, bits in enumerate(rows):
         row_bits = int(bits)
@@ -233,8 +658,6 @@ def _build_block_maps3(
     col_order: Sequence[int],
 ) -> Tuple[Dict[Tuple[int, int], Dict[int, set[int]]], Dict[Tuple[int, int], int], List[set[int]]]:
     row_non_g = [name for name in row_axes if name != "g"]
-    col_order_names = [col_axes[idx] for idx in col_order]
-    col_non_g = [name for name in col_order_names if name != "g"]
     row_sizes_map = {name: size for name, size in zip(row_axes, row_sizes)}
     col_sizes_map = {name: size for name, size in zip(col_axes, col_sizes)}
     row_block_count = int(row_sizes_map[row_non_g[0]] * row_sizes_map[row_non_g[1]])
@@ -250,10 +673,7 @@ def _build_block_maps3(
             row_val_map[row_non_g[0]] * row_sizes_map[row_non_g[1]]
             + row_val_map[row_non_g[1]]
         )
-        col_block = (
-            col_val_map[col_non_g[0]] * col_sizes_map[col_non_g[1]]
-            + col_val_map[col_non_g[1]]
-        )
+        col_block = col_val_map["i"] * col_sizes_map["j"] + col_val_map["j"]
         row_blocks[int(row_block)].add(int(col_block))
         gr = row_val_map["g"]
         gc = col_val_map["g"]
@@ -318,59 +738,126 @@ def _select_axes_mapping(
 ) -> Dict[str, object]:
     perms = list(itertools.permutations(range(3)))
     best: Optional[Dict[str, object]] = None
-    for row_order_hx in perms:
+    for col_order in perms:
+        best_hx: Optional[Dict[str, object]] = None
+        best_hz: Optional[Dict[str, object]] = None
+        for row_order_hx in perms:
+            hx_block_perm, hx_block_nnz, hx_row_blocks = _build_block_maps3(
+                hx_entries,
+                row_sizes=hx_row_sizes,
+                row_axes=hx_row_axes,
+                row_order=row_order_hx,
+                col_sizes=col_sizes,
+                col_axes=col_axes,
+                col_order=col_order,
+            )
+            hx_score = _score_block_maps(hx_block_perm, hx_block_nnz, m=m)
+            record = {
+                "row_order_hx": tuple(row_order_hx),
+                "hx_score": hx_score,
+                "hx_block_perm": hx_block_perm,
+                "hx_block_nnz": hx_block_nnz,
+                "hx_row_blocks": hx_row_blocks,
+            }
+            if best_hx is None or record["hx_score"] > best_hx["hx_score"]:
+                best_hx = record
         for row_order_hz in perms:
-            for col_order in perms:
-                hx_block_perm, hx_block_nnz, hx_row_blocks = _build_block_maps3(
-                    hx_entries,
-                    row_sizes=hx_row_sizes,
-                    row_axes=hx_row_axes,
-                    row_order=row_order_hx,
-                    col_sizes=col_sizes,
-                    col_axes=col_axes,
-                    col_order=col_order,
-                )
-                hz_block_perm, hz_block_nnz, hz_row_blocks = _build_block_maps3(
-                    hz_entries,
-                    row_sizes=hz_row_sizes,
-                    row_axes=hz_row_axes,
-                    row_order=row_order_hz,
-                    col_sizes=col_sizes,
-                    col_axes=col_axes,
-                    col_order=col_order,
-                )
-                hx_score = _score_block_maps(hx_block_perm, hx_block_nnz, m=m)
-                hz_score = _score_block_maps(hz_block_perm, hz_block_nnz, m=m)
-                full = hx_score[0] + hz_score[0]
-                eq_m = hx_score[1] + hz_score[1]
-                good = hx_score[2] + hz_score[2]
-                total = hx_score[3] + hz_score[3]
-                cb_to_ij = _cb_to_ij_from_col_order(
-                    col_order=col_order, col_axes=col_axes, nA=nA, nB=nB
-                )
-                hx_const_j, _ = _count_const_rows(hx_row_blocks, cb_to_ij=cb_to_ij)
-                _, hz_const_i = _count_const_rows(hz_row_blocks, cb_to_ij=cb_to_ij)
-                class_score = hx_const_j + hz_const_i
-                score = (full, eq_m, good, -total, class_score)
-                record = {
-                    "row_order_hx": tuple(row_order_hx),
-                    "row_order_hz": tuple(row_order_hz),
-                    "col_order": tuple(col_order),
-                    "score": score,
-                    "hx_score": hx_score,
-                    "hz_score": hz_score,
-                    "class_score": class_score,
-                    "hx_block_perm": hx_block_perm,
-                    "hx_block_nnz": hx_block_nnz,
-                    "hx_row_blocks": hx_row_blocks,
-                    "hz_block_perm": hz_block_perm,
-                    "hz_block_nnz": hz_block_nnz,
-                    "hz_row_blocks": hz_row_blocks,
-                }
-                if best is None or record["score"] > best["score"]:
-                    best = record
+            hz_block_perm, hz_block_nnz, hz_row_blocks = _build_block_maps3(
+                hz_entries,
+                row_sizes=hz_row_sizes,
+                row_axes=hz_row_axes,
+                row_order=row_order_hz,
+                col_sizes=col_sizes,
+                col_axes=col_axes,
+                col_order=col_order,
+            )
+            hz_score = _score_block_maps(hz_block_perm, hz_block_nnz, m=m)
+            record = {
+                "row_order_hz": tuple(row_order_hz),
+                "hz_score": hz_score,
+                "hz_block_perm": hz_block_perm,
+                "hz_block_nnz": hz_block_nnz,
+                "hz_row_blocks": hz_row_blocks,
+            }
+            if best_hz is None or record["hz_score"] > best_hz["hz_score"]:
+                best_hz = record
+        if best_hx is None or best_hz is None:
+            continue
+        hx_score = best_hx["hx_score"]
+        hz_score = best_hz["hz_score"]
+        full = hx_score[0] + hz_score[0]
+        eq_m = hx_score[1] + hz_score[1]
+        good = hx_score[2] + hz_score[2]
+        total = hx_score[3] + hz_score[3]
+        score = (full, eq_m, good, -total)
+        cb_to_ij = _cb_to_ij(nA, nB)
+        hx_const_j, _ = _count_const_rows(best_hx["hx_row_blocks"], cb_to_ij=cb_to_ij)
+        _, hz_const_i = _count_const_rows(best_hz["hz_row_blocks"], cb_to_ij=cb_to_ij)
+        class_score = hx_const_j + hz_const_i
+        record = {
+            "row_order_hx": best_hx["row_order_hx"],
+            "row_order_hz": best_hz["row_order_hz"],
+            "col_order": tuple(col_order),
+            "score": score,
+            "hx_score": hx_score,
+            "hz_score": hz_score,
+            "class_score": class_score,
+            "hx_block_perm": best_hx["hx_block_perm"],
+            "hx_block_nnz": best_hx["hx_block_nnz"],
+            "hx_row_blocks": best_hx["hx_row_blocks"],
+            "hz_block_perm": best_hz["hz_block_perm"],
+            "hz_block_nnz": best_hz["hz_block_nnz"],
+            "hz_row_blocks": best_hz["hz_row_blocks"],
+        }
+        if best is None or record["score"] > best["score"]:
+            best = record
+        elif record["score"] == best["score"] and record["class_score"] > best["class_score"]:
+            best = record
     if best is None:
         raise RuntimeError("Unable to select axis mapping.")
+    return best
+
+
+def _select_axes_mapping_candidates(
+    *,
+    hx_entries: Iterable[Tuple[int, int]],
+    hz_entries: Iterable[Tuple[int, int]],
+    hx_row_axes: Sequence[str],
+    hx_row_sizes: Sequence[int],
+    hz_candidates: Sequence[Tuple[Sequence[str], Sequence[int], str]],
+    col_axes: Sequence[str],
+    col_sizes: Sequence[int],
+    nA: int,
+    nB: int,
+    m: int,
+) -> Dict[str, object]:
+    best: Optional[Dict[str, object]] = None
+    for hz_row_axes, hz_row_sizes, hz_label in hz_candidates:
+        choice = _select_axes_mapping(
+            hx_entries=hx_entries,
+            hz_entries=hz_entries,
+            hx_row_axes=hx_row_axes,
+            hx_row_sizes=hx_row_sizes,
+            hz_row_axes=hz_row_axes,
+            hz_row_sizes=hz_row_sizes,
+            col_axes=col_axes,
+            col_sizes=col_sizes,
+            nA=nA,
+            nB=nB,
+            m=m,
+        )
+        choice = {
+            **choice,
+            "hz_row_axes": tuple(hz_row_axes),
+            "hz_row_sizes": list(hz_row_sizes),
+            "hz_row_label": hz_label,
+        }
+        if best is None or choice["score"] > best["score"]:
+            best = choice
+        elif choice["score"] == best["score"] and choice["class_score"] > best["class_score"]:
+            best = choice
+    if best is None:
+        raise RuntimeError("Unable to determine axis mapping.")
     return best
 
 
@@ -563,6 +1050,10 @@ def _perm_from_block_map(gr_map: Dict[int, set[int]], *, m: int) -> Tuple[Option
     return tuple(perm), True
 
 
+def _cb_to_ij(nA: int, nB: int):
+    return lambda cb: (cb // nB, cb % nB)
+
+
 def _cb_to_ij_option(nA: int, nB: int, option: str):
     if option == "i_nB_j":
         return lambda cb: (cb // nB, cb % nB)
@@ -690,37 +1181,85 @@ def _choose_block_mapping(
 
 def _support_sets_for_a(
     row_blocks: Sequence[set[int]],
-    row_types: Sequence[Optional[Tuple[str, int]]],
     *,
     cb_to_ij,
+    nB: int,
 ) -> Dict[int, set[frozenset[int]]]:
     supports_by_j: Dict[int, set[frozenset[int]]] = {}
     for rb, touched in enumerate(row_blocks):
         if not touched:
             continue
-        classification = row_types[rb]
-        if not classification or classification[0] != "A":
-            continue
-        j_val = classification[1]
+        j_val = rb % nB
         i_set = {cb_to_ij(cb)[0] for cb in touched}
         supports_by_j.setdefault(j_val, set()).add(frozenset(i_set))
     return supports_by_j
 
 
-def _support_sets_for_b(
+def _row_block_half_hx(rb: int, *, nB: int, kB: int) -> int:
+    return 0 if (rb % nB) < kB else 1
+
+
+def _row_block_half_hz(
+    rb: int,
+    *,
+    label: str,
+    kA: int,
+    rB: int,
+    nB: int,
+) -> int:
+    if label == "ir":
+        return 0 if (rb // rB) < kA else 1
+    if label == "rj":
+        return 0 if (rb % nB) < rB else 1
+    raise ValueError(f"Unknown HZ row label {label!r}.")
+
+
+def _support_sets_for_b_by_j(
     row_blocks: Sequence[set[int]],
-    row_types: Sequence[Optional[Tuple[str, int]]],
     *,
     cb_to_ij,
+    nB: int,
+) -> Dict[int, set[frozenset[int]]]:
+    supports_by_j: Dict[int, set[frozenset[int]]] = {}
+    for rb, touched in enumerate(row_blocks):
+        if not touched:
+            continue
+        j_val = rb % nB
+        j_set = {cb_to_ij(cb)[1] for cb in touched}
+        supports_by_j.setdefault(j_val, set()).add(frozenset(j_set))
+    return supports_by_j
+
+
+def _support_sets_for_b_by_half(
+    row_blocks: Sequence[set[int]],
+    *,
+    cb_to_ij,
+    label: str,
+    kA: int,
+    rB: int,
+    nB: int,
+) -> Dict[int, set[frozenset[int]]]:
+    supports_by_half: Dict[int, set[frozenset[int]]] = {0: set(), 1: set()}
+    for rb, touched in enumerate(row_blocks):
+        if not touched:
+            continue
+        half = _row_block_half_hz(rb, label=label, kA=kA, rB=rB, nB=nB)
+        j_set = {cb_to_ij(cb)[1] for cb in touched}
+        supports_by_half[half].add(frozenset(j_set))
+    return supports_by_half
+
+
+def _support_sets_for_b(
+    row_blocks: Sequence[set[int]],
+    *,
+    cb_to_ij,
+    rB: int,
 ) -> Dict[int, set[frozenset[int]]]:
     supports_by_i: Dict[int, set[frozenset[int]]] = {}
     for rb, touched in enumerate(row_blocks):
         if not touched:
             continue
-        classification = row_types[rb]
-        if not classification or classification[0] != "B":
-            continue
-        i_val = classification[1]
+        i_val = rb // rB
         j_set = {cb_to_ij(cb)[1] for cb in touched}
         supports_by_i.setdefault(i_val, set()).add(frozenset(j_set))
     return supports_by_i
@@ -743,6 +1282,408 @@ def _find_perm_from_supports(
         if permuted == target_set:
             return tuple(perm)
     return None
+
+
+def _perm_from_supports_by_index(
+    n: int,
+    *,
+    supports_by_index: Dict[int, set[frozenset[int]]],
+    indices: Iterable[int],
+) -> Optional[Tuple[int, ...]]:
+    canonical = _canonical_supports(n)
+    candidates: List[Tuple[int, ...]] = []
+    for idx in indices:
+        supports = supports_by_index.get(int(idx))
+        if not supports:
+            continue
+        perm = _find_perm_from_supports(
+            n, canonical_supports=canonical, target_supports=supports
+        )
+        if perm is not None:
+            candidates.append(perm)
+    if not candidates:
+        return None
+    counts = Counter(candidates)
+    best_perm, _ = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0]
+    return best_perm
+
+
+def _perms_from_supports_by_index(
+    n: int,
+    *,
+    supports_by_index: Dict[int, set[frozenset[int]]],
+    indices: Iterable[int],
+    canonical_supports: Optional[Sequence[frozenset[int]]] = None,
+) -> List[Tuple[int, ...]]:
+    canonical = canonical_supports or _canonical_supports(n)
+    perms: List[Tuple[int, ...]] = []
+    for idx in indices:
+        supports = supports_by_index.get(int(idx))
+        if not supports:
+            continue
+        perm = _find_perm_from_supports(
+            n, canonical_supports=canonical, target_supports=supports
+        )
+        if perm is not None:
+            perms.append(perm)
+    return list(dict.fromkeys(perms))
+
+
+def _classify_by_supports(
+    supports: Sequence[frozenset[int]],
+    *,
+    perm0: Sequence[int],
+    perm1: Sequence[int],
+    canonical_supports: Sequence[frozenset[int]],
+) -> List[Optional[str]]:
+    perm0_set = _permute_supports(canonical_supports, perm0)
+    perm1_set = _permute_supports(canonical_supports, perm1)
+    types: List[Optional[str]] = []
+    for supp in supports:
+        if supp in perm1_set:
+            types.append("1")
+        elif supp in perm0_set:
+            types.append("0")
+        else:
+            types.append(None)
+    return types
+
+
+def _apply_col_perm_to_bitrows(rows: Sequence[int], perm: Sequence[int]) -> List[int]:
+    out: List[int] = []
+    for row in rows:
+        new_row = 0
+        x = int(row)
+        while x:
+            lsb = x & -x
+            idx = lsb.bit_length() - 1
+            new_row |= 1 << int(perm[idx])
+            x -= lsb
+        out.append(new_row)
+    return out
+
+
+def _reorder_rows(rows: Sequence[int], row_perm: Sequence[int]) -> List[int]:
+    out = [0] * len(rows)
+    for old_idx, row in enumerate(rows):
+        out[int(row_perm[old_idx])] = int(row)
+    return out
+
+
+def _hx_row_index(r: int, j: int, g: int, *, rA: int, kB: int, m: int) -> int:
+    if j < kB:
+        block = int(r) * kB + int(j)
+    else:
+        block = int(r) * kB + int(j - kB) + rA * kB
+    return block * m + int(g)
+
+
+def _hz_row_index(i: int, r: int, g: int, *, kA: int, rB: int, m: int) -> int:
+    if i < kA:
+        block = int(i) * rB + int(r)
+    else:
+        block = int(i - kA) * rB + int(r) + kA * rB
+    return block * m + int(g)
+
+
+def _build_col_perm(
+    *,
+    nA: int,
+    nB: int,
+    m: int,
+    col_order: Sequence[int],
+    sigma_inv: Optional[Sequence[int]],
+) -> List[int]:
+    sizes = [nA, nB, m]
+    n_cols = nA * nB * m
+    perm = [0] * n_cols
+    for i in range(nA):
+        for j in range(nB):
+            for g_can in range(m):
+                g_obs = int(sigma_inv[g_can]) if sigma_inv is not None else int(g_can)
+                new_idx = _encode3([i, j, g_obs], sizes, col_order)
+                old_idx = ((i * nB + j) * m + g_can)
+                perm[old_idx] = new_idx
+    return perm
+
+
+def _build_row_perm_hx(
+    *,
+    rA: int,
+    nB: int,
+    kB: int,
+    m: int,
+    row_order: Sequence[int],
+    sigma_inv: Optional[Sequence[int]],
+    r_perm: Optional[Sequence[int]] = None,
+    j_perm: Optional[Sequence[int]] = None,
+) -> List[int]:
+    sizes = [rA, nB, m]
+    n_rows = rA * nB * m
+    perm = [0] * n_rows
+    for r in range(rA):
+        for j in range(nB):
+            for g_can in range(m):
+                g_obs = int(sigma_inv[g_can]) if sigma_inv is not None else int(g_can)
+                r_val = int(r_perm[r]) if r_perm is not None else int(r)
+                j_val = int(j_perm[j]) if j_perm is not None else int(j)
+                new_idx = _encode3([r_val, j_val, g_obs], sizes, row_order)
+                old_idx = _hx_row_index(r, j, g_can, rA=rA, kB=kB, m=m)
+                perm[old_idx] = new_idx
+    return perm
+
+
+def _build_row_perm_hz(
+    *,
+    nA: int,
+    rB: int,
+    kA: int,
+    m: int,
+    row_order: Sequence[int],
+    sigma_inv: Optional[Sequence[int]],
+    row_axes_hz: str = "ir",
+    rA: Optional[int] = None,
+    nB: Optional[int] = None,
+    i_perm: Optional[Sequence[int]] = None,
+    r_perm: Optional[Sequence[int]] = None,
+    j_perm: Optional[Sequence[int]] = None,
+) -> List[int]:
+    if row_axes_hz == "ir":
+        sizes = [nA, rB, m]
+        n_rows = nA * rB * m
+        perm = [0] * n_rows
+        for i in range(nA):
+            for r in range(rB):
+                for g_can in range(m):
+                    g_obs = (
+                        int(sigma_inv[g_can]) if sigma_inv is not None else int(g_can)
+                    )
+                    i_val = int(i_perm[i]) if i_perm is not None else int(i)
+                    r_val = int(r_perm[r]) if r_perm is not None else int(r)
+                    new_idx = _encode3([i_val, r_val, g_obs], sizes, row_order)
+                    old_idx = _hz_row_index(i, r, g_can, kA=kA, rB=rB, m=m)
+                    perm[old_idx] = new_idx
+        return perm
+    if row_axes_hz == "rj":
+        if rA is None or nB is None:
+            raise ValueError("rA and nB are required for HZ row_axes 'rj'.")
+        sizes = [rA, nB, m]
+        n_rows = rA * nB * m
+        perm = [0] * n_rows
+        for i in range(nA):
+            half = 0 if i < kA else 1
+            r_idx = i if half == 0 else i - kA
+            for r in range(rB):
+                j_idx = r if half == 0 else r + rB
+                for g_can in range(m):
+                    g_obs = (
+                        int(sigma_inv[g_can]) if sigma_inv is not None else int(g_can)
+                    )
+                    r_val = int(r_perm[r_idx]) if r_perm is not None else int(r_idx)
+                    j_val = int(j_perm[j_idx]) if j_perm is not None else int(j_idx)
+                    new_idx = _encode3([r_val, j_val, g_obs], sizes, row_order)
+                    old_idx = _hz_row_index(i, r, g_can, kA=kA, rB=rB, m=m)
+                    perm[old_idx] = new_idx
+        return perm
+    raise ValueError(f"Unknown HZ row_axes {row_axes_hz!r}.")
+
+
+def _iter_half_perms(size: int) -> Iterable[Tuple[int, ...]]:
+    return itertools.permutations(range(size))
+
+
+def _iter_block_perms(total: int, half: int, *, allow_swap: bool = False) -> Iterable[List[int]]:
+    for left in _iter_half_perms(half):
+        for right in _iter_half_perms(half):
+            perm = [0] * total
+            for i, val in enumerate(left):
+                perm[i] = val
+            for i, val in enumerate(right):
+                perm[half + i] = half + val
+            yield perm
+            if allow_swap:
+                perm_swap = [0] * total
+                for i, val in enumerate(left):
+                    perm_swap[half + i] = val
+                for i, val in enumerate(right):
+                    perm_swap[i] = half + val
+                yield perm_swap
+
+
+def _find_row_perm_hx(
+    rows: Sequence[int],
+    rows_in: Sequence[int],
+    *,
+    rA: int,
+    nB: int,
+    kB: int,
+    m: int,
+    row_order: Sequence[int],
+    sigma_inv: Optional[Sequence[int]],
+) -> Optional[List[int]]:
+    for r_perm in _iter_half_perms(rA):
+        for j_perm in _iter_block_perms(nB, kB, allow_swap=True):
+            row_perm = _build_row_perm_hx(
+                rA=rA,
+                nB=nB,
+                kB=kB,
+                m=m,
+                row_order=row_order,
+                sigma_inv=sigma_inv,
+                r_perm=r_perm,
+                j_perm=j_perm,
+            )
+            if _reorder_rows(rows, row_perm) == list(rows_in):
+                return row_perm
+    return None
+
+
+def _find_row_perm_hz(
+    rows: Sequence[int],
+    rows_in: Sequence[int],
+    *,
+    nA: int,
+    rB: int,
+    kA: int,
+    rA: int,
+    nB: int,
+    m: int,
+    row_order: Sequence[int],
+    sigma_inv: Optional[Sequence[int]],
+    row_axes_hz: str = "ir",
+) -> Optional[List[int]]:
+    if row_axes_hz == "ir":
+        for i_perm in _iter_block_perms(nA, kA, allow_swap=True):
+            for r_perm in _iter_half_perms(rB):
+                row_perm = _build_row_perm_hz(
+                    nA=nA,
+                    rB=rB,
+                    kA=kA,
+                    m=m,
+                    row_order=row_order,
+                    sigma_inv=sigma_inv,
+                    row_axes_hz=row_axes_hz,
+                    i_perm=i_perm,
+                    r_perm=r_perm,
+                )
+                if _reorder_rows(rows, row_perm) == list(rows_in):
+                    return row_perm
+        return None
+    if row_axes_hz == "rj":
+        for r_perm in _iter_half_perms(rA):
+            for j_perm in _iter_block_perms(nB, rB, allow_swap=True):
+                row_perm = _build_row_perm_hz(
+                    nA=nA,
+                    rB=rB,
+                    kA=kA,
+                    rA=rA,
+                    nB=nB,
+                    m=m,
+                    row_order=row_order,
+                    sigma_inv=sigma_inv,
+                    row_axes_hz=row_axes_hz,
+                    r_perm=r_perm,
+                    j_perm=j_perm,
+                )
+                if _reorder_rows(rows, row_perm) == list(rows_in):
+                    return row_perm
+        return None
+    raise ValueError(f"Unknown HZ row_axes {row_axes_hz!r}.")
+
+
+def _reconstruct_and_compare(
+    *,
+    group: FiniteGroup,
+    A_ids: Sequence[int],
+    B_ids: Sequence[int],
+    permA0: Optional[Sequence[int]],
+    permA1: Optional[Sequence[int]],
+    permB0: Optional[Sequence[int]],
+    permB1: Optional[Sequence[int]],
+    nA: int,
+    nB: int,
+    rA: int,
+    rB: int,
+    m: int,
+    row_order_hx: Sequence[int],
+    row_order_hz: Sequence[int],
+    col_order: Sequence[int],
+    row_axes_hz: str,
+    sigma_inv: Optional[Sequence[int]],
+    hx_rows_in: Sequence[int],
+    hz_rows_in: Sequence[int],
+) -> Tuple[bool, str]:
+    if permA0 is None or permA1 is None or permB0 is None or permB1 is None:
+        return False, "perm_missing"
+    if any(a is None for a in A_ids) or any(b is None for b in B_ids):
+        return False, "A_or_B_missing"
+
+    canonA = _local_code_canonical(nA)
+    canonB = _local_code_canonical(nB)
+    C0 = _permute_local_code(canonA, permA0, name=f"{canonA.name}_permA0")
+    C1 = _permute_local_code(canonA, permA1, name=f"{canonA.name}_permA1")
+    C0p = _permute_local_code(canonB, permB0, name=f"{canonB.name}_permB0")
+    C1p = _permute_local_code(canonB, permB1, name=f"{canonB.name}_permB1")
+
+    kA = len(C0.G_rows)
+    kB = len(C0p.G_rows)
+    if 2 * kA != nA or 2 * kB != nB:
+        return False, "local_code_dim_mismatch"
+
+    hx_rows, hz_rows, n_cols = build_hx_hz(
+        group,
+        list(A_ids),
+        list(B_ids),
+        C0,
+        C1,
+        C0p,
+        C1p,
+    )
+    if n_cols != nA * nB * m:
+        return False, "n_cols_mismatch"
+
+    col_perm = _build_col_perm(
+        nA=nA, nB=nB, m=m, col_order=col_order, sigma_inv=sigma_inv
+    )
+    hx_rows = _apply_col_perm_to_bitrows(hx_rows, col_perm)
+    hz_rows = _apply_col_perm_to_bitrows(hz_rows, col_perm)
+
+    row_perm_hx = _find_row_perm_hx(
+        hx_rows,
+        hx_rows_in,
+        rA=rA,
+        nB=nB,
+        kB=kB,
+        m=m,
+        row_order=row_order_hx,
+        sigma_inv=sigma_inv,
+    )
+    if row_perm_hx is None:
+        return False, "hx_row_perm"
+    hx_rows = _reorder_rows(hx_rows, row_perm_hx)
+
+    row_perm_hz = _find_row_perm_hz(
+        hz_rows,
+        hz_rows_in,
+        nA=nA,
+        rB=rB,
+        kA=kA,
+        rA=rA,
+        nB=nB,
+        m=m,
+        row_order=row_order_hz,
+        sigma_inv=sigma_inv,
+        row_axes_hz=row_axes_hz,
+    )
+    if row_perm_hz is None:
+        return False, "hz_row_perm"
+    hz_rows = _reorder_rows(hz_rows, row_perm_hz)
+
+    if list(hx_rows) != list(hx_rows_in):
+        return False, "hx_mismatch"
+    if list(hz_rows) != list(hz_rows_in):
+        return False, "hz_mismatch"
+    return True, "ok"
 
 
 def _parse_stem(stem: str) -> Tuple[Optional[str], int, int, int]:
@@ -1036,24 +1977,28 @@ def _extract_from_pair(
         raise ValueError(f"HX rows {hx_m} != rA*nB*m={rA*nB*m}.")
     if hz_m != nA * rB * m:
         raise ValueError(f"HZ rows {hz_m} != nA*rB*m={nA*rB*m}.")
+    code_id = f"{group_tag or 'C' + str(m)}_{n_val}_{k_val}_{d_val}"
+    kA = nA // 2
+    kB = nB // 2
 
     hx_entries = list(_iter_nonzero_entries(hx_rows))
     hz_entries = list(_iter_nonzero_entries(hz_rows))
 
     hx_row_axes = ["r", "j", "g"]
     hx_row_sizes = [rA, nB, m]
-    hz_row_axes = ["i", "r", "g"]
-    hz_row_sizes = [nA, rB, m]
     col_axes = ["i", "j", "g"]
     col_sizes = [nA, nB, m]
+    hz_candidates = [
+        (["i", "r", "g"], [nA, rB, m], "ir"),
+        (["r", "j", "g"], [rA, nB, m], "rj"),
+    ]
 
-    mapping_choice = _select_axes_mapping(
+    mapping_choice = _select_axes_mapping_candidates(
         hx_entries=hx_entries,
         hz_entries=hz_entries,
         hx_row_axes=hx_row_axes,
         hx_row_sizes=hx_row_sizes,
-        hz_row_axes=hz_row_axes,
-        hz_row_sizes=hz_row_sizes,
+        hz_candidates=hz_candidates,
         col_axes=col_axes,
         col_sizes=col_sizes,
         nA=nA,
@@ -1064,6 +2009,7 @@ def _extract_from_pair(
     row_order_hx = mapping_choice["row_order_hx"]
     row_order_hz = mapping_choice["row_order_hz"]
     col_order = mapping_choice["col_order"]
+    hz_row_axes = mapping_choice["hz_row_axes"]
 
     hx_block_perm = mapping_choice["hx_block_perm"]
     hx_block_nnz = mapping_choice["hx_block_nnz"]
@@ -1072,11 +2018,8 @@ def _extract_from_pair(
     hz_block_nnz = mapping_choice["hz_block_nnz"]
     hz_row_blocks = mapping_choice["hz_row_blocks"]
 
-    cb_to_ij = _cb_to_ij_from_col_order(
-        col_order=col_order, col_axes=col_axes, nA=nA, nB=nB
-    )
-    col_non_g = [col_axes[idx] for idx in col_order if col_axes[idx] != "g"]
-    cb_option = "i_nB_j" if col_non_g == ["i", "j"] else "j_nA_i"
+    cb_to_ij = _cb_to_ij(nA, nB)
+    cb_option = "i_nB_j"
 
     hx_types, hx_counts = _classify_row_blocks(hx_row_blocks, cb_to_ij=cb_to_ij)
     hz_types, hz_counts = _classify_row_blocks(hz_row_blocks, cb_to_ij=cb_to_ij)
@@ -1104,8 +2047,27 @@ def _extract_from_pair(
     hx_perms, hx_perm_stats = collect_perms(hx_block_perm, hx_block_nnz)
     hz_perms, hz_perm_stats = collect_perms(hz_block_perm, hz_block_nnz)
 
-    left_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "A"]
-    right_perms = [perm for (rb, _), perm in hx_perms.items() if hx_types[rb] and hx_types[rb][0] == "B"]
+    hz_row_label = mapping_choice["hz_row_label"]
+
+    def hz_half(rb: int) -> int:
+        return _row_block_half_hz(rb, label=hz_row_label, kA=kA, rB=rB, nB=nB)
+
+    def hx_half(rb: int) -> int:
+        return _row_block_half_hx(rb, nB=nB, kB=kB)
+
+    default_b_half_perm1 = 0
+    left_perms: List[Tuple[int, ...]] = []
+    right_perms: List[Tuple[int, ...]] = []
+    for (rb, _), perm in hz_perms.items():
+        half = hz_half(rb)
+        if half == default_b_half_perm1:
+            right_perms.append(perm)
+        else:
+            left_perms.append(perm)
+    if not left_perms:
+        left_perms = list(hx_perms.values())
+    if not right_perms:
+        right_perms = list(hx_perms.values())
 
     group_spec, spec_source, tag_info = _group_spec_from_tag(
         group_tag, m=m, gap_cmd=gap_cmd, cache_dir=cache_dir
@@ -1139,53 +2101,107 @@ def _extract_from_pair(
     right_inv_map = {}
     if group is not None:
         left_map, left_inv_map, right_map, right_inv_map = _build_perm_maps(group)
+    is_abelian = group is not None and _is_abelian(group)
 
-    a_votes = [Counter() for _ in range(nA)]
-    b_votes = [Counter() for _ in range(nB)]
-    a_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
-    b_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
+    a_supports_by_j = _support_sets_for_a(hx_row_blocks, cb_to_ij=cb_to_ij, nB=nB)
+    permA_halves: Dict[int, List[Tuple[int, ...]]] = {0: [], 1: []}
+    if nA == 2:
+        permA_halves[0] = [tuple(range(nA))]
+        permA_halves[1] = [tuple(range(nA))]
+    else:
+        permA_halves[0] = _perms_from_supports_by_index(
+            nA,
+            supports_by_index=a_supports_by_j,
+            indices=range(0, kB),
+            canonical_supports=_canonical_supports(nA),
+        )
+        permA_halves[0] += _perms_from_supports_by_index(
+            nA,
+            supports_by_index=a_supports_by_j,
+            indices=range(0, kB),
+            canonical_supports=_canonical_supports_g(nA),
+        )
+        permA_halves[0] = list(dict.fromkeys(permA_halves[0]))
+        permA_halves[1] = _perms_from_supports_by_index(
+            nA,
+            supports_by_index=a_supports_by_j,
+            indices=range(kB, nB),
+            canonical_supports=_canonical_supports(nA),
+        )
+        permA_halves[1] += _perms_from_supports_by_index(
+            nA,
+            supports_by_index=a_supports_by_j,
+            indices=range(kB, nB),
+            canonical_supports=_canonical_supports_g(nA),
+        )
+        permA_halves[1] = list(dict.fromkeys(permA_halves[1]))
+    if not permA_halves[0]:
+        permA_halves[0] = [tuple(range(nA))]
+    if not permA_halves[1]:
+        permA_halves[1] = [tuple(range(nA))]
 
-    def apply_votes(perms):
-        for (_, cb), perm in perms.items():
-            i_val, j_val = cb_to_ij(cb)
-            a_stats["total"] += 1
-            matchA = _match_perm_with_inverse(
-                perm,
-                left_map=left_map,
-                left_inv_map=left_inv_map,
-                right_map=right_map,
-                right_inv_map=right_inv_map,
-                prefer=("L", "L_inv", "R", "R_inv"),
+    permB_halves: Dict[int, List[Tuple[int, ...]]] = {0: [], 1: []}
+    if nB == 2:
+        permB_halves[0] = [tuple(range(nB))]
+        permB_halves[1] = [tuple(range(nB))]
+    else:
+        if hz_row_label == "rj":
+            b_supports_by_j = _support_sets_for_b_by_j(
+                hz_row_blocks, cb_to_ij=cb_to_ij, nB=nB
             )
-            if matchA and group is not None and matchA[0].startswith("L"):
-                match_type, elem, inverse_used = matchA
-                elem_val = _element_from_match_left(match_type, elem, inverse_used, group)
-                a_votes[i_val][int(elem_val)] += 1
-                key = f"{match_type}{'_T' if inverse_used else ''}"
-                a_stats["match_counts"][key] += 1
-            else:
-                a_stats["mismatches"] += 1
-
-            b_stats["total"] += 1
-            matchB = _match_perm_with_inverse(
-                perm,
-                left_map=left_map,
-                left_inv_map=left_inv_map,
-                right_map=right_map,
-                right_inv_map=right_inv_map,
-                prefer=("R", "R_inv", "L", "L_inv"),
+            permB_halves[0] = _perms_from_supports_by_index(
+                nB,
+                supports_by_index=b_supports_by_j,
+                indices=range(0, rB),
+                canonical_supports=_canonical_supports(nB),
             )
-            if matchB and group is not None and matchB[0].startswith("R"):
-                match_type, elem, inverse_used = matchB
-                elem_val = _element_from_match_right(match_type, elem, inverse_used, group)
-                b_votes[j_val][int(elem_val)] += 1
-                key = f"{match_type}{'_T' if inverse_used else ''}"
-                b_stats["match_counts"][key] += 1
-            else:
-                b_stats["mismatches"] += 1
-
-    apply_votes(hx_perms)
-    apply_votes(hz_perms)
+            permB_halves[0] += _perms_from_supports_by_index(
+                nB,
+                supports_by_index=b_supports_by_j,
+                indices=range(0, rB),
+                canonical_supports=_canonical_supports_g(nB),
+            )
+            permB_halves[0] = list(dict.fromkeys(permB_halves[0]))
+            permB_halves[1] = _perms_from_supports_by_index(
+                nB,
+                supports_by_index=b_supports_by_j,
+                indices=range(rB, nB),
+                canonical_supports=_canonical_supports(nB),
+            )
+            permB_halves[1] += _perms_from_supports_by_index(
+                nB,
+                supports_by_index=b_supports_by_j,
+                indices=range(rB, nB),
+                canonical_supports=_canonical_supports_g(nB),
+            )
+            permB_halves[1] = list(dict.fromkeys(permB_halves[1]))
+        else:
+            b_supports_by_half = _support_sets_for_b_by_half(
+                hz_row_blocks,
+                cb_to_ij=cb_to_ij,
+                label=hz_row_label,
+                kA=kA,
+                rB=rB,
+                nB=nB,
+            )
+            permB_halves[0] = _perm_candidates_from_supports(
+                nB, b_supports_by_half[0], canonical_supports=_canonical_supports(nB)
+            )
+            permB_halves[0] += _perm_candidates_from_supports(
+                nB, b_supports_by_half[0], canonical_supports=_canonical_supports_g(nB)
+            )
+            permB_halves[0] = list(dict.fromkeys(permB_halves[0]))
+            permB_halves[1] = _perm_candidates_from_supports(
+                nB, b_supports_by_half[1], canonical_supports=_canonical_supports(nB)
+            )
+            permB_halves[1] += _perm_candidates_from_supports(
+                nB, b_supports_by_half[1], canonical_supports=_canonical_supports_g(nB)
+            )
+            permB_halves[1] = list(dict.fromkeys(permB_halves[1]))
+    if not permB_halves[0]:
+        permB_halves[0] = [tuple(range(nB))]
+    if not permB_halves[1]:
+        permB_halves[1] = [tuple(range(nB))]
 
     def finalize_votes(votes):
         result = []
@@ -1202,117 +2218,570 @@ def _extract_from_pair(
             margins.append(int(top_count - second))
         return result, margins
 
-    A_ids, A_margins = finalize_votes(a_votes)
-    B_ids, B_margins = finalize_votes(b_votes)
+    def _attempt_reconstruct(
+        pA0,
+        pA1,
+        pB0,
+        pB1,
+        *,
+        A_use,
+        B_use,
+        sigma_inv,
+        row_axes_hz,
+    ):
+        return _reconstruct_and_compare(
+            group=group,
+            A_ids=[int(a) if a is not None else None for a in A_use],
+            B_ids=[int(b) if b is not None else None for b in B_use],
+            permA0=pA0,
+            permA1=pA1,
+            permB0=pB0,
+            permB1=pB1,
+            nA=nA,
+            nB=nB,
+            rA=rA,
+            rB=rB,
+            m=m,
+            row_order_hx=row_order_hx,
+            row_order_hz=row_order_hz,
+            col_order=col_order,
+            row_axes_hz=row_axes_hz,
+            sigma_inv=sigma_inv,
+            hx_rows_in=hx_rows,
+            hz_rows_in=hz_rows,
+        )
 
-    if group is None:
-        group = CyclicGroup(m, name=group_spec_final)
+    best_attempt: Optional[Dict[str, object]] = None
+    best_score = -1
 
-    A_repr = [group.repr(a) if a is not None else "?" for a in A_ids]
-    B_repr = [group.repr(b) if b is not None else "?" for b in B_ids]
+    def attempt(
+        *,
+        permA0: Tuple[int, ...],
+        permA1: Tuple[int, ...],
+        permB0: Tuple[int, ...],
+        permB1: Tuple[int, ...],
+        a_half_perm1: int,
+        b_half_perm1: int,
+    ) -> Dict[str, object]:
+        left_perms_local: List[Tuple[int, ...]] = []
+        right_perms_local: List[Tuple[int, ...]] = []
+        for (rb, _), perm in hz_perms.items():
+            half = hz_half(rb)
+            if half == b_half_perm1:
+                right_perms_local.append(perm)
+            else:
+                left_perms_local.append(perm)
 
-    a_supports_by_j = _support_sets_for_a(hx_row_blocks, hx_types, cb_to_ij=cb_to_ij)
-    b_supports_by_i = _support_sets_for_b(hz_row_blocks, hz_types, cb_to_ij=cb_to_ij)
-    a_supports = set().union(*a_supports_by_j.values()) if a_supports_by_j else set()
-    b_supports = set().union(*b_supports_by_i.values()) if b_supports_by_i else set()
+        sigma_candidates: List[Tuple[Optional[List[int]], Dict[str, object]]] = [
+            (None, {"source": "none"})
+        ]
+        sigma_base_perms = left_perms_local or right_perms_local
+        if not sigma_base_perms:
+            sigma_base_perms = list(dict.fromkeys(list(hx_perms.values()) + list(hz_perms.values())))
+        if group is not None and left_map:
+            if isinstance(group, CyclicGroup):
+                sigmas, best_score = _sigma_candidates_cyclic_affine(
+                    m=m,
+                    perms=sigma_base_perms,
+                    left_map=left_map,
+                    right_map=right_map,
+                )
+                if sigmas:
+                    sigma_candidates = [
+                        (
+                            sigma,
+                            {
+                                "source": "cyclic_affine",
+                                "best_score": best_score,
+                                "candidate_count": len(sigmas),
+                            },
+                        )
+                        for sigma in sigmas
+                    ]
+            else:
+                sigma_candidates = []
+                sigma_candidates_raw = None
+                sigma_source = "none"
+                sigma_closure = None
+                if left_perms_local:
+                    gens, closure = _select_perm_generators(left_perms_local, m=m)
+                    sigma_closure = len(closure)
+                    if len(closure) == m:
+                        sigma_candidates_raw = gens
+                        sigma_source = "hz_left"
+                if sigma_candidates_raw is None and right_perms_local:
+                    gens, closure = _select_perm_generators(right_perms_local, m=m)
+                    sigma_closure = len(closure)
+                    if len(closure) == m:
+                        sigma_candidates_raw = gens
+                        sigma_source = "hz_right"
+                if sigma_candidates_raw is None:
+                    gens, closure = _select_perm_generators(sigma_base_perms, m=m)
+                    sigma_closure = len(closure)
+                    sigma_candidates_raw = gens if gens else sigma_base_perms
+                    sigma_source = "all_perms"
+                sigma, sigma_info = _infer_sigma(
+                    sigma_candidates_raw,
+                    group=group,
+                    left_map=left_map,
+                    right_map=right_map,
+                    gap_cmd=gap_cmd,
+                    cache_dir=cache_dir,
+                    code_id=code_id,
+                )
+                sigma_info = {
+                    **sigma_info,
+                    "candidates": sigma_source,
+                    "closure_size": sigma_closure,
+                }
+                sigma_candidates = [(sigma, sigma_info)]
 
-    permA = None
-    permB = None
-    if nA == 2:
-        permA = tuple(range(nA))
-    else:
-        canonical_a = _canonical_supports(nA)
-        canonical_set = set(canonical_a)
-        other_a = a_supports - canonical_set
-        if not other_a:
-            permA = tuple(range(nA))
-        else:
-            permA = _find_perm_from_supports(nA, canonical_supports=canonical_a, target_supports=other_a)
-    if nB == 2:
-        permB = tuple(range(nB))
-    else:
-        canonical_b = _canonical_supports(nB)
-        canonical_set_b = set(canonical_b)
-        other_b = b_supports - canonical_set_b
-        if not other_b:
-            permB = tuple(range(nB))
-        else:
-            permB = _find_perm_from_supports(nB, canonical_supports=canonical_b, target_supports=other_b)
+        def run_with_sigma(
+            sigma: Optional[List[int]], sigma_info: Dict[str, object]
+        ) -> Dict[str, object]:
+            a_votes = [Counter() for _ in range(nA)]
+            b_votes = [Counter() for _ in range(nB)]
+            c_votes: Dict[Tuple[int, int], Counter] = {}
+            a_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
+            b_stats = {"total": 0, "mismatches": 0, "match_counts": Counter()}
+
+            sigma_inv = _perm_inverse(tuple(sigma)) if sigma is not None else None
+
+            for (rb, cb), perm in hz_perms.items():
+                half = hz_half(rb)
+                i_val, j_val = cb_to_ij(cb)
+                perm_use = perm
+                if sigma is not None and sigma_inv is not None:
+                    perm_use = _conjugate_perm(
+                        perm, sigma=sigma, sigma_inv=sigma_inv
+                    )
+                if half == b_half_perm1:
+                    b_stats["total"] += 1
+                    matchB = None
+                    if group is not None:
+                        matchB = _match_perm_with_inverse(
+                            perm_use,
+                            left_map=left_map,
+                            left_inv_map=left_inv_map,
+                            right_map=right_map,
+                            right_inv_map=right_inv_map,
+                            prefer=("R", "R_inv", "L", "L_inv"),
+                        )
+                    if matchB and group is not None:
+                        match_type, elem, inverse_used = matchB
+                        elem_val = _element_from_match_right(
+                            match_type, elem, inverse_used, group
+                        )
+                        b_votes[j_val][int(elem_val)] += 1
+                        key = f"{match_type}{'_T' if inverse_used else ''}"
+                        b_stats["match_counts"][key] += 1
+                    else:
+                        b_stats["mismatches"] += 1
+                else:
+                    a_stats["total"] += 1
+                    matchA = None
+                    if group is not None:
+                        matchA = _match_perm_with_inverse(
+                            perm_use,
+                            left_map=left_map,
+                            left_inv_map=left_inv_map,
+                            right_map=right_map,
+                            right_inv_map=right_inv_map,
+                            prefer=("L", "L_inv", "R", "R_inv"),
+                        )
+                    if matchA and group is not None:
+                        match_type, elem, inverse_used = matchA
+                        elem_val = _element_from_match_left(
+                            match_type, elem, inverse_used, group
+                        )
+                        a_votes[i_val][int(elem_val)] += 1
+                        key = f"{match_type}{'_T' if inverse_used else ''}"
+                        a_stats["match_counts"][key] += 1
+                    else:
+                        a_stats["mismatches"] += 1
+
+            for (rb, cb), perm in hx_perms.items():
+                if hx_half(rb) != a_half_perm1:
+                    continue
+                i_val, j_val = cb_to_ij(cb)
+                perm_use = perm
+                if sigma is not None and sigma_inv is not None:
+                    perm_use = _conjugate_perm(
+                        perm, sigma=sigma, sigma_inv=sigma_inv
+                    )
+                if group is None:
+                    continue
+                if is_abelian:
+                    c_votes.setdefault((i_val, j_val), Counter())[
+                        int(perm_use[0])
+                    ] += 1
+                    continue
+                lr = _decompose_perm_lr(perm_use, group)
+                a_stats["total"] += 1
+                b_stats["total"] += 1
+                if lr:
+                    a_elem, b_elem_inv = lr
+                    a_votes[i_val][int(a_elem)] += 1
+                    b_votes[j_val][int(group.inv(b_elem_inv))] += 1
+                    a_stats["match_counts"]["LR"] += 1
+                    b_stats["match_counts"]["LR"] += 1
+                else:
+                    a_stats["mismatches"] += 1
+                    b_stats["mismatches"] += 1
+
+            if is_abelian and c_votes and group is not None:
+                c_map = {}
+                for key, counter in c_votes.items():
+                    items = sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+                    c_map[key] = int(items[0][0])
+                A_seed = [None] * nA
+                B_seed = [None] * nB
+                if c_map:
+                    i0 = min(i for (i, _) in c_map.keys())
+                    A_seed[i0] = int(group.id())
+                    for (i_val, j_val), c_val in c_map.items():
+                        if i_val == i0 and B_seed[j_val] is None:
+                            B_seed[j_val] = int(
+                                group.mul(group.inv(c_val), A_seed[i0])
+                            )
+                    changed = True
+                    while changed:
+                        changed = False
+                        for (i_val, j_val), c_val in c_map.items():
+                            if A_seed[i_val] is None and B_seed[j_val] is not None:
+                                A_seed[i_val] = int(group.mul(c_val, B_seed[j_val]))
+                                changed = True
+                            if B_seed[j_val] is None and A_seed[i_val] is not None:
+                                B_seed[j_val] = int(
+                                    group.mul(group.inv(c_val), A_seed[i_val])
+                                )
+                                changed = True
+                for i_val, val in enumerate(A_seed):
+                    if val is None and a_votes[i_val]:
+                        A_seed[i_val] = int(
+                            max(a_votes[i_val].items(), key=lambda kv: (kv[1], -kv[0]))[0]
+                        )
+                for j_val, val in enumerate(B_seed):
+                    if val is None and b_votes[j_val]:
+                        B_seed[j_val] = int(
+                            max(b_votes[j_val].items(), key=lambda kv: (kv[1], -kv[0]))[0]
+                        )
+                best_t = int(group.id())
+                best_score = -1
+                for t in group.elements():
+                    score = 0
+                    for i_val, val in enumerate(A_seed):
+                        if val is None:
+                            continue
+                        score += a_votes[i_val].get(group.mul(val, t), 0)
+                    for j_val, val in enumerate(B_seed):
+                        if val is None:
+                            continue
+                        score += b_votes[j_val].get(group.mul(val, t), 0)
+                    if score > best_score:
+                        best_score = score
+                        best_t = int(t)
+                if best_score >= 0:
+                    A_seed = [
+                        group.mul(val, best_t) if val is not None else None
+                        for val in A_seed
+                    ]
+                    B_seed = [
+                        group.mul(val, best_t) if val is not None else None
+                        for val in B_seed
+                    ]
+                boost = 1000
+                for i_val, val in enumerate(A_seed):
+                    if val is not None:
+                        a_votes[i_val][int(val)] += boost
+                for j_val, val in enumerate(B_seed):
+                    if val is not None:
+                        b_votes[j_val][int(val)] += boost
+
+            A_ids, A_margins = finalize_votes(a_votes)
+            B_ids, B_margins = finalize_votes(b_votes)
+
+            perm_match = {
+                "left_matches": int(
+                    sum(
+                        count
+                        for key, count in a_stats["match_counts"].items()
+                        if key.startswith("L")
+                    )
+                ),
+                "right_matches": int(
+                    sum(
+                        count
+                        for key, count in b_stats["match_counts"].items()
+                        if key.startswith("R")
+                    )
+                ),
+                "total_left": int(a_stats.get("total", 0)),
+                "total_right": int(b_stats.get("total", 0)),
+                "match_counts_A": dict(Counter(a_stats["match_counts"])),
+                "match_counts_B": dict(Counter(b_stats["match_counts"])),
+            }
+            vote_histograms = {
+                "A": [dict(counter) for counter in a_votes],
+                "B": [dict(counter) for counter in b_votes],
+            }
+
+            recon_ok = False
+            recon_reason = "group_missing" if group is None else "unattempted"
+            A_ids_use = A_ids
+            B_ids_use = B_ids
+            if group is not None and all(a is not None for a in A_ids) and all(
+                b is not None for b in B_ids
+            ):
+                variants = [(A_ids, B_ids)]
+                invA = [group.inv(a) for a in A_ids]
+                invB = [group.inv(b) for b in B_ids]
+                variants.extend(
+                    [
+                        (invA, B_ids),
+                        (A_ids, invB),
+                        (invA, invB),
+                    ]
+                )
+                for A_var, B_var in variants:
+                    if is_abelian:
+                        for t in group.elements():
+                            A_shift = [group.mul(a, t) for a in A_var]
+                            B_shift = [group.mul(b, t) for b in B_var]
+                            recon_ok, recon_reason = _attempt_reconstruct(
+                                permA0,
+                                permA1,
+                                permB0,
+                                permB1,
+                                A_use=A_shift,
+                                B_use=B_shift,
+                                sigma_inv=sigma_inv,
+                                row_axes_hz=hz_row_label,
+                            )
+                            if recon_ok:
+                                A_ids_use = A_shift
+                                B_ids_use = B_shift
+                                break
+                        if recon_ok:
+                            break
+                    else:
+                        recon_ok, recon_reason = _attempt_reconstruct(
+                            permA0,
+                            permA1,
+                            permB0,
+                            permB1,
+                            A_use=A_var,
+                            B_use=B_var,
+                            sigma_inv=sigma_inv,
+                            row_axes_hz=hz_row_label,
+                        )
+                        if recon_ok:
+                            A_ids_use = A_var
+                            B_ids_use = B_var
+                            break
+            if recon_ok:
+                A_ids_out = [int(a) for a in A_ids_use]
+                B_ids_out = [int(b) for b in B_ids_use]
+            else:
+                A_ids_out = [None] * nA
+                B_ids_out = [None] * nB
+
+            return {
+                "permA0": permA0,
+                "permA1": permA1,
+                "permB0": permB0,
+                "permB1": permB1,
+                "A_ids": A_ids_out,
+                "B_ids": B_ids_out,
+                "A_margins": A_margins,
+                "B_margins": B_margins,
+                "vote_histograms": vote_histograms,
+                "vote_stats": {"A": a_stats, "B": b_stats},
+                "perm_match": perm_match,
+                "sigma": sigma,
+                "sigma_info": sigma_info,
+                "recon_ok": recon_ok,
+                "recon_reason": recon_reason,
+            }
+
+        best_local = None
+        best_local_score = -1
+        for sigma, sigma_info in sigma_candidates:
+            result = run_with_sigma(sigma, sigma_info)
+            score = int(result["perm_match"]["left_matches"]) + int(
+                result["perm_match"]["right_matches"]
+            )
+            if result["recon_ok"]:
+                return result
+            if score > best_local_score:
+                best_local_score = score
+                best_local = result
+        if best_local is not None:
+            return best_local
+        return run_with_sigma(None, {"source": "none"})
+
+    found = False
+    for a_assign in (0, 1):
+        permA0_candidates = permA_halves[a_assign]
+        permA1_candidates = permA_halves[1 - a_assign]
+        a_half_perm1 = 1 - a_assign
+        for b_assign in (0, 1):
+            permB0_candidates = permB_halves[b_assign]
+            permB1_candidates = permB_halves[1 - b_assign]
+            b_half_perm1 = 1 - b_assign
+            for pA0 in permA0_candidates:
+                for pA1 in permA1_candidates:
+                    for pB0 in permB0_candidates:
+                        for pB1 in permB1_candidates:
+                            attempt_rec = attempt(
+                                permA0=pA0,
+                                permA1=pA1,
+                                permB0=pB0,
+                                permB1=pB1,
+                                a_half_perm1=a_half_perm1,
+                                b_half_perm1=b_half_perm1,
+                            )
+                            score = int(attempt_rec["perm_match"]["left_matches"]) + int(
+                                attempt_rec["perm_match"]["right_matches"]
+                            )
+                            if attempt_rec["recon_ok"]:
+                                best_attempt = attempt_rec
+                                found = True
+                                break
+                            if score > best_score:
+                                best_score = score
+                                best_attempt = attempt_rec
+                        if found:
+                            break
+                    if found:
+                        break
+                if found:
+                    break
+            if found:
+                break
+        if found:
+            break
+
+    if best_attempt is None:
+        best_attempt = {
+            "permA0": None,
+            "permA1": None,
+            "permB0": None,
+            "permB1": None,
+            "A_ids": [None] * nA,
+            "B_ids": [None] * nB,
+            "A_margins": [None] * nA,
+            "B_margins": [None] * nB,
+            "vote_histograms": {"A": [], "B": []},
+            "vote_stats": {"A": {}, "B": {}},
+            "perm_match": {
+                "left_matches": 0,
+                "right_matches": 0,
+                "total_left": 0,
+                "total_right": 0,
+                "match_counts_A": {},
+                "match_counts_B": {},
+            },
+            "sigma": None,
+            "sigma_info": {"source": "none"},
+            "recon_ok": False,
+            "recon_reason": "unattempted",
+        }
+
+    permA0 = best_attempt["permA0"]
+    permA1 = best_attempt["permA1"]
+    permB0 = best_attempt["permB0"]
+    permB1 = best_attempt["permB1"]
+    permA = permA1
+    permB = permB1
+    A_ids = best_attempt["A_ids"]
+    B_ids = best_attempt["B_ids"]
+    A_margins = best_attempt["A_margins"]
+    B_margins = best_attempt["B_margins"]
+    vote_histograms = best_attempt["vote_histograms"]
+    vote_stats = best_attempt["vote_stats"]
+    perm_match = best_attempt["perm_match"]
+    sigma = best_attempt["sigma"]
+    sigma_info = best_attempt["sigma_info"]
+    recon_ok = best_attempt["recon_ok"]
+    recon_reason = best_attempt["recon_reason"]
 
     def perm_one_based(perm):
         if perm is None:
             return None
         return [int(x) + 1 for x in perm]
 
+    if group is None:
+        group = CyclicGroup(m, name=group_spec_final)
+
     perm_stats = {
         "hx": hx_perm_stats,
         "hz": hz_perm_stats,
     }
-    a_match_counts = Counter(a_stats["match_counts"])
-    b_match_counts = Counter(b_stats["match_counts"])
-    total_left = int(a_stats.get("total", 0))
-    total_right = int(b_stats.get("total", 0))
-    perm_match = {
-        "left_matches": int(
-            sum(count for key, count in a_match_counts.items() if key.startswith("L"))
-        ),
-        "right_matches": int(
-            sum(count for key, count in b_match_counts.items() if key.startswith("R"))
-        ),
-        "total_left": total_left,
-        "total_right": total_right,
-        "match_counts_A": dict(a_match_counts),
-        "match_counts_B": dict(b_match_counts),
-    }
+
+    A_repr = [group.repr(a) if a is not None else "?" for a in A_ids]
+    B_repr = [group.repr(b) if b is not None else "?" for b in B_ids]
 
     debug_examples = []
     if debug and group is not None:
-        for (rb, cb), perm in list(hx_perms.items())[:8]:
-            i_val, j_val = cb_to_ij(cb)
-            matchA = _match_perm_with_inverse(
-                perm,
-                left_map=left_map,
-                left_inv_map=left_inv_map,
-                right_map=right_map,
-                right_inv_map=right_inv_map,
-                prefer=("L", "L_inv", "R", "R_inv"),
-            )
-            matchB = _match_perm_with_inverse(
-                perm,
-                left_map=left_map,
-                left_inv_map=left_inv_map,
-                right_map=right_map,
-                right_inv_map=right_inv_map,
-                prefer=("R", "R_inv", "L", "L_inv"),
-            )
-            if matchA:
-                match_type, elem, inverse_used = matchA
-                elem_val = _element_from_match_left(match_type, elem, inverse_used, group)
-                debug_examples.append(
-                    {
-                        "rb": rb,
-                        "cb": cb,
-                        "kind": "A",
-                        "i": i_val,
-                        "j": j_val,
-                        "match": f"{match_type}{'_T' if inverse_used else ''}",
-                        "elem": group.repr(elem_val),
-                    }
+        def add_examples(perms, label):
+            sigma_inv_local = _perm_inverse(tuple(sigma)) if sigma is not None else None
+            for (rb, cb), perm in list(perms.items()):
+                if len(debug_examples) >= 8:
+                    return
+                i_val, j_val = cb_to_ij(cb)
+                perm_use = perm
+                if sigma is not None and sigma_inv_local is not None:
+                    perm_use = _conjugate_perm(perm, sigma=sigma, sigma_inv=sigma_inv_local)
+                matchA = _match_perm_with_inverse(
+                    perm_use,
+                    left_map=left_map,
+                    left_inv_map=left_inv_map,
+                    right_map=right_map,
+                    right_inv_map=right_inv_map,
+                    prefer=("L", "L_inv", "R", "R_inv"),
                 )
-            elif matchB:
-                match_type, elem, inverse_used = matchB
-                elem_val = _element_from_match_right(match_type, elem, inverse_used, group)
-                debug_examples.append(
-                    {
-                        "rb": rb,
-                        "cb": cb,
-                        "kind": "B",
-                        "i": i_val,
-                        "j": j_val,
-                        "match": f"{match_type}{'_T' if inverse_used else ''}",
-                        "elem": group.repr(elem_val),
-                    }
+                matchB = _match_perm_with_inverse(
+                    perm_use,
+                    left_map=left_map,
+                    left_inv_map=left_inv_map,
+                    right_map=right_map,
+                    right_inv_map=right_inv_map,
+                    prefer=("R", "R_inv", "L", "L_inv"),
                 )
+                if matchA:
+                    match_type, elem, inverse_used = matchA
+                    elem_val = _element_from_match_left(match_type, elem, inverse_used, group)
+                    debug_examples.append(
+                        {
+                            "src": label,
+                            "rb": rb,
+                            "cb": cb,
+                            "kind": "A",
+                            "i": i_val,
+                            "j": j_val,
+                            "match": f"{match_type}{'_T' if inverse_used else ''}",
+                            "elem": group.repr(elem_val),
+                        }
+                    )
+                elif matchB:
+                    match_type, elem, inverse_used = matchB
+                    elem_val = _element_from_match_right(match_type, elem, inverse_used, group)
+                    debug_examples.append(
+                        {
+                            "src": label,
+                            "rb": rb,
+                            "cb": cb,
+                            "kind": "B",
+                            "i": i_val,
+                            "j": j_val,
+                            "match": f"{match_type}{'_T' if inverse_used else ''}",
+                            "elem": group.repr(elem_val),
+                        }
+                    )
+
+        add_examples(hx_perms, "HX")
+        add_examples(hz_perms, "HZ")
 
     if debug:
         print(f"[paper_extract] debug {hx_path.stem}")
@@ -1323,7 +2792,7 @@ def _extract_from_pair(
         )
         print(
             "  row_order_hz="
-            f"{_order_label(row_order_hz, hz_row_axes)}"
+            f"{_order_label(row_order_hz, hz_row_axes)} (axes={hz_row_label})"
         )
         print(
             "  mapping score="
@@ -1334,16 +2803,22 @@ def _extract_from_pair(
         print(f"  full_blocks={full_blocks} eq_m_blocks={eq_m_blocks}")
         print(f"  cb mapping={cb_option}")
         print(f"  row blocks HX={hx_counts} HZ={hz_counts}")
+        print(f"  sigma={sigma if sigma is not None else 'None'}")
+        print(
+            f"  perm matches left {perm_match['left_matches']}/{perm_match['total_left']} "
+            f"right {perm_match['right_matches']}/{perm_match['total_right']}"
+        )
+        print(f"  reconstruction_ok={recon_ok} reason={recon_reason}")
         if debug_examples:
             print("  examples:")
             for ex in debug_examples[:5]:
                 print(
-                    f"    rb={ex['rb']} cb={ex['cb']} kind={ex['kind']} "
+                    f"    src={ex['src']} rb={ex['rb']} cb={ex['cb']} kind={ex['kind']} "
                     f"i={ex['i']} j={ex['j']} match={ex['match']} elem={ex['elem']}"
                 )
 
     return {
-        "code_id": f"{group_tag or 'C' + str(m)}_{n_val}_{k_val}_{d_val}",
+        "code_id": code_id,
         "folder": folder,
         "hx_path": str(hx_path),
         "hz_path": str(hz_path),
@@ -1364,6 +2839,7 @@ def _extract_from_pair(
             "row_order_hx": _order_label(row_order_hx, hx_row_axes),
             "row_order_hz": _order_label(row_order_hz, hz_row_axes),
             "col_order": _order_label(col_order, col_axes),
+            "hz_row_axes": hz_row_label,
             "score": mapping_choice["score"],
             "hx_score": mapping_choice["hx_score"],
             "hz_score": mapping_choice["hz_score"],
@@ -1375,14 +2851,23 @@ def _extract_from_pair(
         "A_repr": A_repr,
         "B_ids": B_ids,
         "B_repr": B_repr,
+        "permA0_0based": list(permA0) if permA0 is not None else None,
+        "permA0_1based": perm_one_based(permA0),
         "permA_0based": list(permA) if permA is not None else None,
         "permA_1based": perm_one_based(permA),
+        "permB0_0based": list(permB0) if permB0 is not None else None,
+        "permB0_1based": perm_one_based(permB0),
         "permB_0based": list(permB) if permB is not None else None,
         "permB_1based": perm_one_based(permB),
         "perm_stats": perm_stats,
         "perm_match": perm_match,
+        "sigma": sigma,
+        "sigma_info": sigma_info,
+        "reconstruction_ok": recon_ok,
+        "reconstruction_error": recon_reason,
         "vote_margins": {"A": A_margins, "B": B_margins},
-        "vote_stats": {"A": a_stats, "B": b_stats},
+        "vote_histograms": vote_histograms,
+        "vote_stats": vote_stats,
     }
 
 
@@ -1418,9 +2903,17 @@ def _render_markdown(results: List[dict]) -> str:
         lines.append(
             f"- piA (0-based): {rec['permA_0based']} ; (1-based): {rec['permA_1based']}"
         )
+        if "permA0_0based" in rec:
+            lines.append(
+                f"- piA0 (0-based): {rec['permA0_0based']} ; (1-based): {rec['permA0_1based']}"
+            )
         lines.append(
             f"- piB (0-based): {rec['permB_0based']} ; (1-based): {rec['permB_1based']}"
         )
+        if "permB0_0based" in rec:
+            lines.append(
+                f"- piB0 (0-based): {rec['permB0_0based']} ; (1-based): {rec['permB0_1based']}"
+            )
         lines.append(
             f"- Row blocks (HX): {rec['row_block_counts']['hx']} ; (HZ): {rec['row_block_counts']['hz']}"
         )
@@ -1429,6 +2922,10 @@ def _render_markdown(results: List[dict]) -> str:
             lines.append(
                 f"- Perm matches: left {match['left_matches']}/{match['total_left']}, "
                 f"right {match['right_matches']}/{match['total_right']}"
+            )
+        if "reconstruction_ok" in rec:
+            lines.append(
+                f"- Reconstruction: {rec['reconstruction_ok']} ({rec.get('reconstruction_error')})"
             )
         lines.append(f"- Vote margins A: {rec['vote_margins']['A']}")
         lines.append(f"- Vote margins B: {rec['vote_margins']['B']}")

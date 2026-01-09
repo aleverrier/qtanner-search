@@ -22,6 +22,10 @@ python -m qtanner.search \
   --outdir "$OUT" \
   --gap-cmd gap
 
+Notes:
+- A/B multisets are deduplicated up to Aut(G) (Cayley-unique) before scoring.
+- Once a best-by-(n,k) is confirmed, dynamic mindist pruning skips work on non-improvements.
+
 ## 2) Monitor progress (macOS: no 'watch' needed)
 OUT="$(ls -td runs/* | head -n 1)"
 
@@ -167,4 +171,3 @@ python -m qtanner.report --run "$OUT" --out "$OUT/report.tex" --pdf
 ### Order 19 (1 group(s))
 
 - SmallGroup(19,1)
-
