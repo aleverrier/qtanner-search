@@ -115,47 +115,123 @@ def _run_gap(code: str) -> str:
     return proc.stdout.strip()
 
 
-def gap_export_table(gap_expr: str) -> TableGroup:
-    # NOTE: JsonString is provided by GAP's "json" package (as used in your .g scripts)
-    gap_code = f"""
-LoadPackage("json");
-G := {gap_expr};
-L := AsList(G);
-n := Length(L);
-id := Position(L, Identity(G));
-mul := [];
-for i in [1..n] do
-  row := [];
-  for j in [1..n] do
-    Add(row, Position(L, L[i]*L[j]));
-  od;
-  Add(mul, row);
-od;
-inv := [];
-for i in [1..n] do
-  Add(inv, Position(L, L[i]^-1));
-od;
-elts := List(L, x -> String(x));
-Print(JsonString(rec(order:=n, identity:=id, mul:=mul, inv:=inv, elts:=elts, expr:="{gap_expr}")));
-QUIT;
-"""
-    out = _run_gap(gap_code)
-    # GAP may print extra lines before the JSON (e.g. 'true' from package loading).
-    # Extract the first {...} block and parse only that.
-    m = re.search(r"(\{.*\})", out, flags=re.S)
-    if not m:
-        raise RuntimeError(f"Could not find JSON object in GAP output:\n{out}")
-    data = json.loads(m.group(1))
-    return TableGroup(
-        order=int(data["order"]),
-        identity=int(data["identity"]),
-        mul_tab=data["mul"],
-        inv_tab=data["inv"],
-        elts=data.get("elts"),
-        gap_expr=data.get("expr"),
+def gap_export_table(gap_expr: str, gap_cmd: str = "gap") -> "TableGroup":
+    """
+    Export group multiplication/inverse tables from GAP WITHOUT relying on JsonString.
+
+    Why:
+      - Your GAP doesn't define JsonString (even if LoadPackage("json") prints true).
+      - GAP prints values of statements ending in ';' (must use ';;' to suppress).
+      - We therefore print a small marker protocol and parse it line-by-line.
+
+    Returns:
+      A TableGroup (whatever fields your script defines) populated from the exported tables.
+    """
+    import ast as _ast
+    import subprocess
+    import textwrap
+    import re
+    import inspect
+
+    # Build GAP program (use ';;' to suppress printing intermediate values)
+    gap_code = textwrap.dedent(f"""
+        G := {gap_expr};; 
+        L := AsList(G);;
+        n := Length(L);;
+        id := Position(L, Identity(G));;
+
+        mul := List([1..n], i -> List([1..n], j -> Position(L, L[i]*L[j])));;
+        inv := List([1..n], i -> Position(L, L[i]^-1));;
+        elts := List(L, String);;
+
+        Print("__ORDER__");;    Print("\\n");; Print(n);;  Print("\\n");;
+        Print("__IDENTITY__");; Print("\\n");; Print(id);; Print("\\n");;
+        Print("__MUL__");;      Print("\\n");; Print(mul);; Print("\\n");;
+        Print("__INV__");;      Print("\\n");; Print(inv);; Print("\\n");;
+        Print("__ELTS__");;     Print("\\n");; Print(elts);; Print("\\n");;
+        Print("__END__");;      Print("\\n");;
+
+        QUIT;
+    """).strip() + "\n"
+
+    proc = subprocess.run(
+        [gap_cmd, "-q"],
+        input=gap_code,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+    out = proc.stdout
+    err = proc.stderr
 
+    if proc.returncode != 0:
+        raise RuntimeError(f"GAP failed (rc={proc.returncode}).\nSTDERR:\n{err}\nSTDOUT:\n{out}")
 
+    marker_re = re.compile(r"^__([A-Z0-9]+)__$")
+
+    blocks = {}
+    cur = None
+    buf = []
+    for raw in out.splitlines():
+        s = raw.strip()
+        m = marker_re.match(s)
+        if m:
+            tag = m.group(1)
+            if tag == "END":
+                if cur is not None:
+                    blocks[cur] = "\n".join(buf).strip()
+                cur = None
+                buf = []
+                break
+
+            if cur is not None:
+                blocks[cur] = "\n".join(buf).strip()
+            cur = tag
+            buf = []
+            continue
+
+        if cur is not None:
+            buf.append(raw)
+
+    if cur is not None and cur not in blocks:
+        blocks[cur] = "\n".join(buf).strip()
+
+    required = ["ORDER", "IDENTITY", "MUL", "INV", "ELTS"]
+    missing = [t for t in required if t not in blocks or blocks[t].strip() == ""]
+    if missing:
+        raise RuntimeError(
+            f"Missing blocks {missing} in GAP output.\nSTDOUT:\n{out}\nSTDERR:\n{err}"
+        )
+
+    order = int(blocks["ORDER"].split()[0])
+    identity = int(blocks["IDENTITY"].split()[0])
+    mul_tab = _ast.literal_eval(blocks["MUL"])
+    inv_tab = _ast.literal_eval(blocks["INV"])
+    elts = _ast.literal_eval(blocks["ELTS"])
+
+    # Build TableGroup robustly (field names may vary across versions of the script)
+    values = {
+        "order": order, "n": order,
+        "identity": identity, "id": identity,
+        "mul_tab": mul_tab, "mul": mul_tab, "mul_table": mul_tab,
+        "inv_tab": inv_tab, "inv": inv_tab, "inv_table": inv_tab,
+        "elts": elts, "elements": elts, "names": elts,
+        "gap_expr": gap_expr, "expr": gap_expr, "name": gap_expr,
+    }
+
+    try:
+        sig = inspect.signature(TableGroup)
+        kwargs = {}
+        for pname, p in sig.parameters.items():
+            if pname in values:
+                kwargs[pname] = values[pname]
+        need = [pname for pname, p in sig.parameters.items()
+                if p.default is inspect._empty and pname not in kwargs]
+        if need:
+            raise TypeError(f"TableGroup needs {need}, but exporter only has {sorted(values.keys())}")
+        return TableGroup(**kwargs)
+    except Exception as e:
+        raise RuntimeError(f"Failed to construct TableGroup from GAP tables: {e}") from e
 def gap_number_small_groups(order: int) -> int:
     gap_code = f"""
 Print(NumberSmallGroups({order}));
