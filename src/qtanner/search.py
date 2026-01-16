@@ -2457,7 +2457,11 @@ def main() -> int:
     if args.max_quantum < 0:
         raise ValueError("--max-quantum must be nonnegative.")
     if not gap_is_available(args.gap_cmd):
-        raise RuntimeError(f"GAP is not available on PATH as '{args.gap_cmd}'.")
+        raise RuntimeError(
+            f"GAP is required for group automorphisms, but '{args.gap_cmd}' was not found on PATH. "
+            "Install it with `brew install gap` and re-run with `--gap-cmd gap` "
+            "or pass the full path to the GAP binary."
+        )
     if not dist_m4ri_is_available(args.dist_m4ri_cmd):
         raise RuntimeError(
             "dist_m4ri not found on PATH; install dist-m4ri and ensure the dist_m4ri "

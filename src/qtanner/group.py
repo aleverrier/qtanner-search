@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import argparse
 import json
-import os
 import re
 import subprocess
-import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
+
+from .gap_backend import gap_group_data, gap_list_small_groups
 
 
 class FiniteGroup:
@@ -149,6 +151,16 @@ class TableGroup(FiniteGroup):
         return self._repr_table[idx]
 
 
+@dataclass(frozen=True)
+class SmallGroupRecord:
+    """Summary record for SmallGroup identifiers."""
+
+    order: int
+    gid: int
+    spec: str
+    structure_description: str
+
+
 def _normalize_table(
     order: int,
     mul_table: Sequence[Sequence[int]],
@@ -177,9 +189,8 @@ def _normalize_table(
     return norm, inv
 
 
-_SMALLGROUP_RE = re.compile(r"SmallGroup\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)")
+_SMALLGROUP_RE = re.compile(r"(?:SmallGroup|SG)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", re.IGNORECASE)
 _CYCLIC_RE = re.compile(r"([CZ])(\d+)$", re.IGNORECASE)
-_DIRECT_RE = re.compile(r"([CZ])(\d+)x([CZ])(\d+)$", re.IGNORECASE)
 _AUT_BEGIN = "AUT_BEGIN"
 _AUT_END = "AUT_END"
 _AUT_CACHE_VERSION = 1
@@ -188,7 +199,7 @@ _AUT_CACHE_VERSION = 1
 def canonical_group_spec(spec: str) -> str:
     if spec is None:
         raise ValueError("Group spec cannot be None.")
-    s = re.sub(r"\s+", "", spec)
+    s = re.sub(r"\s+", "", spec).replace("X", "x")
     if not s:
         raise ValueError("Group spec cannot be empty.")
     if s.lower() == "v4":
@@ -211,6 +222,21 @@ def canonical_group_spec(spec: str) -> str:
     raise ValueError(f"Unrecognized group spec {spec!r}.")
 
 
+def _cyclic_factors_from_spec(spec_norm: str) -> Optional[List[int]]:
+    """Return cyclic factor orders for specs like C2xC2xC2, else None."""
+    if "x" in spec_norm:
+        parts = spec_norm.split("x")
+    else:
+        parts = [spec_norm]
+    orders: List[int] = []
+    for part in parts:
+        m = _CYCLIC_RE.fullmatch(part)
+        if not m:
+            return None
+        orders.append(int(m.group(2)))
+    return orders
+
+
 def group_from_spec(
     spec: str,
     *,
@@ -229,6 +255,25 @@ def group_from_spec(
             group = DirectProductGroup(group, rhs, name=name)
         return group
     return CyclicGroup(int(spec_norm[1:]), name=spec_norm)
+
+
+def list_small_groups(
+    max_order: int,
+    *,
+    gap_cmd: str = "gap",
+) -> List[SmallGroupRecord]:
+    """List GAP SmallGroup identifiers up to a maximum order."""
+    records: List[SmallGroupRecord] = []
+    for order, gid, desc in gap_list_small_groups(max_order, gap_cmd=gap_cmd):
+        records.append(
+            SmallGroupRecord(
+                order=order,
+                gid=gid,
+                spec=f"SG({order},{gid})",
+                structure_description=desc,
+            )
+        )
+    return records
 
 
 def _load_smallgroup(
@@ -252,7 +297,9 @@ def _load_smallgroup(
             inv = payload.get("inv_table", payload.get("inv"))
             if isinstance(mul, list) and isinstance(inv, list):
                 return TableGroup(spec_norm, mul, inv)
-    mul, inv = _gap_smallgroup_tables(order, gid, gap_cmd=gap_cmd)
+    data = gap_group_data(spec_norm, gap_cmd=gap_cmd)
+    mul = data.mul_table
+    inv = data.inv_table
     if cache_path is not None:
         payload = {
             "format_version": 1,
@@ -266,146 +313,10 @@ def _load_smallgroup(
     return TableGroup(spec_norm, mul, inv)
 
 
-def _gap_smallgroup_tables(
-    order: int,
-    gid: int,
-    *,
-    gap_cmd: str,
-    timeout_s: int = 60,
-) -> tuple[List[List[int]], List[int]]:
-    script = "\n".join(
-        [
-            'if LoadPackage("smallgrp") = fail then',
-            '  Print("QTANNER_GAP_ERROR smallgrp_missing\\n");',
-            "  QuitGap(2);",
-            "fi;",
-            f"G := SmallGroup({int(order)},{int(gid)});;",
-            "elts := ShallowCopy(Elements(G));;",
-            "id := One(G);;",
-            "pos := Position(elts, id);;",
-            "if pos <> 1 then",
-            "  tmp := elts[1];; elts[1] := elts[pos];; elts[pos] := tmp;;",
-            "fi;",
-            "n := Length(elts);;",
-            'Print("MUL_BEGIN\\n");',
-            "for i in [1..n] do",
-            "  for j in [1..n] do",
-            "    Print(Position(elts, elts[i]*elts[j]) - 1);",
-            "    if j < n then",
-            '      Print(",");',
-            "    fi;",
-            "  od;",
-            '  Print("\\n");',
-            "od;",
-            'Print("MUL_END\\n");',
-            'Print("INV_BEGIN\\n");',
-            "for i in [1..n] do",
-            "  Print(Position(elts, Inverse(elts[i])) - 1);",
-            "  if i < n then",
-            '    Print(",");',
-            "  fi;",
-            "od;",
-            'Print("\\nINV_END\\n");',
-            "QuitGap(0);",
-        ]
-    )
-    stdout = ""
-    stderr = ""
-    returncode = -1
-    try:
-        with tempfile.NamedTemporaryFile("w", suffix=".g", delete=False) as tmp:
-            tmp.write(script)
-            script_path = tmp.name
-        result = subprocess.run(
-            [gap_cmd, "-q", "-b", "--quitonbreak", script_path],
-            text=True,
-            capture_output=True,
-            timeout=timeout_s,
-            check=False,
-        )
-        stdout = result.stdout or ""
-        stderr = result.stderr or ""
-        returncode = result.returncode
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
-    except subprocess.TimeoutExpired as exc:
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
-        raise RuntimeError(
-            f"GAP timed out after {timeout_s} seconds while loading SmallGroup({order},{gid})."
-        ) from exc
-    finally:
-        if "script_path" in locals():
-            try:
-                os.remove(script_path)
-            except OSError:
-                pass
-    if returncode != 0:
-        raise RuntimeError(
-            "GAP exited with non-zero status while building SmallGroup tables.\n"
-            f"stdout_tail:\n{_tail(stdout)}\n\nstderr_tail:\n{_tail(stderr)}"
-        )
-    try:
-        mul, inv = _parse_gap_marked_output(stdout, order)
-    except Exception as exc:
-        raise RuntimeError(
-            "Failed to parse GAP output for SmallGroup tables.\n"
-            f"stdout_tail:\n{_tail(stdout)}\n\nstderr_tail:\n{_tail(stderr)}"
-        ) from exc
-    return mul, inv
-
-
 def _tail(text: str, n: int = 2000) -> str:
     if not text:
         return ""
     return text if len(text) <= n else text[-n:]
-
-
-def _parse_gap_marked_output(output: str, n: int) -> tuple[List[List[int]], List[int]]:
-    lines = output.splitlines()
-    mul_begin = None
-    mul_end = None
-    inv_begin = None
-    inv_end = None
-    for idx, line in enumerate(lines):
-        marker = line.strip()
-        if marker == "MUL_BEGIN":
-            mul_begin = idx
-        elif marker == "MUL_END":
-            mul_end = idx
-        elif marker == "INV_BEGIN":
-            inv_begin = idx
-        elif marker == "INV_END":
-            inv_end = idx
-    if mul_begin is None or mul_end is None or mul_begin >= mul_end:
-        raise RuntimeError("GAP output missing MUL_BEGIN/MUL_END markers.")
-    if inv_begin is None or inv_end is None or inv_begin >= inv_end:
-        raise RuntimeError("GAP output missing INV_BEGIN/INV_END markers.")
-
-    mul_lines: List[str] = []
-    for line in lines[mul_begin + 1 : mul_end]:
-        stripped = line.strip()
-        if stripped:
-            mul_lines.append(stripped)
-    if len(mul_lines) != n:
-        raise RuntimeError(f"GAP output has {len(mul_lines)} mul rows; expected {n}.")
-
-    mul_table: List[List[int]] = []
-    for row_idx, line in enumerate(mul_lines):
-        parts = [p for p in line.split(",") if p != ""]
-        if len(parts) != n:
-            raise RuntimeError(
-                f"GAP output row {row_idx} has {len(parts)} entries; expected {n}."
-            )
-        mul_table.append([int(part) for part in parts])
-
-    inv_tokens: List[str] = []
-    for line in lines[inv_begin + 1 : inv_end]:
-        inv_tokens.extend([p for p in line.strip().split(",") if p != ""])
-    if len(inv_tokens) != n:
-        raise RuntimeError(f"GAP output has {len(inv_tokens)} inverses; expected {n}.")
-    inv = [int(token) for token in inv_tokens]
-    return mul_table, inv
 
 
 def _parse_gap_aut_output(output: str, n: int) -> List[List[int]]:
@@ -458,6 +369,34 @@ def _aut_cache_path(cache_dir: Optional[Path], spec_norm: str) -> Optional[Path]
     return cache_dir / f"{spec_norm}.json"
 
 
+def _gap_missing_error(gap_cmd: str, context: str) -> RuntimeError:
+    return RuntimeError(
+        f"GAP is required for {context}, but '{gap_cmd}' was not found on PATH. "
+        "Install it with `brew install gap` and re-run with `--gap-cmd gap` "
+        "or pass the full path to the GAP binary."
+    )
+
+
+def _gap_cyclic_product_expr(orders: Sequence[int]) -> str:
+    if len(orders) == 1:
+        return f"CyclicGroup({orders[0]})"
+    groups = ",".join(f"CyclicGroup({order})" for order in orders)
+    return f"DirectProduct({groups})"
+
+
+def _gap_cyclic_product_element_lines(orders: Sequence[int]) -> List[str]:
+    """Build GAP loops that match the Python direct product element ordering."""
+    lines: List[str] = ["elts := [];;"]
+    for idx, order in enumerate(orders, start=1):
+        indent = "  " * (idx - 1)
+        lines.append(f"{indent}for a{idx} in [0..{order - 1}] do")
+    product = " * ".join(f"gens[{idx}]^a{idx}" for idx in range(1, len(orders) + 1))
+    lines.append(f"{'  ' * len(orders)}Add(elts, {product});;")
+    for idx in range(len(orders) - 1, -1, -1):
+        lines.append(f"{'  ' * idx}od;")
+    return lines
+
+
 def _gap_automorphisms_for_spec(
     spec_norm: str,
     *,
@@ -466,78 +405,43 @@ def _gap_automorphisms_for_spec(
 ) -> List[List[int]]:
     m = _SMALLGROUP_RE.fullmatch(spec_norm)
     if m:
-        order = int(m.group(1))
-        gid = int(m.group(2))
-        script_lines = [
-            'if LoadPackage("smallgrp") = fail then',
-            '  Print("QTANNER_GAP_ERROR smallgrp_missing\\n");',
-            "  QuitGap(2);",
-            "fi;",
-            f"G := SmallGroup({order},{gid});;",
-            "elts := ShallowCopy(Elements(G));;",
-            "id := One(G);;",
-            "pos := Position(elts, id);;",
-            "if pos <> 1 then",
-            "  tmp := elts[1];; elts[1] := elts[pos];; elts[pos] := tmp;;",
-            "fi;",
-        ]
-    else:
-        m = _DIRECT_RE.fullmatch(spec_norm)
-        if m:
-            left = int(m.group(2))
-            right = int(m.group(4))
-            order = left * right
-            script_lines = [
-                f"G1 := CyclicGroup({left});;",
-                f"G2 := CyclicGroup({right});;",
-                "G := DirectProduct(G1, G2);;",
-                "g1 := G.1;;",
-                "g2 := G.2;;",
-                "elts := [];",
-                f"for a in [0..{left - 1}] do",
-                f"  for b in [0..{right - 1}] do",
-                "    Add(elts, g1^a * g2^b);",
-                "  od;",
-                "od;",
-            ]
-        else:
-            m = _CYCLIC_RE.fullmatch(spec_norm)
-            if not m:
-                raise ValueError(f"Unsupported group spec for automorphisms: {spec_norm!r}")
-            order = int(m.group(2))
-            script_lines = [
-                f"G := CyclicGroup({order});;",
-                "g := G.1;;",
-                f"elts := List([0..{order - 1}], k -> g^k);;",
-            ]
-    script_lines.extend(
-        [
-            "auts := Elements(AutomorphismGroup(G));;",
-            "n := Length(elts);;",
-            f'Print("{_AUT_BEGIN}\\n");',
-            "for phi in auts do",
-            "  for i in [1..n] do",
-            "    Print(Position(elts, Image(phi, elts[i])) - 1);",
-            "    if i < n then",
-            '      Print(",");',
-            "    fi;",
-            "  od;",
-            '  Print("\\n");',
-            "od;",
-            f'Print("{_AUT_END}\\n");',
-            "QuitGap(0);",
-        ]
-    )
-    script = "\n".join(script_lines)
+        data = gap_group_data(spec_norm, gap_cmd=gap_cmd, timeout_s=timeout_s)
+        return list(data.automorphisms)
+    orders = _cyclic_factors_from_spec(spec_norm)
+    if not orders:
+        raise ValueError(f"Unsupported group spec for automorphisms: {spec_norm!r}")
+    order = 1
+    for value in orders:
+        order *= value
+    gap_expr = _gap_cyclic_product_expr(orders)
+    gens_list = ", ".join(f"G.{idx}" for idx in range(1, len(orders) + 1))
+    script_lines = [
+        f"G := {gap_expr};;",
+        f"gens := [{gens_list}];;",
+        *_gap_cyclic_product_element_lines(orders),
+        "auts := Elements(AutomorphismGroup(G));;",
+        "n := Length(elts);;",
+        f'Print("{_AUT_BEGIN}\\n");',
+        "for phi in auts do",
+        "  for i in [1..n] do",
+        "    Print(Position(elts, Image(phi, elts[i])) - 1);",
+        "    if i < n then",
+        '      Print(",");',
+        "    fi;",
+        "  od;",
+        '  Print("\\n");',
+        "od;",
+        f'Print("{_AUT_END}\\n");',
+        "QuitGap(0);",
+    ]
+    script = "\n".join(script_lines) + "\n"
     stdout = ""
     stderr = ""
     returncode = -1
     try:
-        with tempfile.NamedTemporaryFile("w", suffix=".g", delete=False) as tmp:
-            tmp.write(script)
-            script_path = tmp.name
         result = subprocess.run(
-            [gap_cmd, "-q", "-b", "--quitonbreak", script_path],
+            [gap_cmd, "-q", "--quitonbreak"],
+            input=script,
             text=True,
             capture_output=True,
             timeout=timeout_s,
@@ -547,19 +451,13 @@ def _gap_automorphisms_for_spec(
         stderr = result.stderr or ""
         returncode = result.returncode
     except FileNotFoundError as exc:
-        raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
+        raise _gap_missing_error(gap_cmd, "group automorphisms") from exc
     except subprocess.TimeoutExpired as exc:
         stdout = exc.stdout or ""
         stderr = exc.stderr or ""
         raise RuntimeError(
             f"GAP timed out after {timeout_s} seconds while building automorphisms for {spec_norm}."
         ) from exc
-    finally:
-        if "script_path" in locals():
-            try:
-                os.remove(script_path)
-            except OSError:
-                pass
     if returncode != 0:
         raise RuntimeError(
             "GAP exited with non-zero status while building automorphisms.\n"
@@ -603,11 +501,45 @@ def _load_automorphisms(
     return perms
 
 
+def _main(argv: Optional[Sequence[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description="qtanner group utilities")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    list_parser = subparsers.add_parser(
+        "list-small", help="List GAP SmallGroup identifiers."
+    )
+    list_parser.add_argument(
+        "--max-order",
+        type=int,
+        default=20,
+        help="Maximum group order to list.",
+    )
+    list_parser.add_argument(
+        "--gap-cmd",
+        type=str,
+        default="gap",
+        help="GAP command.",
+    )
+
+    args = parser.parse_args(argv)
+    if args.command == "list-small":
+        for record in list_small_groups(args.max_order, gap_cmd=args.gap_cmd):
+            print(f"{record.order}  {record.spec}  {record.structure_description}")
+        return 0
+    return 1
+
+
 __all__ = [
     "FiniteGroup",
     "CyclicGroup",
     "DirectProductGroup",
     "TableGroup",
+    "SmallGroupRecord",
     "canonical_group_spec",
     "group_from_spec",
+    "list_small_groups",
 ]
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

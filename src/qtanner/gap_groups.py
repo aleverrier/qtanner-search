@@ -11,6 +11,14 @@ from typing import List, Tuple
 from .group import TableGroup
 
 
+def _gap_missing_error(gap_cmd: str, context: str) -> RuntimeError:
+    return RuntimeError(
+        f"GAP is required for {context}, but '{gap_cmd}' was not found on PATH. "
+        "Install it with `brew install gap` and re-run with `--gap-cmd gap` "
+        "or pass the full path to the GAP binary."
+    )
+
+
 def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List[int]]:
     lines = output.splitlines()
     mul_begin = None
@@ -92,9 +100,7 @@ def _run_gap_script(script: str) -> subprocess.CompletedProcess[str]:
         )
         return proc
     except FileNotFoundError as exc:
-        raise RuntimeError(
-            "GAP executable not found. Install GAP and ensure `gap` is on PATH."
-        ) from exc
+        raise _gap_missing_error("gap", "GAP SmallGroup data") from exc
     except subprocess.CalledProcessError as exc:
         preview = _gap_error_preview(exc.stdout or "", exc.stderr or "")
         raise RuntimeError(f"GAP failed.\n{preview}") from exc
@@ -189,7 +195,7 @@ def nr_smallgroups(order: int, gap_cmd: str = "gap") -> int:
             check=True,
         )
     except FileNotFoundError as exc:
-        raise RuntimeError(f"GAP command not found: {gap_cmd}") from exc
+        raise _gap_missing_error(gap_cmd, "NrSmallGroups") from exc
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(f"GAP failed: {exc.stderr.strip()}") from exc
 

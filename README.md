@@ -12,6 +12,7 @@ Distance estimation (dist-m4ri):
 - `qtanner.search` uses dist-m4ri RW (method=1) for CSS distance estimates.
 - When `--target-distance` is set, we pass `wmin=target-1`; a negative `d` from dist-m4ri indicates early stop.
 - Install dist-m4ri and ensure `dist_m4ri` is on `PATH` (e.g., build from your local dist-m4ri checkout and add its `src/` to `PATH`).
+- GAP is only used for group automorphisms and SmallGroup data; distance estimates do not use GAP.
 - Run the C2xC2xC2 target-16 search with: `scripts/run_c2xc2xc2_d16.sh`
 
 Classical selection (A/B candidates):
