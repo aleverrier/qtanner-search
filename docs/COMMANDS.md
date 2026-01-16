@@ -14,17 +14,16 @@ python -m qtanner.search \
   --max-n 200 \
   --allow-repeats \
   --permH1 30 --permH1p 30 \
-  --trials 2000 \
-  --mindist 10 \
-  --best-uniq-target 5 \
+  --steps 2000 \
   --batch-size 200 \
   --seed 1 \
   --outdir "$OUT" \
-  --gap-cmd gap
+  --gap-cmd gap \
+  --dist-m4ri-cmd dist_m4ri
 
 Notes:
 - A/B multisets are deduplicated up to Aut(G) (Cayley-unique) before scoring.
-- Once a best-by-(n,k) is confirmed, dynamic mindist pruning skips work on non-improvements.
+- Use `--target-distance` to reject candidates below a target distance (sets `wmin=target-1`).
 
 ## 2) Monitor progress (macOS: no 'watch' needed)
 OUT="$(ls -td runs/* | head -n 1)"
@@ -44,7 +43,7 @@ done
 OUT="$(ls -td runs/* | head -n 1)"
 tail -n 50 -F "${OUT}/best_by_k.log"
 
-## 3) Re-check distance of a saved code (QDistRnd, mindist=0)
+## 3) Re-check distance of a saved code (dist-m4ri RW)
 # Replace ID with the code id you want to test.
 OUT="$(ls -td runs/* | head -n 1)"
 ID="PUT_CODE_ID_HERE"
@@ -52,9 +51,8 @@ ID="PUT_CODE_ID_HERE"
 python -m qtanner.check_distance \
   --run "$OUT" \
   --id "$ID" \
-  --trials 20000 \
-  --uniq-target 5 \
-  --gap-cmd gap
+  --steps 5000 \
+  --dist-m4ri-cmd dist_m4ri
 
 ## 4) Generate the LaTeX report for a run
 OUT="$(ls -td runs/* | head -n 1)"
@@ -62,6 +60,13 @@ python -m qtanner.report --run "$OUT" --out "$OUT/report.tex"
 
 # If you have pdflatex installed:
 python -m qtanner.report --run "$OUT" --out "$OUT/report.tex" --pdf
+
+## dist-m4ri install (short version)
+- Build dist-m4ri and add the `dist_m4ri` binary to your `PATH`.
+- Example (local checkout): `export PATH="$HOME/research/qtanner-tools/dist-m4ri/src:$PATH"`
+
+## C2xC2xC2 target-16 run
+- `scripts/run_c2xc2xc2_d16.sh`
 
 
 ## Groups of order < 20 (GAP SmallGroup identifiers)

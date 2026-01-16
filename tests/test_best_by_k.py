@@ -11,13 +11,10 @@ def test_best_by_k_table_formatting() -> None:
             "d_ub": 11,
             "dx_ub": 11,
             "dz_ub": 12,
-            "trials_requested": 500,
-            "qd_x": {"uniq": 6, "avg": 1.5},
-            "qd_z": {"uniq": 4, "avg": 2.0},
+            "steps": 500,
         },
-        "confirm_trials": 500,
     }
-    table = _best_by_k_table({("C4", 144, 12): entry}, uniq_target=5)
+    table = _best_by_k_table({("C4", 144, 12): entry})
     assert "[best_by_k]" in table
     assert "C4" in table
     assert "11" in table

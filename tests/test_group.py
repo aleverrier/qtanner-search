@@ -19,6 +19,13 @@ def test_direct_product_c2x_c2_ops() -> None:
     assert group.repr(3) == "(1,1)"
 
 
+def test_direct_product_c2x_c2x_c2_ops() -> None:
+    group = group_from_spec("C2xC2xC2")
+    assert group.order == 8
+    for g in group.elements():
+        assert group.inv(g) == g
+
+
 def test_la_rb_commute_for_c4_and_c2x_c2() -> None:
     groups = [
         CyclicGroup(4),

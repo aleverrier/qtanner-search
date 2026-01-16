@@ -109,12 +109,9 @@ def main() -> int:
             r"compares classical slice distance to the quantum block length $n=36|G|$.",
             r"\item Quantum stage: build $H_X,H_Z$, compute $k=n-\mathrm{rank}(H_X)-\mathrm{rank}(H_Z)$, "
             r"and skip candidates with $k=0$.",
-            r"\item QDistRnd pipeline: (a) filter stage with $mindist>0$ for fast rejection, "
-            r"(b) measurement stage with $mindist=0$ for upper bounds $d_X,d_Z$, "
-            r"(c) confirmation for best-by-$(n,k)$ entries until the limiting side has "
-            r"$\mathrm{uniq}\ge$ best\_uniq\_target.",
-            r"\item Upper bounds: QDistRnd reports distance upper bounds; higher $\mathrm{uniq}$ on the limiting "
-            r"side increases confidence that the bound is meaningful rather than a sampling artifact.",
+            r"\item Distance estimation: dist-m4ri RW (method=1) on $(H_X,H_Z)$ and $(H_Z,H_X)$ to estimate "
+            r"$d_Z,d_X$, with $d=\min(d_X,d_Z)$. When a target distance is set, we pass $wmin=target-1$ so "
+            r"negative $d$ indicates early stop from a low-weight codeword.",
             r"\end{itemize}",
             r"\section*{Coverage}",
         ]
@@ -141,19 +138,18 @@ def main() -> int:
 
     lines.append(r"\section*{Best Quantum Codes Found in This Run}")
     if best_by_k:
-        lines.append(r"\begin{tabular}{llrrrrll}")
+        lines.append(r"\begin{tabular}{llrrrrl}")
         lines.append(r"\toprule")
-        lines.append(r"Group & $|G|$ & $n$ & $k$ & $d_{ub}$ & trials & id & confirmed \\")
+        lines.append(r"Group & $|G|$ & $n$ & $k$ & $d_{est}$ & steps & id \\")
         lines.append(r"\midrule")
         for group_spec in sorted(best_by_k):
             order = coverage.get(group_spec, {}).get("order", "n/a")
             for n_val in sorted(best_by_k[group_spec], key=lambda x: int(x)):
                 for row in best_by_k[group_spec][n_val]:
-                    confirmed = "yes" if row.get("confirmed") else "no"
                     lines.append(
                         f"{_escape(group_spec)} & {order} & {n_val} & {row.get('k')} & "
-                        f"{row.get('d_ub')} & {row.get('trials_used')} & "
-                        f"{_escape(str(row.get('id')))} & {confirmed} \\\\"
+                        f"{row.get('d_ub')} & {row.get('steps')} & "
+                        f"{_escape(str(row.get('id')))} \\\\"
                     )
         lines.append(r"\bottomrule")
         lines.append(r"\end{tabular}")
@@ -166,20 +162,15 @@ def main() -> int:
             lines.append(f"\\subsection*{{Group {_escape(group_spec)}}}")
             for n_val in sorted(best_by_k[group_spec], key=lambda x: int(x)):
                 lines.append(f"\\paragraph*{{$n={n_val}$}}")
-                lines.append(r"\begin{tabular}{rrrrrrrll}")
+                lines.append(r"\begin{tabular}{rrrrrrl}")
                 lines.append(r"\toprule")
-                lines.append(
-                    r"$k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & uniq & avg & id & confirmed \\"
-                )
+                lines.append(r"$k$ & $d_{est}$ & steps & $d_X$ & $d_Z$ & id \\")
                 lines.append(r"\midrule")
                 for row in best_by_k[group_spec][n_val]:
-                    avg = row.get("avg_lim")
-                    avg_txt = "n/a" if avg is None else f"{avg:.3f}"
-                    confirmed = "yes" if row.get("confirmed") else "no"
                     lines.append(
-                        f"{row.get('k')} & {row.get('d_ub')} & {row.get('trials_used')} & "
-                        f"{row.get('dx_ub')} & {row.get('dz_ub')} & {row.get('uniq_lim')} & "
-                        f"{avg_txt} & {_escape(str(row.get('id')))} & {confirmed} \\\\"
+                        f"{row.get('k')} & {row.get('d_ub')} & {row.get('steps')} & "
+                        f"{row.get('dx_ub')} & {row.get('dz_ub')} & "
+                        f"{_escape(str(row.get('id')))} \\\\"
                     )
                 lines.append(r"\bottomrule")
                 lines.append(r"\end{tabular}")
@@ -205,7 +196,7 @@ def main() -> int:
     if global_best:
         lines.append(r"\begin{tabular}{llrrrrll}")
         lines.append(r"\toprule")
-        lines.append(r"Group & $n$ & $k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & id \\")
+        lines.append(r"Group & $n$ & $k$ & $d_{est}$ & steps & $d_X$ & $d_Z$ & id \\")
         lines.append(r"\midrule")
         for group_spec in sorted(global_best):
             for n_val in sorted(global_best[group_spec], key=lambda x: int(x)):
@@ -213,7 +204,7 @@ def main() -> int:
                     row = global_best[group_spec][n_val][k_val]
                     lines.append(
                         f"{_escape(group_spec)} & {row.get('n')} & {row.get('k')} & "
-                        f"{row.get('d_ub')} & {row.get('trials_used')} & "
+                        f"{row.get('d_ub')} & {row.get('steps')} & "
                         f"{row.get('dx_ub')} & {row.get('dz_ub')} & "
                         f"{_escape(str(row.get('id')))} \\\\"
                     )
@@ -224,14 +215,17 @@ def main() -> int:
 
     lines.append(r"\section*{How to Reproduce/Check}")
     if best_codes:
+        steps = run_meta.get("steps", 5000)
+        target_distance = run_meta.get("target_distance")
+        dist_cmd = run_meta.get("dist_m4ri_cmd", "dist_m4ri")
         lines.append(r"\begin{itemize}")
         for rec in best_codes:
-            row = best_lookup.get(rec["id"], {})
-            trials = row.get("trials_used", 20000)
             cmd = (
                 f"python -m qtanner.check_distance --run {run_dir} "
-                f"--id {rec['id']} --trials {trials} --uniq-target 5 --gap-cmd gap"
+                f"--id {rec['id']} --steps {steps} --dist-m4ri-cmd {dist_cmd}"
             )
+            if target_distance is not None:
+                cmd += f" --target-distance {target_distance}"
             lines.append(f"  \\item \\texttt{{{_escape(cmd)}}}")
         lines.append(r"\end{itemize}")
     else:

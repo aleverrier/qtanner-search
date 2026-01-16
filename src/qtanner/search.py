@@ -28,8 +28,9 @@ from .local_codes import (
     hamming_6_3_3_shortened,
     variants_6_3_3,
 )
+from .dist_m4ri import dist_m4ri_is_available, run_dist_m4ri_css_rw
 from .mtx import write_mtx_from_bitrows
-from .qdistrnd import gap_is_available, qdistrnd_is_available, write_qdistrnd_log
+from .qdistrnd import gap_is_available, write_qdistrnd_log
 
 
 @dataclass(frozen=True)
@@ -105,9 +106,9 @@ def _format_command_line() -> Tuple[str, str, str]:
 def _write_commands_run(outdir: Path, args: argparse.Namespace) -> None:
     actual_cmd, module_cmd, raw_argv = _format_command_line()
     outdir_str = str(outdir)
-    trials = args.trials
-    uniq_target = args.best_uniq_target
-    gap_cmd = args.gap_cmd
+    steps = args.steps
+    target_distance = args.target_distance
+    dist_cmd = args.dist_m4ri_cmd
     lines = [
         "# qtanner search run commands",
         "",
@@ -136,18 +137,28 @@ def _write_commands_run(outdir: Path, args: argparse.Namespace) -> None:
         "## Monitor by tailing the log",
         "tail -n 50 -F \"${OUT}/best_by_k.log\"",
         "",
-        "## Re-check distance (QDistRnd, mindist=0)",
+        "## Re-check distance (dist-m4ri RW)",
         "ID=\"PUT_CODE_ID_HERE\"",
         (
             "python -m qtanner.check_distance --run \"${OUT}\" "
-            f"--id \"${{ID}}\" --trials {trials} --uniq-target {uniq_target} --gap-cmd {gap_cmd}"
+            f"--id \"${{ID}}\" --steps {steps} --dist-m4ri-cmd {dist_cmd}"
+            + (
+                f" --target-distance {target_distance}"
+                if target_distance is not None
+                else ""
+            )
         ),
         "",
         "Example:",
         "ID=\"EXAMPLE_CODE_ID\"",
         (
             "python -m qtanner.check_distance --run \"${OUT}\" "
-            f"--id \"${{ID}}\" --trials {trials} --uniq-target {uniq_target} --gap-cmd {gap_cmd}"
+            f"--id \"${{ID}}\" --steps {steps} --dist-m4ri-cmd {dist_cmd}"
+            + (
+                f" --target-distance {target_distance}"
+                if target_distance is not None
+                else ""
+            )
         ),
         "",
         "## Generate LaTeX report",
@@ -708,6 +719,22 @@ def _best_by_k_key(entry: Dict[str, object]) -> Tuple[str, int, int]:
     return (group_spec, int(entry.get("n", 0)), int(entry.get("k", 0)))
 
 
+def _entry_distance_summary(entry: Dict[str, object]) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int]]:
+    qd = entry.get("qdistrnd") or {}
+    d_ub = qd.get("d_ub")
+    dx_ub = qd.get("dx_ub")
+    dz_ub = qd.get("dz_ub")
+    steps = qd.get("steps")
+    if steps is None:
+        steps = qd.get("trials_requested")
+    return (
+        None if d_ub is None else int(d_ub),
+        None if dx_ub is None else int(dx_ub),
+        None if dz_ub is None else int(dz_ub),
+        None if steps is None else int(steps),
+    )
+
+
 def _is_better_entry(entry: Dict[str, object], current: Dict[str, object]) -> bool:
     qd = entry.get("qdistrnd") or {}
     cur_qd = current.get("qdistrnd") or {}
@@ -717,12 +744,7 @@ def _is_better_entry(entry: Dict[str, object], current: Dict[str, object]) -> bo
         return False
     if cur_d is None:
         return True
-    if int(d_ub) > int(cur_d):
-        return True
-    if int(d_ub) == int(cur_d):
-        if int(qd.get("trials_requested", 0)) < int(cur_qd.get("trials_requested", 0)):
-            return True
-    return False
+    return int(d_ub) > int(cur_d)
 
 
 def _recompute_best_by_k(
@@ -743,40 +765,22 @@ def _recompute_best_by_k(
     return best
 
 
-def _best_by_k_row(entry: Dict[str, object], *, uniq_target: int) -> Dict[str, object]:
-    qd = entry.get("qdistrnd") or {}
-    dx_ub = int(qd.get("dx_ub", 0))
-    dz_ub = int(qd.get("dz_ub", 0))
-    limiting_side = "X" if dx_ub <= dz_ub else "Z"
-    qd_x = qd.get("qd_x") or {}
-    qd_z = qd.get("qd_z") or {}
-    uniq_lim = int(qd_x.get("uniq", 0)) if limiting_side == "X" else int(qd_z.get("uniq", 0))
-    avg_lim = qd_x.get("avg") if limiting_side == "X" else qd_z.get("avg")
-    done_lim = (
-        int(qd_x.get("rounds_done", 0))
-        if limiting_side == "X"
-        else int(qd_z.get("rounds_done", 0))
-    )
-    trials_used = entry.get("confirm_trials") or qd.get("trials_requested")
-    confirmed = uniq_lim >= uniq_target
+def _best_by_k_row(entry: Dict[str, object]) -> Dict[str, object]:
+    d_ub, dx_ub, dz_ub, steps = _entry_distance_summary(entry)
     return {
         "k": int(entry.get("k", 0)),
-        "d_ub": qd.get("d_ub"),
-        "trials_used": trials_used,
+        "d_ub": d_ub,
+        "steps": steps,
         "dx_ub": dx_ub,
         "dz_ub": dz_ub,
-        "uniq_lim": uniq_lim,
-        "done_lim": done_lim,
-        "avg_lim": avg_lim,
         "id": entry.get("candidate_id"),
-        "confirmed": confirmed,
     }
 
 
 def _best_by_k_table(
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
     *,
-    uniq_target: int,
+    uniq_target: Optional[int] = None,
 ) -> str:
     if not best_by_k:
         return "[best_by_k] (no entries)\n"
@@ -787,18 +791,16 @@ def _best_by_k_table(
     lines: List[str] = []
     for (group_spec, n_val) in sorted(groups):
         lines.append(f"[best_by_k] group={group_spec} n={n_val}")
-        header = (
-            "k  | d_ub | trials_used | dx_ub | dz_ub | uniq_lim | done_lim | avg_lim | id | confirmed"
-        )
+        header = "k  | d_ub | steps | dx_ub | dz_ub | id"
         lines.append(header)
         rows = sorted(groups[(group_spec, n_val)], key=lambda entry: int(entry.get("k", 0)))
         for entry in rows:
-            row = _best_by_k_row(entry, uniq_target=uniq_target)
-            avg_lim = _format_avg(row["avg_lim"])
+            row = _best_by_k_row(entry)
+            steps = row.get("steps")
+            steps_txt = "n/a" if steps is None else str(steps)
             line = (
-                f"{row['k']:>2} | {str(row['d_ub']):>4} | {str(row['trials_used']):>11} | "
-                f"{row['dx_ub']:>5} | {row['dz_ub']:>5} | {row['uniq_lim']:>8} | "
-                f"{row['done_lim']:>8} | {avg_lim:>7} | {row['id']} | {row['confirmed']}"
+                f"{row['k']:>2} | {str(row['d_ub']):>4} | {steps_txt:>5} | "
+                f"{str(row['dx_ub']):>5} | {str(row['dz_ub']):>5} | {row['id']}"
             )
             lines.append(line)
         lines.append("")
@@ -808,8 +810,8 @@ def _best_by_k_table(
 def _write_best_by_k_outputs(
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
     *,
-    uniq_target: int,
     outdir: Path,
+    uniq_target: Optional[int] = None,
 ) -> None:
     table = _best_by_k_table(best_by_k, uniq_target=uniq_target)
     print(table.rstrip())
@@ -824,7 +826,7 @@ def _write_best_by_k_outputs(
     payload: Dict[str, Dict[str, List[Dict[str, object]]]] = {}
     for key, entry in best_by_k.items():
         group_spec, n_val, _ = key
-        row = _best_by_k_row(entry, uniq_target=uniq_target)
+        row = _best_by_k_row(entry)
         payload.setdefault(group_spec, {}).setdefault(str(n_val), []).append(row)
     for group_spec in payload:
         for n_val in payload[group_spec]:
@@ -859,13 +861,7 @@ def _is_better_global(new: Dict[str, object], current: Optional[Dict[str, object
         return True
     if int(new_d) != int(cur_d):
         return int(new_d) > int(cur_d)
-    if bool(new.get("confirmed")) != bool(current.get("confirmed")):
-        return bool(new.get("confirmed"))
-    new_trials = int(new.get("trials_used") or 0)
-    cur_trials = int(current.get("trials_used") or 0)
-    if new_trials != cur_trials:
-        return new_trials > cur_trials
-    return str(new.get("id", "")) < str(current.get("id", ""))
+    return False
 
 
 def _format_global_table(best_overall: Dict[str, Dict[str, Dict[str, dict]]]) -> str:
@@ -875,18 +871,16 @@ def _format_global_table(best_overall: Dict[str, Dict[str, Dict[str, dict]]]) ->
     for group_spec in sorted(best_overall):
         for n_str in sorted(best_overall[group_spec], key=lambda x: int(x)):
             lines.append(f"[best_overall] group={group_spec} n={n_str}")
-            header = (
-                "k  | d_ub | trials_used | dx_ub | dz_ub | id | confirmed | run_dir | timestamp"
-            )
+            header = "k  | d_ub | steps | dx_ub | dz_ub | id | run_dir | timestamp"
             lines.append(header)
             rows = best_overall[group_spec][n_str]
             for k_str in sorted(rows, key=lambda x: int(x)):
                 row = rows[k_str]
                 line = (
                     f"{int(row.get('k', 0)):>2} | {str(row.get('d_ub')):>4} | "
-                    f"{str(row.get('trials_used')):>11} | {int(row.get('dx_ub', 0)):>5} | "
-                    f"{int(row.get('dz_ub', 0)):>5} | {row.get('id')} | "
-                    f"{row.get('confirmed')} | {row.get('run_dir')} | {row.get('timestamp')}"
+                    f"{str(row.get('steps')):>5} | {str(row.get('dx_ub')):>5} | "
+                    f"{str(row.get('dz_ub')):>5} | {row.get('id')} | "
+                    f"{row.get('run_dir')} | {row.get('timestamp')}"
                 )
                 lines.append(line)
             lines.append("")
@@ -907,7 +901,7 @@ def _write_best_overall_outputs(best_overall: Dict[str, Dict[str, Dict[str, dict
     tex_lines = [
         r"\begin{tabular}{llrrrrll}",
         r"\toprule",
-        r"Group & $n$ & $k$ & $d_{ub}$ & trials & $d_X$ & $d_Z$ & id \\",
+        r"Group & $n$ & $k$ & $d_{ub}$ & steps & $d_X$ & $d_Z$ & id \\",
         r"\midrule",
     ]
     for group_spec in sorted(best_overall):
@@ -916,7 +910,7 @@ def _write_best_overall_outputs(best_overall: Dict[str, Dict[str, Dict[str, dict
                 row = best_overall[group_spec][n_str][k_str]
                 tex_lines.append(
                     f"{_escape_tex(group_spec)} & {n_str} & {row.get('k')} & "
-                    f"{row.get('d_ub')} & {row.get('trials_used')} & "
+                    f"{row.get('d_ub')} & {row.get('steps')} & "
                     f"{row.get('dx_ub')} & {row.get('dz_ub')} & "
                     f"{_escape_tex(str(row.get('id')))} \\\\"
                 )
@@ -927,7 +921,6 @@ def _write_best_overall_outputs(best_overall: Dict[str, Dict[str, Dict[str, dict
 def _update_global_best(
     *,
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
-    uniq_target: int,
     run_dir: Path,
     timestamp: str,
 ) -> None:
@@ -939,7 +932,7 @@ def _update_global_best(
         best_overall = {}
     for key, entry in best_by_k.items():
         group_spec, n_val, k_val = key
-        row = _best_by_k_row(entry, uniq_target=uniq_target)
+        row = _best_by_k_row(entry)
         if row.get("d_ub") is None:
             continue
         new_entry = {
@@ -947,11 +940,10 @@ def _update_global_best(
             "n": int(n_val),
             "k": int(k_val),
             "d_ub": row.get("d_ub"),
-            "trials_used": row.get("trials_used"),
+            "steps": row.get("steps"),
             "id": row.get("id"),
             "run_dir": str(run_dir),
             "timestamp": timestamp,
-            "confirmed": row.get("confirmed"),
             "dx_ub": row.get("dx_ub"),
             "dz_ub": row.get("dz_ub"),
         }
@@ -1043,18 +1035,21 @@ def _build_meta(entry: Dict[str, object]) -> Dict[str, object]:
         "n": entry.get("n"),
         "k": entry.get("k"),
         "distance_estimate": {
-            "method": "QDistRnd",
-            "trials_requested": qd.get("trials_requested"),
-            "mindist": 0,
+            "method": qd.get("method", "dist_m4ri_rw"),
+            "steps": qd.get("steps"),
+            "wmin": qd.get("wmin"),
             "rng_seed": qd.get("seed"),
+            "dx_est": qd.get("dx_est", qd.get("dx_ub")),
+            "dz_est": qd.get("dz_est", qd.get("dz_ub")),
+            "d_est": qd.get("d_est", qd.get("d_ub")),
             "dx_ub": qd.get("dx_ub"),
             "dz_ub": qd.get("dz_ub"),
             "d_ub": qd.get("d_ub"),
-            "qd_x": qd.get("qd_x"),
-            "qd_z": qd.get("qd_z"),
-            "confirmed": entry.get("confirmed", False),
-            "confirm_side": entry.get("confirm_side"),
-            "confirm_trials": entry.get("confirm_trials"),
+            "dx_signed": qd.get("dx_signed"),
+            "dz_signed": qd.get("dz_signed"),
+            "early_stop_x": qd.get("early_stop_x"),
+            "early_stop_z": qd.get("early_stop_z"),
+            "dist_m4ri_cmd": qd.get("dist_m4ri_cmd"),
         },
         "classical_slices": entry.get("classical_slices"),
         "base": entry.get("base"),
@@ -1096,6 +1091,16 @@ def _save_best_code(
         json.dumps(_build_meta(entry), indent=2, sort_keys=True), encoding="utf-8"
     )
     entry["best_saved_path"] = str(dest)
+
+
+def _remove_best_code(entry: Dict[str, object]) -> None:
+    path = entry.get("best_saved_path")
+    if not path:
+        return
+    try:
+        shutil.rmtree(path)
+    except OSError:
+        pass
 
 
 def _is_new_best_by_k(
@@ -1684,6 +1689,216 @@ def _run_gap_batch(
     return results, runtime_sec
 
 
+def _dist_m4ri_estimate_css(
+    hx_rows: List[int],
+    hz_rows: List[int],
+    n_cols: int,
+    *,
+    steps: int,
+    target_distance: Optional[int],
+    seed: int,
+    dist_m4ri_cmd: str,
+    estimator=run_dist_m4ri_css_rw,
+) -> Dict[str, object]:
+    wmin = 0 if target_distance is None else max(0, target_distance - 1)
+    dz_signed = estimator(
+        hx_rows,
+        hz_rows,
+        n_cols,
+        steps,
+        wmin,
+        seed=seed,
+        dist_m4ri_cmd=dist_m4ri_cmd,
+    )
+    dz_est = abs(dz_signed)
+    early_stop_z = dz_signed < 0
+    rejected = target_distance is not None and (early_stop_z or dz_est < target_distance)
+    dx_signed = None
+    dx_est = None
+    early_stop_x = None
+    if not rejected:
+        dx_signed = estimator(
+            hz_rows,
+            hx_rows,
+            n_cols,
+            steps,
+            wmin,
+            seed=seed,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+        )
+        dx_est = abs(dx_signed)
+        early_stop_x = dx_signed < 0
+        d_est = min(dx_est, dz_est)
+        if target_distance is not None and d_est < target_distance:
+            rejected = True
+    d_est = dz_est if dx_est is None else min(dx_est, dz_est)
+    return {
+        "method": "dist_m4ri_rw",
+        "steps": steps,
+        "wmin": wmin,
+        "seed": seed,
+        "dist_m4ri_cmd": dist_m4ri_cmd,
+        "dx_signed": dx_signed,
+        "dz_signed": dz_signed,
+        "dx_est": dx_est,
+        "dz_est": dz_est,
+        "d_est": d_est,
+        "early_stop_x": early_stop_x,
+        "early_stop_z": early_stop_z,
+        "rejected_target": rejected,
+    }
+
+
+def _cleanup_candidate_dir(cand_dir: Path, hx_path: Path, hz_path: Path) -> None:
+    if hx_path.exists():
+        hx_path.unlink()
+    if hz_path.exists():
+        hz_path.unlink()
+    if cand_dir.exists():
+        try:
+            cand_dir.rmdir()
+        except OSError:
+            pass
+
+
+def _process_dist_m4ri_batch(
+    *,
+    batch_items: List[Tuple[int, List[int], List[int], int, str, str, dict]],
+    args: argparse.Namespace,
+    seed: int,
+    outdir: Path,
+    tmp_root: Path,
+    promising_root: Path,
+    best_codes_root: Path,
+    results_file,
+    summary_records: List[Dict[str, object]],
+    best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    coverage_by_group: Dict[str, Dict[str, object]],
+    estimator=run_dist_m4ri_css_rw,
+) -> None:
+    if not batch_items:
+        return
+    updated_best = False
+    for _, hx_rows, hz_rows, n_cols, hx_path_str, hz_path_str, entry in batch_items:
+        group_spec = (entry.get("group") or {}).get("spec") or "unknown"
+        if group_spec in coverage_by_group:
+            coverage_by_group[group_spec]["Q_meas_run"] += 1
+        dist = _dist_m4ri_estimate_css(
+            hx_rows,
+            hz_rows,
+            n_cols,
+            steps=args.steps,
+            target_distance=args.target_distance,
+            seed=seed,
+            dist_m4ri_cmd=args.dist_m4ri_cmd,
+            estimator=estimator,
+        )
+        qd = {
+            "method": dist["method"],
+            "steps": dist["steps"],
+            "wmin": dist["wmin"],
+            "seed": dist["seed"],
+            "dist_m4ri_cmd": dist["dist_m4ri_cmd"],
+            "dx_signed": dist["dx_signed"],
+            "dz_signed": dist["dz_signed"],
+            "dx_est": dist["dx_est"],
+            "dz_est": dist["dz_est"],
+            "d_est": dist["d_est"],
+            "dx_ub": dist["dx_est"],
+            "dz_ub": dist["dz_est"],
+            "d_ub": dist["d_est"],
+            "early_stop_x": dist["early_stop_x"],
+            "early_stop_z": dist["early_stop_z"],
+        }
+        entry["qdistrnd"] = qd
+        entry["target_reject"] = dist["rejected_target"]
+        cand_dir = tmp_root / entry["candidate_id"]
+        hx_path = Path(hx_path_str)
+        hz_path = Path(hz_path_str)
+        if entry["target_reject"]:
+            entry["promising"] = False
+            entry["saved"] = False
+            entry["save_reason"] = None
+            entry["saved_path"] = None
+            print(
+                f"[pilot] TARGET_REJECT d_ub={qd['d_ub']} target={args.target_distance} "
+                f"id={entry['candidate_id']}"
+            )
+            _cleanup_candidate_dir(cand_dir, hx_path, hz_path)
+            if args.target_distance is None:
+                results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+                results_file.flush()
+            continue
+
+        summary_records.append(entry)
+        key = _best_by_k_key(entry)
+        current = best_by_k.get(key)
+        if current is None or _is_better_entry(entry, current):
+            if current is not None:
+                _remove_best_code(current)
+            best_by_k[key] = entry
+            _save_best_code(
+                entry,
+                best_root=best_codes_root,
+                tmp_root=tmp_root,
+                promising_root=promising_root,
+            )
+            updated_best = True
+
+        d_ub = qd.get("d_ub")
+        n = entry["n"]
+        k = entry["k"]
+        print(
+            f"[pilot] MEAS n={n} k={k} dx_ub={qd.get('dx_ub')} "
+            f"dz_ub={qd.get('dz_ub')} d_ub={d_ub} steps={args.steps} "
+            f"id={entry['candidate_id']}"
+        )
+
+        save = False
+        save_reason = None
+        if d_ub is not None and k > 0:
+            target = _ceil_sqrt(n)
+            meets_d = int(d_ub) >= target
+            meets_kd = k * int(d_ub) > n
+            save = meets_d or meets_kd
+            if save:
+                save_reason = "d>=sqrt(n)" if meets_d else "k*d>n"
+        entry["promising"] = save
+        entry["saved"] = save
+        entry["save_reason"] = save_reason
+        entry["saved_path"] = None
+
+        meta = _build_meta(entry)
+
+        if save:
+            out_path = promising_root / entry["candidate_id"]
+            out_path.mkdir(parents=True, exist_ok=True)
+            hx_path.replace(out_path / "Hx.mtx")
+            hz_path.replace(out_path / "Hz.mtx")
+            (out_path / "meta.json").write_text(
+                json.dumps(meta, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            entry["saved_path"] = str(out_path)
+            print(
+                f"[saved] id={entry['candidate_id']} -> {out_path} "
+                f"(reason: {save_reason})"
+            )
+            if cand_dir.exists():
+                try:
+                    cand_dir.rmdir()
+                except OSError:
+                    pass
+        else:
+            _cleanup_candidate_dir(cand_dir, hx_path, hz_path)
+
+        results_file.write(json.dumps(entry, sort_keys=True) + "\n")
+        results_file.flush()
+
+    if updated_best:
+        _write_best_by_k_outputs(best_by_k, outdir=outdir)
+
+
 def _process_qdistrnd_batch(
     *,
     batch_items: List[Tuple[int, str, str, dict]],
@@ -2116,22 +2331,31 @@ def main() -> int:
         "--exploreB", type=int, default=0, help="Random tail B candidates."
     )
     parser.add_argument(
-        "--trials", type=int, default=20, help="QDistRnd measurement trials."
+        "--steps", type=int, default=None, help="dist_m4ri RW steps."
     )
     parser.add_argument(
-        "--trials-filter",
+        "--trials",
         type=int,
         default=None,
-        help="QDistRnd filter trials (default: --trials).",
+        help="Deprecated alias for --steps.",
     )
     parser.add_argument(
-        "--mindist", type=int, default=10, help="QDistRnd filter mindist."
+        "--target-distance",
+        type=int,
+        default=None,
+        help="Reject candidates with estimated distance below this target.",
+    )
+    parser.add_argument(
+        "--mindist",
+        type=int,
+        default=None,
+        help="Deprecated alias for --target-distance.",
     )
     parser.add_argument(
         "--batch-size",
         type=int,
         default=100,
-        help="Candidates per GAP/QDistRnd batch.",
+        help="Candidates per dist_m4ri batch.",
     )
     parser.add_argument(
         "--outdir", type=str, default=None, help="Output directory for the run."
@@ -2139,32 +2363,10 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=None, help="RNG seed.")
     parser.add_argument("--gap-cmd", type=str, default="gap", help="GAP command.")
     parser.add_argument(
-        "--qd-timeout", type=float, default=None, help="Timeout per batch (sec)."
-    )
-    parser.add_argument("--qd-debug", type=int, default=2, help="QDistRnd debug.")
-    parser.add_argument(
-        "--best-uniq-target",
-        type=int,
-        default=5,
-        help="Unique codewords target for confirming best-by-(n,k).",
-    )
-    parser.add_argument(
-        "--best-confirm-start",
-        type=int,
-        default=None,
-        help="Starting num for best confirmation (default: --trials).",
-    )
-    parser.add_argument(
-        "--best-confirm-mult",
-        type=int,
-        default=10,
-        help="Multiplier for best confirmation num.",
-    )
-    parser.add_argument(
-        "--best-confirm-max",
-        type=int,
-        default=200000,
-        help="Max num for best confirmation.",
+        "--dist-m4ri-cmd",
+        type=str,
+        default="dist_m4ri",
+        help="dist_m4ri command.",
     )
     parser.add_argument(
         "--frontier-max-per-point",
@@ -2216,12 +2418,21 @@ def main() -> int:
         raise ValueError("--min-slice-dist must be non-empty.")
     if args.batch_size <= 0:
         raise ValueError("--batch-size must be positive.")
-    if args.trials <= 0:
-        raise ValueError("--trials must be positive.")
-    if args.trials_filter is not None and args.trials_filter <= 0:
-        raise ValueError("--trials-filter must be positive.")
-    if args.mindist < 0:
-        raise ValueError("--mindist must be nonnegative.")
+    if args.steps is None:
+        if args.trials is not None:
+            args.steps = args.trials
+        else:
+            args.steps = 5000
+    elif args.trials is not None:
+        raise ValueError("--trials is deprecated; use --steps.")
+    if args.steps <= 0:
+        raise ValueError("--steps must be positive.")
+    if args.target_distance is None:
+        args.target_distance = args.mindist
+    elif args.mindist is not None:
+        raise ValueError("--mindist is deprecated; use --target-distance.")
+    if args.target_distance is not None and args.target_distance < 0:
+        raise ValueError("--target-distance must be nonnegative.")
     for name in (
         "maxA",
         "maxB",
@@ -2237,14 +2448,6 @@ def main() -> int:
         value = getattr(args, name)
         if value is not None and value < 0:
             raise ValueError(f"--{name} must be nonnegative.")
-    if args.best_uniq_target <= 0:
-        raise ValueError("--best-uniq-target must be positive.")
-    if args.best_confirm_start is not None and args.best_confirm_start <= 0:
-        raise ValueError("--best-confirm-start must be positive.")
-    if args.best_confirm_mult <= 0:
-        raise ValueError("--best-confirm-mult must be positive.")
-    if args.best_confirm_max <= 0:
-        raise ValueError("--best-confirm-max must be positive.")
     if args.frontier_max_per_point <= 0:
         raise ValueError("--frontier-max-per-point must be positive.")
     if args.frontier_max_total <= 0:
@@ -2255,14 +2458,12 @@ def main() -> int:
         raise ValueError("--max-quantum must be nonnegative.")
     if not gap_is_available(args.gap_cmd):
         raise RuntimeError(f"GAP is not available on PATH as '{args.gap_cmd}'.")
-    if not qdistrnd_is_available(args.gap_cmd):
-        raise RuntimeError("GAP QDistRnd package is not available.")
+    if not dist_m4ri_is_available(args.dist_m4ri_cmd):
+        raise RuntimeError(
+            "dist_m4ri not found on PATH; install dist-m4ri and ensure the dist_m4ri "
+            "binary is available (see README.md#dist-m4ri)."
+        )
 
-    trials_filter = args.trials_filter if args.trials_filter is not None else args.trials
-    trials_measure = args.trials
-    best_confirm_start = (
-        args.best_confirm_start if args.best_confirm_start is not None else trials_measure
-    )
     topA_d = args.topA_d if args.topA_d is not None else args.topA
     topA_k = args.topA_k if args.topA_k is not None else args.topA
     topB_d = args.topB_d if args.topB_d is not None else args.topB
@@ -2302,19 +2503,12 @@ def main() -> int:
         "topB_k": topB_k,
         "exploreA": args.exploreA,
         "exploreB": args.exploreB,
-        "trials": trials_measure,
-        "trials_filter": trials_filter,
-        "mindist": args.mindist,
-        "mindist_measure": 0,
+        "steps": args.steps,
+        "target_distance": args.target_distance,
+        "dist_m4ri_cmd": args.dist_m4ri_cmd,
         "batch_size": args.batch_size,
         "seed": seed,
         "gap_cmd": args.gap_cmd,
-        "qd_timeout": args.qd_timeout,
-        "qd_debug": args.qd_debug,
-        "best_uniq_target": args.best_uniq_target,
-        "best_confirm_start": best_confirm_start,
-        "best_confirm_mult": args.best_confirm_mult,
-        "best_confirm_max": args.best_confirm_max,
         "frontier_max_per_point": frontier_max_per_point,
         "frontier_max_total": frontier_max_total,
         "classical_keep": classical_keep,
@@ -2353,7 +2547,6 @@ def main() -> int:
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]] = {}
     coverage_by_group: Dict[str, Dict[str, object]] = {}
     candidate_counter = 0
-    batch_id = 0
     a_frontier_payloads: List[dict] = []
     b_frontier_payloads: List[dict] = []
     single_group = len(group_specs) == 1
@@ -2632,7 +2825,7 @@ def main() -> int:
                 f"B_sets={len(B_sets)}*{perm_total} -> keep {len(B_keep)}"
             )
 
-            batch_items: List[Tuple[int, str, str, dict]] = []
+            batch_items: List[Tuple[int, List[int], List[int], int, str, str, dict]] = []
             total_pairs = len(A_keep) * len(B_keep)
             pair_indices = None
             if max_quantum > 0 and total_pairs > max_quantum:
@@ -2733,21 +2926,27 @@ def main() -> int:
                 write_mtx_from_bitrows(str(hz_path), hz_rows, n_cols)
 
                 idx = len(batch_items)
-                batch_items.append((idx, str(hx_path), str(hz_path), entry))
+                batch_items.append(
+                    (
+                        idx,
+                        hx_rows,
+                        hz_rows,
+                        n_cols,
+                        str(hx_path),
+                        str(hz_path),
+                        entry,
+                    )
+                )
 
                 if len(batch_items) >= args.batch_size:
-                    batch_id = _process_qdistrnd_batch(
+                    _process_dist_m4ri_batch(
                         batch_items=batch_items,
                         args=args,
                         seed=seed,
-                        batch_id=batch_id,
                         outdir=outdir,
                         tmp_root=tmp_root,
                         promising_root=promising_root,
                         best_codes_root=best_codes_root,
-                        trials_filter=trials_filter,
-                        trials_measure=trials_measure,
-                        best_confirm_start=best_confirm_start,
                         results_file=results_file,
                         summary_records=summary_records,
                         best_by_k=best_by_k,
@@ -2756,18 +2955,14 @@ def main() -> int:
                     batch_items = []
 
             if batch_items:
-                batch_id = _process_qdistrnd_batch(
+                _process_dist_m4ri_batch(
                     batch_items=batch_items,
                     args=args,
                     seed=seed,
-                    batch_id=batch_id,
                     outdir=outdir,
                     tmp_root=tmp_root,
                     promising_root=promising_root,
                     best_codes_root=best_codes_root,
-                    trials_filter=trials_filter,
-                    trials_measure=trials_measure,
-                    best_confirm_start=best_confirm_start,
                     results_file=results_file,
                     summary_records=summary_records,
                     best_by_k=best_by_k,
@@ -2817,7 +3012,6 @@ def main() -> int:
 
     _update_global_best(
         best_by_k=best_by_k,
-        uniq_target=args.best_uniq_target,
         run_dir=outdir,
         timestamp=_timestamp_utc(),
     )

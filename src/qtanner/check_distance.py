@@ -7,9 +7,9 @@ import json
 import shlex
 import sys
 from pathlib import Path
-from typing import Optional
 
-from .search import _qd_summary_from_stats, _run_gap_batch
+from .classical_distance import read_mtx_coordinate_binary
+from .dist_m4ri import dist_m4ri_is_available, run_dist_m4ri_css_rw
 
 
 def _find_code_dir(run_dir: Path, code_id: str) -> Path:
@@ -30,21 +30,22 @@ def _find_code_dir(run_dir: Path, code_id: str) -> Path:
     raise FileNotFoundError(f"Could not find code id={code_id} under {run_dir}.")
 
 
-def _format_avg(avg: Optional[float]) -> str:
-    if avg is None:
-        return "n/a"
-    return f"{avg:.3f}"
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Re-check QDistRnd distance estimates.")
+    parser = argparse.ArgumentParser(
+        description="Re-check distance estimates using dist-m4ri (RW)."
+    )
     parser.add_argument("--run", required=True, help="Run directory.")
     parser.add_argument("--id", required=True, help="Code ID to check.")
-    parser.add_argument("--trials", type=int, default=20000, help="QDistRnd trials.")
-    parser.add_argument("--uniq-target", type=int, default=5, help="Uniq target.")
-    parser.add_argument("--gap-cmd", type=str, default="gap", help="GAP command.")
-    parser.add_argument("--qd-debug", type=int, default=2, help="QDistRnd debug.")
-    parser.add_argument("--qd-timeout", type=float, default=None, help="Timeout per batch.")
+    parser.add_argument("--steps", type=int, default=5000, help="dist_m4ri RW steps.")
+    parser.add_argument(
+        "--target-distance",
+        type=int,
+        default=None,
+        help="Reject distances below this target (sets wmin=target-1).",
+    )
+    parser.add_argument(
+        "--dist-m4ri-cmd", type=str, default="dist_m4ri", help="dist_m4ri command."
+    )
     parser.add_argument("--seed", type=int, default=None, help="RNG seed (optional).")
     args = parser.parse_args()
 
@@ -55,29 +56,44 @@ def main() -> int:
     if not hx_path.exists() or not hz_path.exists():
         raise FileNotFoundError(f"Missing Hx.mtx/Hz.mtx under {code_dir}.")
 
-    batch = [(0, str(hx_path), str(hz_path))]
-    qd_results, runtime_sec = _run_gap_batch(
-        batch=batch,
-        num=args.trials,
-        mindist=0,
-        debug=args.qd_debug,
-        seed=args.seed,
-        outdir=code_dir,
-        batch_id=0,
-        gap_cmd=args.gap_cmd,
-        timeout_sec=args.qd_timeout,
+    if not dist_m4ri_is_available(args.dist_m4ri_cmd):
+        raise RuntimeError(
+            "dist_m4ri not found on PATH; install dist-m4ri and ensure the dist_m4ri "
+            "binary is available (see README.md#dist-m4ri)."
+        )
+    _, n_cols, hx_rows = read_mtx_coordinate_binary(hx_path)
+    _, n_cols_z, hz_rows = read_mtx_coordinate_binary(hz_path)
+    if n_cols_z != n_cols:
+        raise ValueError("Hx/Hz column counts do not match.")
+    wmin = 0 if args.target_distance is None else max(0, args.target_distance - 1)
+    seed = args.seed or 0
+    dz_signed = run_dist_m4ri_css_rw(
+        hx_rows,
+        hz_rows,
+        n_cols,
+        steps=args.steps,
+        wmin=wmin,
+        seed=seed,
+        dist_m4ri_cmd=args.dist_m4ri_cmd,
     )
-    qd_stats = qd_results.get(0)
-    if not qd_stats or qd_stats.get("qd_failed"):
-        raise RuntimeError("QDistRnd failed for requested code.")
-    qd, qd_x, qd_z, dx_ub, dz_ub, d_ub = _qd_summary_from_stats(
-        qd_stats,
-        num=args.trials,
-        mindist=0,
-        seed=args.seed or 0,
-        runtime_sec=runtime_sec,
-        gap_cmd=args.gap_cmd,
-    )
+    dz_est = abs(dz_signed)
+    early_stop_z = dz_signed < 0
+    dx_signed = None
+    dx_est = None
+    early_stop_x = None
+    if args.target_distance is None or (not early_stop_z and dz_est >= args.target_distance):
+        dx_signed = run_dist_m4ri_css_rw(
+            hz_rows,
+            hx_rows,
+            n_cols,
+            steps=args.steps,
+            wmin=wmin,
+            seed=seed,
+            dist_m4ri_cmd=args.dist_m4ri_cmd,
+        )
+        dx_est = abs(dx_signed)
+        early_stop_x = dx_signed < 0
+    d_est = dz_est if dx_est is None else min(dx_est, dz_est)
     meta = {}
     meta_path = code_dir / "meta.json"
     if meta_path.exists():
@@ -86,15 +102,10 @@ def main() -> int:
     n = meta.get("n")
     k = meta.get("k")
 
+    print("id group n k dx dz d steps wmin earlyX earlyZ", flush=True)
     print(
-        "id group n k dx dz d uniqX avgX uniqZ avgZ doneX doneZ",
-        flush=True,
-    )
-    print(
-        f"{args.id} {group} {n} {k} {dx_ub} {dz_ub} {d_ub} "
-        f"{qd_x.get('uniq')} {_format_avg(qd_x.get('avg'))} "
-        f"{qd_z.get('uniq')} {_format_avg(qd_z.get('avg'))} "
-        f"{qd_x.get('rounds_done')} {qd_z.get('rounds_done')}",
+        f"{args.id} {group} {n} {k} {dx_est} {dz_est} {d_est} "
+        f"{args.steps} {wmin} {early_stop_x} {early_stop_z}",
         flush=True,
     )
 
@@ -103,12 +114,23 @@ def main() -> int:
         "run_dir": str(run_dir),
         "code_dir": str(code_dir),
         "command": " ".join(shlex.quote(arg) for arg in sys.argv),
-        "trials": args.trials,
-        "uniq_target": args.uniq_target,
-        "gap_cmd": args.gap_cmd,
-        "qd_debug": args.qd_debug,
+        "steps": args.steps,
+        "target_distance": args.target_distance,
+        "dist_m4ri_cmd": args.dist_m4ri_cmd,
         "seed": args.seed,
-        "qdistrnd": qd,
+        "distance_estimate": {
+            "method": "dist_m4ri_rw",
+            "steps": args.steps,
+            "wmin": wmin,
+            "rng_seed": seed,
+            "dx_est": dx_est,
+            "dz_est": dz_est,
+            "d_est": d_est,
+            "dx_signed": dx_signed,
+            "dz_signed": dz_signed,
+            "early_stop_x": early_stop_x,
+            "early_stop_z": early_stop_z,
+        },
     }
     (code_dir / "qd_recheck.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"

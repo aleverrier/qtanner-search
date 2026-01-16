@@ -4,9 +4,15 @@ Local code support is limited to the shortened Hamming [6,3,3].
 
 Quick start:
 - `python -m qtanner.smoke`
-- `python -m qtanner.search --m-list 6,8,9 --topA 30 --topB 30 --trials 20 --mindist 10`
-- `python -m qtanner.search --groups C4,C2xC2 --allow-repeats --max-n 200 --topA 30 --topB 30 --trials 20 --mindist 10`
-- Non-abelian via GAP (not runnable under max-n 200, but supported): `python -m qtanner.search --groups "SmallGroup(8,3)" --allow-repeats --max-n 200 --topA 30 --topB 30 --trials 20 --mindist 10`
+- `python -m qtanner.search --m-list 6,8,9 --topA 30 --topB 30 --steps 5000`
+- `python -m qtanner.search --groups C4,C2xC2 --allow-repeats --max-n 200 --topA 30 --topB 30 --steps 5000`
+- Non-abelian via GAP (not runnable under max-n 200, but supported): `python -m qtanner.search --groups "SmallGroup(8,3)" --allow-repeats --max-n 200 --topA 30 --topB 30 --steps 5000`
+
+Distance estimation (dist-m4ri):
+- `qtanner.search` uses dist-m4ri RW (method=1) for CSS distance estimates.
+- When `--target-distance` is set, we pass `wmin=target-1`; a negative `d` from dist-m4ri indicates early stop.
+- Install dist-m4ri and ensure `dist_m4ri` is on `PATH` (e.g., build from your local dist-m4ri checkout and add its `src/` to `PATH`).
+- Run the C2xC2xC2 target-16 search with: `scripts/run_c2xc2xc2_d16.sh`
 
 Classical selection (A/B candidates):
 - Uses a (k,d)-tradeoff frontier based on k_min=min(k_slice) and d_min=min(d_slice).
@@ -19,7 +25,7 @@ Best-by-k tracking:
 - Tail the live table with: `tail -f runs/<run>/best_by_k.txt`
 
 Distance re-check:
-- `python -m qtanner.check_distance --run <RUN_DIR> --id <CODE_ID> --trials 50000 --uniq-target 5 --gap-cmd gap`
+- `python -m qtanner.check_distance --run <RUN_DIR> --id <CODE_ID> --steps 5000 --dist-m4ri-cmd dist_m4ri`
 
 Report generation:
 - `python -m qtanner.report --run <RUN_DIR> --out report.tex`

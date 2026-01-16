@@ -196,9 +196,15 @@ def canonical_group_spec(spec: str) -> str:
     m = _SMALLGROUP_RE.fullmatch(s)
     if m:
         return f"SmallGroup({int(m.group(1))},{int(m.group(2))})"
-    m = _DIRECT_RE.fullmatch(s)
-    if m:
-        return f"C{int(m.group(2))}xC{int(m.group(4))}"
+    if "x" in s:
+        parts = s.split("x")
+        norm_parts = []
+        for part in parts:
+            m = _CYCLIC_RE.fullmatch(part)
+            if not m:
+                raise ValueError(f"Unrecognized group spec {spec!r}.")
+            norm_parts.append(f"C{int(m.group(2))}")
+        return "x".join(norm_parts)
     m = _CYCLIC_RE.fullmatch(s)
     if m:
         return f"C{int(m.group(2))}"
@@ -215,10 +221,13 @@ def group_from_spec(
     if spec_norm.startswith("SmallGroup"):
         return _load_smallgroup(spec_norm, gap_cmd=gap_cmd, cache_dir=cache_dir)
     if "x" in spec_norm:
-        left, right = spec_norm.split("x", 1)
-        m = int(left[1:])
-        n = int(right[1:])
-        return DirectProductGroup(CyclicGroup(m), CyclicGroup(n), name=spec_norm)
+        parts = spec_norm.split("x")
+        groups = [CyclicGroup(int(part[1:]), name=part) for part in parts]
+        group = groups[0]
+        for idx, rhs in enumerate(groups[1:], start=1):
+            name = spec_norm if idx == len(groups) - 1 else None
+            group = DirectProductGroup(group, rhs, name=name)
+        return group
     return CyclicGroup(int(spec_norm[1:]), name=spec_norm)
 
 
