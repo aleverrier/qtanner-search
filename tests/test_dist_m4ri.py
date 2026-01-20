@@ -59,3 +59,19 @@ def test_run_dist_m4ri_css_rw_missing_d(monkeypatch) -> None:
 
     with pytest.raises(RuntimeError):
         dist_m4ri.run_dist_m4ri_css_rw([0b1], [0b1], 1, steps=1, wmin=0)
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ("-6\n", -6),
+        (" \n-6\n", -6),
+    ],
+)
+def test_parse_last_distance_bare_integer(output: str, expected: int) -> None:
+    assert dist_m4ri._parse_last_distance(output) == expected
+
+
+def test_parse_last_distance_multiple_integer_lines() -> None:
+    output = "1\n-2\n  5 \n"
+    assert dist_m4ri._parse_last_distance(output) == 5

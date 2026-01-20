@@ -1,0 +1,41 @@
+=== mar. 20 janv. 2026 12:20:31 CET steps=5000 batch=1 seed=1768913032 ===
+Traceback (most recent call last):
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/dist_m4ri.py", line 74, in run_dist_m4ri_css_rw
+    return _parse_last_distance(output)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/dist_m4ri.py", line 30, in _parse_last_distance
+    raise RuntimeError("dist_m4ri output did not include a d=<int> token.")
+RuntimeError: dist_m4ri output did not include a d=<int> token.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/search.py", line 3027, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/search.py", line 2962, in main
+    _process_dist_m4ri_batch(
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/search.py", line 1786, in _process_dist_m4ri_batch
+    dist = _dist_m4ri_estimate_css(
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/search.py", line 1704, in _dist_m4ri_estimate_css
+    dz_signed = estimator(
+                ^^^^^^^^^^
+  File "/Users/leverrie/research/qtanner-search/src/qtanner/dist_m4ri.py", line 76, in run_dist_m4ri_css_rw
+    raise RuntimeError(
+RuntimeError: dist_m4ri output did not contain a parsable distance. Output:
+-6
+
+[pilot] base k_table top pairs:
+  k_base=18 permA=0 permB=0
+  k_base=12 permA=29 permB=0
+  k_base=12 permA=22 permB=0
+  k_base=12 permA=13 permB=0
+  k_base=12 permA=6 permB=0
+[pilot] A multisets raw=21 cayley_unique=1 perms=30 -> total scored = 30
+[pilot] B multisets raw=21 cayley_unique=1 perms=30 -> total scored = 30
+[pilot] A frontier kept 12 candidates with points: (4,20), (0,49)
+[pilot] B frontier kept 12 candidates with points: (4,20), (0,49)
+[pilot] C2xC2xC2 n=288 d0=17 A_sets=1*30 -> keep 12; B_sets=1*30 -> keep 12

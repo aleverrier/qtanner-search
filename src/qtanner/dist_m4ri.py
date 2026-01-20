@@ -26,9 +26,17 @@ def dist_m4ri_is_available(dist_m4ri_cmd: str = "dist_m4ri") -> bool:
 
 def _parse_last_distance(output: str) -> int:
     matches = list(re.finditer(r"(?<![A-Za-z0-9_])d=(-?\d+)", output))
-    if not matches:
-        raise RuntimeError("dist_m4ri output did not include a d=<int> token.")
-    return int(matches[-1].group(1))
+    if matches:
+        return int(matches[-1].group(1))
+
+    line_matches = list(re.finditer(r"(?m)^[ \t\r]*(-?\d+)[ \t\r]*$", output))
+    if line_matches:
+        return int(line_matches[-1].group(1))
+
+    raise RuntimeError(
+        "dist_m4ri output did not include a parsable distance. "
+        f"Output:\n{output}"
+    )
 
 
 def run_dist_m4ri_css_rw(
