@@ -14,9 +14,9 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from itertools import combinations, combinations_with_replacement
+from itertools import combinations, combinations_with_replacement, product
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 
 from .classical_distance import ClassicalCodeAnalysis, analyze_parity_check_bitrows
 from .gf2 import gf2_rank
@@ -190,16 +190,35 @@ def _build_variant_codes(base_code: LocalCode) -> List[LocalCode]:
     ]
 
 
+EnumMode = Literal["subset", "multiset", "ordered"]
+SIDE_LEN = 6
+SIDE_PICK = SIDE_LEN - 1
+
+
 def _comb_count(m: int) -> int:
-    if m < 6:
+    if m <= SIDE_PICK:
         return 0
-    return math.comb(m - 1, 5)
+    return math.comb(m - 1, SIDE_PICK)
 
 
 def _multiset_count(m: int) -> int:
     if m <= 0:
         return 0
-    return math.comb(m + 4, 5)
+    return math.comb(m + SIDE_PICK - 1, SIDE_PICK)
+
+
+def _ordered_count(m: int) -> int:
+    if m <= 0:
+        return 0
+    return m**SIDE_PICK
+
+
+def _expected_enum_count(m: int, enum_mode: EnumMode) -> int:
+    if enum_mode == "multiset":
+        return _multiset_count(m)
+    if enum_mode == "ordered":
+        return _ordered_count(m)
+    return _comb_count(m)
 
 
 def _sample_combinations(
@@ -210,19 +229,19 @@ def _sample_combinations(
 ) -> List[List[int]]:
     if count <= 0:
         return []
-    if m < 6:
+    if m <= SIDE_PICK:
         return []
     pool = list(range(1, m))
     chosen: set[Tuple[int, ...]] = set()
     max_attempts = max(50, count * 50)
     attempts = 0
     while len(chosen) < count and attempts < max_attempts:
-        comb = tuple(sorted(rng.sample(pool, 5)))
+        comb = tuple(sorted(rng.sample(pool, SIDE_PICK)))
         chosen.add(comb)
         attempts += 1
     if len(chosen) < count:
         # fallback: deterministic prefix if sampling couldn't hit enough
-        combs = list(combinations(pool, 5))[:count]
+        combs = list(combinations(pool, SIDE_PICK))[:count]
         chosen.update(combs)
     ordered = sorted(chosen)
     if len(ordered) > count:
@@ -242,17 +261,12 @@ def _sample_multisets(
     max_attempts = max(50, count * 50)
     attempts = 0
     while len(chosen) < count and attempts < max_attempts:
-        sample = [rng.randrange(m) for _ in range(6)]
-        if 0 not in sample:
-            attempts += 1
-            continue
-        chosen.add(tuple(sorted(sample)))
+        sample = [rng.randrange(m) for _ in range(SIDE_PICK)]
+        chosen.add(tuple([0, *sorted(sample)]))
         attempts += 1
     if len(chosen) < count:
-        for comb in combinations_with_replacement(range(m), 6):
-            if comb[0] != 0:
-                continue
-            chosen.add(comb)
+        for comb in combinations_with_replacement(range(m), SIDE_PICK):
+            chosen.add(tuple([0, *comb]))
             if len(chosen) >= count:
                 break
     ordered = list(chosen)
@@ -262,23 +276,49 @@ def _sample_multisets(
     return [list(comb) for comb in ordered]
 
 
+def _sample_ordered(
+    *,
+    m: int,
+    count: int,
+    rng: random.Random,
+) -> List[List[int]]:
+    if count <= 0 or m <= 0:
+        return []
+    chosen: set[Tuple[int, ...]] = set()
+    max_attempts = max(50, count * 50)
+    attempts = 0
+    while len(chosen) < count and attempts < max_attempts:
+        sample = tuple(rng.randrange(m) for _ in range(SIDE_PICK))
+        chosen.add(sample)
+        attempts += 1
+    if len(chosen) < count:
+        for seq in product(range(m), repeat=SIDE_PICK):
+            chosen.add(seq)
+            if len(chosen) >= count:
+                break
+    ordered = list(chosen)
+    rng.shuffle(ordered)
+    if len(ordered) > count:
+        ordered = ordered[:count]
+    return [[0, *seq] for seq in ordered]
+
+
 def _enumerate_sets(
     *,
     m: int,
     max_sets: Optional[int],
     rng: random.Random,
     feasible_limit: int,
-    allow_repeats: bool = False,
+    enum_mode: EnumMode,
 ) -> List[List[int]]:
-    if allow_repeats:
+    if enum_mode == "multiset":
         total = _multiset_count(m)
         if total == 0:
             return []
         if total <= feasible_limit:
             combos = [
-                list(comb)
-                for comb in combinations_with_replacement(range(m), 6)
-                if comb[0] == 0
+                [0, *comb]
+                for comb in combinations_with_replacement(range(m), SIDE_PICK)
             ]
             if max_sets is not None and len(combos) > max_sets:
                 rng.shuffle(combos)
@@ -286,13 +326,46 @@ def _enumerate_sets(
             return combos
         target = max_sets if max_sets is not None else min(feasible_limit, total)
         return _sample_multisets(m=m, count=min(target, total), rng=rng)
+    if enum_mode == "ordered":
+        total = _ordered_count(m)
+        if total == 0:
+            return []
+        if total <= feasible_limit:
+            combos = [[0, *seq] for seq in product(range(m), repeat=SIDE_PICK)]
+            if max_sets is not None and len(combos) > max_sets:
+                rng.shuffle(combos)
+                combos = combos[:max_sets]
+            return combos
+        target = max_sets if max_sets is not None else min(feasible_limit, total)
+        return _sample_ordered(m=m, count=min(target, total), rng=rng)
     total = _comb_count(m)
     if total == 0:
         return []
     if max_sets is None and total <= feasible_limit:
-        return [[0, *comb] for comb in combinations(range(1, m), 5)]
+        return [[0, *comb] for comb in combinations(range(1, m), SIDE_PICK)]
     target = max_sets if max_sets is not None else min(feasible_limit, total)
     return _sample_combinations(m=m, count=target, rng=rng)
+
+
+def _auto_enum_mode(group_order: int, n_a: int, n_b: int) -> EnumMode:
+    if group_order <= 20 and n_a == SIDE_LEN and n_b == SIDE_LEN:
+        return "multiset"
+    return "subset"
+
+
+def _resolve_enum_mode(
+    *,
+    explicit: Optional[str],
+    allow_repeats: bool,
+    group_order: int,
+    n_a: int,
+    n_b: int,
+) -> EnumMode:
+    if explicit is not None:
+        return explicit
+    if allow_repeats:
+        return "multiset"
+    return _auto_enum_mode(group_order, n_a, n_b)
 
 
 def canonical_multiset(
@@ -836,6 +909,64 @@ def _write_best_by_k_outputs(
     (outdir / "best_by_k.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
     )
+
+
+def _update_best_by_k_summary(
+    summary: Dict[int, Dict[str, object]],
+    *,
+    k: int,
+    d_ub: Optional[int],
+    candidate_id: Optional[str],
+) -> None:
+    if k <= 0 or d_ub is None or candidate_id is None:
+        return
+    entry = summary.get(k)
+    if entry is None:
+        summary[k] = {"best_d_ub": int(d_ub), "count": 1, "example_id": candidate_id}
+        return
+    entry["count"] = int(entry.get("count", 0)) + 1
+    if int(d_ub) > int(entry.get("best_d_ub", -1)):
+        entry["best_d_ub"] = int(d_ub)
+        entry["example_id"] = candidate_id
+
+
+def _best_by_k_summary_lines(
+    summary: Dict[int, Dict[str, object]],
+    *,
+    header: str,
+    count_label: str,
+) -> List[str]:
+    lines = [header]
+    if not summary:
+        lines.append("  none")
+        return lines
+    for k in sorted(summary):
+        entry = summary[k]
+        lines.append(
+            f"  k={k} best_d_ub={entry.get('best_d_ub')} "
+            f"{count_label}={entry.get('count')} "
+            f"example_id={entry.get('example_id')}"
+        )
+    return lines
+
+
+def _best_by_k_summary_payload(
+    summary: Dict[int, Dict[str, object]],
+    *,
+    count_label: str,
+) -> List[Dict[str, object]]:
+    payload: List[Dict[str, object]] = []
+    for k in sorted(summary):
+        entry = summary[k]
+        payload.append(
+            {
+                "k": k,
+                "best_d_ub": entry.get("best_d_ub"),
+                count_label: entry.get("count"),
+                "example_id": entry.get("example_id"),
+            }
+        )
+    return payload
 
 
 def _global_dir() -> Path:
@@ -1773,6 +1904,8 @@ def _process_dist_m4ri_batch(
     results_file,
     summary_records: List[Dict[str, object]],
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    best_measured_by_k: Dict[int, Dict[str, object]],
+    best_survivor_by_k: Dict[int, Dict[str, object]],
     coverage_by_group: Dict[str, Dict[str, object]],
     estimator=run_dist_m4ri_css_rw,
 ) -> None:
@@ -1812,6 +1945,22 @@ def _process_dist_m4ri_batch(
         }
         entry["qdistrnd"] = qd
         entry["target_reject"] = dist["rejected_target"]
+        d_ub = qd.get("d_ub")
+        k_val = int(entry.get("k", 0))
+        cand_id = entry.get("candidate_id")
+        _update_best_by_k_summary(
+            best_measured_by_k,
+            k=k_val,
+            d_ub=None if d_ub is None else int(d_ub),
+            candidate_id=str(cand_id) if cand_id is not None else None,
+        )
+        if not entry["target_reject"]:
+            _update_best_by_k_summary(
+                best_survivor_by_k,
+                k=k_val,
+                d_ub=None if d_ub is None else int(d_ub),
+                candidate_id=str(cand_id) if cand_id is not None else None,
+            )
         cand_dir = tmp_root / entry["candidate_id"]
         hx_path = Path(hx_path_str)
         hz_path = Path(hz_path_str)
@@ -1915,6 +2064,8 @@ def _process_qdistrnd_batch(
     results_file,
     summary_records: List[Dict[str, object]],
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]],
+    best_measured_by_k: Dict[int, Dict[str, object]],
+    best_survivor_by_k: Dict[int, Dict[str, object]],
     coverage_by_group: Dict[str, Dict[str, object]],
 ) -> int:
     if not batch_items:
@@ -2121,6 +2272,20 @@ def _process_qdistrnd_batch(
                 gap_cmd=args.gap_cmd,
             )
             entry["qdistrnd"] = qd
+            k_val = int(entry.get("k", 0))
+            cand_id = entry.get("candidate_id")
+            _update_best_by_k_summary(
+                best_measured_by_k,
+                k=k_val,
+                d_ub=None if d_ub is None else int(d_ub),
+                candidate_id=str(cand_id) if cand_id is not None else None,
+            )
+            _update_best_by_k_summary(
+                best_survivor_by_k,
+                k=k_val,
+                d_ub=None if d_ub is None else int(d_ub),
+                candidate_id=str(cand_id) if cand_id is not None else None,
+            )
             entry["failed_measure"] = True
             entry["measure_hit_dx"] = abs(dx_signed)
             entry["measure_hit_dz"] = abs(dz_signed)
@@ -2162,6 +2327,20 @@ def _process_qdistrnd_batch(
             dx_ub, dz_ub, int(qd_x.get("uniq", 0)), int(qd_z.get("uniq", 0))
         )
         entry["confirm_trials"] = qd.get("trials_requested")
+        k_val = int(entry.get("k", 0))
+        cand_id = entry.get("candidate_id")
+        _update_best_by_k_summary(
+            best_measured_by_k,
+            k=k_val,
+            d_ub=None if d_ub is None else int(d_ub),
+            candidate_id=str(cand_id) if cand_id is not None else None,
+        )
+        _update_best_by_k_summary(
+            best_survivor_by_k,
+            k=k_val,
+            d_ub=None if d_ub is None else int(d_ub),
+            candidate_id=str(cand_id) if cand_id is not None else None,
+        )
         measured_entries.append(entry)
         summary_records.append(entry)
         if _is_new_best_by_k(best_by_k, entry):
@@ -2298,7 +2477,21 @@ def main() -> int:
     parser.add_argument(
         "--allow-repeats",
         action="store_true",
-        help="Allow repeated elements in A/B multisets.",
+        help="Allow repeated elements in A/B multisets (deprecated; use --A-enum/--B-enum).",
+    )
+    parser.add_argument(
+        "--A-enum",
+        dest="A_enum",
+        choices=["subset", "multiset", "ordered"],
+        default=None,
+        help="Enumeration mode for A (subset, multiset, ordered).",
+    )
+    parser.add_argument(
+        "--B-enum",
+        dest="B_enum",
+        choices=["subset", "multiset", "ordered"],
+        default=None,
+        help="Enumeration mode for B (subset, multiset, ordered).",
     )
     parser.add_argument("--maxA", type=int, default=None, help="Limit A multisets.")
     parser.add_argument("--maxB", type=int, default=None, help="Limit B multisets.")
@@ -2495,6 +2688,8 @@ def main() -> int:
         "max_n": args.max_n,
         "min_slice_dist": args.min_slice_dist,
         "allow_repeats": args.allow_repeats,
+        "A_enum": args.A_enum,
+        "B_enum": args.B_enum,
         "maxA": args.maxA,
         "maxB": args.maxB,
         "permH1": args.permH1,
@@ -2549,6 +2744,8 @@ def main() -> int:
     aut_cache_dir = outdir / "cache" / "aut"
     summary_records: List[Dict[str, object]] = []
     best_by_k: Dict[Tuple[str, int, int], Dict[str, object]] = {}
+    best_measured_by_k: Dict[int, Dict[str, object]] = {}
+    best_survivor_by_k: Dict[int, Dict[str, object]] = {}
     coverage_by_group: Dict[str, Dict[str, object]] = {}
     candidate_counter = 0
     a_frontier_payloads: List[dict] = []
@@ -2572,10 +2769,26 @@ def main() -> int:
                     f"[pilot] skipping {group.name} (n=36*|G|={n_est} exceeds --max-n={args.max_n})."
                 )
                 continue
-            if not args.allow_repeats and group.order < 6:
+            n_a = base_code.n
+            n_b = base_code.n
+            A_enum = _resolve_enum_mode(
+                explicit=args.A_enum,
+                allow_repeats=args.allow_repeats,
+                group_order=group.order,
+                n_a=n_a,
+                n_b=n_b,
+            )
+            B_enum = _resolve_enum_mode(
+                explicit=args.B_enum,
+                allow_repeats=args.allow_repeats,
+                group_order=group.order,
+                n_a=n_a,
+                n_b=n_b,
+            )
+            if group.order <= SIDE_PICK and (A_enum == "subset" or B_enum == "subset"):
                 print(
-                    f"[pilot] skipping {group.name} (need |G|>=6 for 5 distinct nonzero; "
-                    "use --allow-repeats to permit repetitions)."
+                    f"[pilot] skipping {group.name} (need |G|>=6 for subset enumeration; "
+                    "use --A-enum/--B-enum multiset or ordered to permit repetitions)."
                 )
                 continue
             d0 = _ceil_sqrt(n_est)
@@ -2585,14 +2798,14 @@ def main() -> int:
                 max_sets=args.maxA,
                 rng=rng,
                 feasible_limit=feasible_limit,
-                allow_repeats=args.allow_repeats,
+                enum_mode=A_enum,
             )
             B_sets = _enumerate_sets(
                 m=group.order,
                 max_sets=args.maxB,
                 rng=rng,
                 feasible_limit=feasible_limit,
-                allow_repeats=args.allow_repeats,
+                enum_mode=B_enum,
             )
             automorphisms = group.automorphisms(
                 gap_cmd=args.gap_cmd,
@@ -2604,12 +2817,16 @@ def main() -> int:
             B_sets, B_raw, B_unique = _dedup_multisets(
                 group, B_sets, automorphisms=automorphisms
             )
+            A_expected = _expected_enum_count(group.order, A_enum)
+            B_expected = _expected_enum_count(group.order, B_enum)
             print(
-                f"[pilot] A multisets raw={A_raw} cayley_unique={A_unique} "
+                f"[pilot] A multisets raw={A_raw} (expected={A_expected}) "
+                f"enum_mode={A_enum} cayley_unique={A_unique} "
                 f"perms={perm_total} -> total scored = {A_unique * perm_total}"
             )
             print(
-                f"[pilot] B multisets raw={B_raw} cayley_unique={B_unique} "
+                f"[pilot] B multisets raw={B_raw} (expected={B_expected}) "
+                f"enum_mode={B_enum} cayley_unique={B_unique} "
                 f"perms={perm_total} -> total scored = {B_unique * perm_total}"
             )
             if not A_sets or not B_sets:
@@ -2787,6 +3004,8 @@ def main() -> int:
                 "group": group_spec,
                 "order": group.order,
                 "n_quantum": n_est,
+                "A_enum_mode": A_enum,
+                "B_enum_mode": B_enum,
                 "A_multisets_raw": A_raw,
                 "A_multisets_total": len(A_sets),
                 "A_multisets_cayley": len(A_sets),
@@ -2954,6 +3173,8 @@ def main() -> int:
                         results_file=results_file,
                         summary_records=summary_records,
                         best_by_k=best_by_k,
+                        best_measured_by_k=best_measured_by_k,
+                        best_survivor_by_k=best_survivor_by_k,
                         coverage_by_group=coverage_by_group,
                     )
                     batch_items = []
@@ -2970,6 +3191,8 @@ def main() -> int:
                     results_file=results_file,
                     summary_records=summary_records,
                     best_by_k=best_by_k,
+                    best_measured_by_k=best_measured_by_k,
+                    best_survivor_by_k=best_survivor_by_k,
                     coverage_by_group=coverage_by_group,
                 )
 
@@ -2981,6 +3204,44 @@ def main() -> int:
         print("[coverage] run summary:")
         for group_spec in sorted(coverage_by_group):
             print(_coverage_summary(coverage_by_group[group_spec]))
+
+    summary_lines = []
+    summary_lines.extend(
+        _best_by_k_summary_lines(
+            best_measured_by_k,
+            header="[summary] best-by-k (measured; includes rejects):",
+            count_label="count_measured",
+        )
+    )
+    summary_lines.extend(
+        _best_by_k_summary_lines(
+            best_survivor_by_k,
+            header=f"[summary] best-by-k (survivors; target={args.target_distance}):",
+            count_label="count_survivors",
+        )
+    )
+    for line in summary_lines:
+        print(line)
+    (outdir / "best_by_k_measured.json").write_text(
+        json.dumps(
+            _best_by_k_summary_payload(
+                best_measured_by_k, count_label="count_measured"
+            ),
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    (outdir / "best_by_k_survivors.json").write_text(
+        json.dumps(
+            _best_by_k_summary_payload(
+                best_survivor_by_k, count_label="count_survivors"
+            ),
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
 
     if tmp_root.exists():
         try:

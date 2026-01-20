@@ -12,7 +12,8 @@ OUT="runs/C4_vs_C2xC2_$(date +%Y%m%d_%H%M%S)"
 python -m qtanner.search \
   --groups C4,C2xC2 \
   --max-n 200 \
-  --allow-repeats \
+  --A-enum multiset \
+  --B-enum multiset \
   --permH1 30 --permH1p 30 \
   --steps 2000 \
   --batch-size 200 \
@@ -23,6 +24,7 @@ python -m qtanner.search \
 
 Notes:
 - A/B multisets are deduplicated up to Aut(G) (Cayley-unique) before scoring.
+- Enumeration modes: subset (default for large groups), multiset (with repetition), ordered (ordered tuples).
 - Use `--target-distance` to reject candidates below a target distance (sets `wmin=target-1`).
 
 ## 2) Monitor progress (macOS: no 'watch' needed)

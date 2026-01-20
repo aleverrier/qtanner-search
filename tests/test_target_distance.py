@@ -25,6 +25,8 @@ def test_target_distance_filter_and_best_by_k(tmp_path) -> None:
     }
     summary_records = []
     best_by_k = {}
+    best_measured_by_k = {}
+    best_survivor_by_k = {}
 
     def make_entry(candidate_id: str) -> dict:
         return {
@@ -81,6 +83,8 @@ def test_target_distance_filter_and_best_by_k(tmp_path) -> None:
             results_file=results_file,
             summary_records=summary_records,
             best_by_k=best_by_k,
+            best_measured_by_k=best_measured_by_k,
+            best_survivor_by_k=best_survivor_by_k,
             coverage_by_group=coverage_by_group,
             estimator=fake_estimator,
         )

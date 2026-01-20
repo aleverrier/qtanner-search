@@ -59,6 +59,7 @@ HELP="$(python -m qtanner.search --help 2>&1 || true)"
 HAS_STEPS=0;  echo "$HELP" | grep -q -- '--steps' && HAS_STEPS=1 || true
 HAS_SEED=0;   echo "$HELP" | grep -q -- '--seed' && HAS_SEED=1 || true
 HAS_TARGET=0; echo "$HELP" | grep -q -- '--target-distance' && HAS_TARGET=1 || true
+HAS_ENUM=0;   echo "$HELP" | grep -q -- '--A-enum' && HAS_ENUM=1 || true
 
 run_one () {
   local steps="$1"
@@ -78,6 +79,9 @@ run_one () {
   fi
   if [ "$HAS_SEED" -eq 1 ]; then
     extra+=(--seed "$seed")
+  fi
+  if [ "$HAS_ENUM" -eq 1 ]; then
+    extra+=(--A-enum multiset --B-enum multiset)
   fi
 
   # Also vary PYTHONHASHSEED to introduce harmless variation even if --seed isn't supported

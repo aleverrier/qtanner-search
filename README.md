@@ -5,8 +5,8 @@ Local code support is limited to the shortened Hamming [6,3,3].
 Quick start:
 - `python -m qtanner.smoke`
 - `python -m qtanner.search --m-list 6,8,9 --topA 30 --topB 30 --steps 5000`
-- `python -m qtanner.search --groups C4,C2xC2 --allow-repeats --max-n 200 --topA 30 --topB 30 --steps 5000`
-- Non-abelian via GAP (not runnable under max-n 200, but supported): `python -m qtanner.search --groups "SmallGroup(8,3)" --allow-repeats --max-n 200 --topA 30 --topB 30 --steps 5000`
+- `python -m qtanner.search --groups C4,C2xC2 --A-enum multiset --B-enum multiset --max-n 200 --topA 30 --topB 30 --steps 5000`
+- Non-abelian via GAP (not runnable under max-n 200, but supported): `python -m qtanner.search --groups "SmallGroup(8,3)" --A-enum multiset --B-enum multiset --max-n 200 --topA 30 --topB 30 --steps 5000`
 
 Distance estimation (dist-m4ri):
 - `qtanner.search` uses dist-m4ri RW (method=1) for CSS distance estimates.
@@ -21,6 +21,7 @@ Classical selection (A/B candidates):
 - Frontier artifacts are written to `runs/<run>/classical_A_frontier.json` and `runs/<run>/classical_B_frontier.json`.
 - Optional caps: `--frontier-max-per-point` (default 50) and `--frontier-max-total` (default 500).
 - Legacy flags `--topA/--topB/--topA-d/--topA-k` remain accepted but no longer drive selection.
+- Enumeration modes: `--A-enum/--B-enum subset|multiset|ordered` (default is multiset for |G|<=20 and nA=nB=6, otherwise subset).
 
 Best-by-k tracking:
 - Tail the live table with: `tail -f runs/<run>/best_by_k.txt`

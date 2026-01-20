@@ -13,6 +13,9 @@ python -m qtanner.search \
   --frontier-max-per-point 20 \
   --frontier-max-total 100 \
   --max-quantum 200 \
+  --A-enum multiset \
+  --B-enum multiset \
   --seed 1 \
   --outdir "$OUTDIR" \
-  --dist-m4ri-cmd dist_m4ri
+  --dist-m4ri-cmd dist_m4ri \
+  "$@"
