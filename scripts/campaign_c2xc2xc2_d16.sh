@@ -30,7 +30,7 @@ fi
 TARGET_DISTANCE="${TARGET_DISTANCE:-16}"
 
 # How many repeats per steps value
-BATCHES="${BATCHES:-5}"
+BATCHES="${BATCHES:-105}"
 
 # RW steps schedule (higher = more thorough but slower)
 # Good default: moderate + heavier pass.

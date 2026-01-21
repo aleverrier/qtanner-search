@@ -1,0 +1,58 @@
+=== mar. 20 janv. 2026 15:33:43 CET steps=5000 batch=75 seed=1768922178 ===
+[pilot] base k_table top pairs:
+  k_base=18 permA=0 permB=0
+  k_base=12 permA=29 permB=0
+  k_base=12 permA=22 permB=0
+  k_base=12 permA=13 permB=0
+  k_base=12 permA=6 permB=0
+[pilot] A multisets raw=792 (expected=792) enum_mode=multiset cayley_unique=26 perms=30 -> total scored = 780
+[pilot] B multisets raw=792 (expected=792) enum_mode=multiset cayley_unique=26 perms=30 -> total scored = 780
+[pilot] A frontier kept 128 candidates with points: (4,20), (0,49)
+[pilot] B frontier kept 128 candidates with points: (4,20), (0,49)
+[pilot] C2xC2xC2 n=288 d0=17 A_sets=26*30 -> keep 128; B_sets=26*30 -> keep 128
+[pilot] MEAS n=288 k=4 dx_ub=17 dz_ub=20 d_ub=17 steps=5000 id=C2xC2xC2_c00002
+[saved] id=C2xC2xC2_c00002 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00002 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=6 target=16 id=C2xC2xC2_c00005
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00012
+[pilot] MEAS n=288 k=4 dx_ub=16 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00018
+[pilot] MEAS n=288 k=4 dx_ub=21 dz_ub=20 d_ub=20 steps=5000 id=C2xC2xC2_c00119
+[saved] id=C2xC2xC2_c00119 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00119 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=14 target=16 id=C2xC2xC2_c00134
+[pilot] MEAS n=288 k=4 dx_ub=18 dz_ub=20 d_ub=18 steps=5000 id=C2xC2xC2_c00150
+[saved] id=C2xC2xC2_c00150 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00150 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=12 target=16 id=C2xC2xC2_c00155
+[pilot] MEAS n=288 k=8 dx_ub=16 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00240
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=20 d_ub=20 steps=5000 id=C2xC2xC2_c00276
+[saved] id=C2xC2xC2_c00276 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00276 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=11 target=16 id=C2xC2xC2_c00396
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=20 d_ub=20 steps=5000 id=C2xC2xC2_c00406
+[saved] id=C2xC2xC2_c00406 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00406 (reason: d>=sqrt(n))
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=19 d_ub=19 steps=5000 id=C2xC2xC2_c00451
+[saved] id=C2xC2xC2_c00451 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00451 (reason: d>=sqrt(n))
+[pilot] MEAS n=288 k=4 dx_ub=19 dz_ub=17 d_ub=17 steps=5000 id=C2xC2xC2_c00477
+[saved] id=C2xC2xC2_c00477 -> results/c2xc2xc2_d16_20260120_153343/promising/C2xC2xC2_c00477 (reason: d>=sqrt(n))
+[best_by_k] group=C2xC2xC2 n=288
+k  | d_ub | steps | dx_ub | dz_ub | id
+ 4 |   20 |  5000 |    21 |    20 | C2xC2xC2_c00119
+ 8 |   16 |  5000 |    16 |    16 | C2xC2xC2_c00240
+[coverage] group=C2xC2xC2 A_sel=128 B_sel=128 Q_meas=14 ratio_ge_sqrt=0.000 ratio_sel=0.001
+[coverage] run summary:
+[coverage] group=C2xC2xC2 A_sel=128 B_sel=128 Q_meas=14 ratio_ge_sqrt=0.000 ratio_sel=0.001
+[summary] best-by-k (measured; includes rejects):
+  k=4 best_d_ub=20 count_measured=10 example_id=C2xC2xC2_c00119
+  k=8 best_d_ub=16 count_measured=4 example_id=C2xC2xC2_c00240
+[summary] best-by-k (survivors; target=16):
+  k=4 best_d_ub=20 count_survivors=9 example_id=C2xC2xC2_c00119
+  k=8 best_d_ub=16 count_survivors=1 example_id=C2xC2xC2_c00240
+[pilot] top results:
+  01 group=C2xC2xC2 n=288 k=4 d_ub=20 permA=11 permB=8 saved=True
+  02 group=C2xC2xC2 n=288 k=4 d_ub=20 permA=27 permB=11 saved=True
+  03 group=C2xC2xC2 n=288 k=4 d_ub=20 permA=27 permB=20 saved=True
+  04 group=C2xC2xC2 n=288 k=4 d_ub=19 permA=11 permB=27 saved=True
+  05 group=C2xC2xC2 n=288 k=4 d_ub=18 permA=11 permB=27 saved=True
+  06 group=C2xC2xC2 n=288 k=4 d_ub=17 permA=7 permB=11 saved=True
+  07 group=C2xC2xC2 n=288 k=4 d_ub=17 permA=11 permB=8 saved=True
+  08 group=C2xC2xC2 n=288 k=8 d_ub=16 permA=11 permB=20 saved=False
+  09 group=C2xC2xC2 n=288 k=4 d_ub=16 permA=12 permB=20 saved=False
+  10 group=C2xC2xC2 n=288 k=4 d_ub=16 permA=11 permB=11 saved=False
+

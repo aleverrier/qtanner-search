@@ -1,0 +1,104 @@
+{
+  "A": [
+    "((0,0),0)",
+    "((0,0),1)",
+    "((0,0),1)",
+    "((0,1),0)",
+    "((1,0),0)",
+    "((1,1),1)"
+  ],
+  "A_ids": [
+    0,
+    1,
+    1,
+    2,
+    4,
+    7
+  ],
+  "B": [
+    "((0,0),0)",
+    "((0,0),0)",
+    "((0,0),1)",
+    "((0,1),0)",
+    "((0,1),1)",
+    "((1,0),0)"
+  ],
+  "B_ids": [
+    0,
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "base": {
+    "k_base": 2,
+    "n_base": 36
+  },
+  "classical_slices": {
+    "A": {
+      "G": {
+        "d_est": 20,
+        "k": 4,
+        "n": 48
+      },
+      "H": {
+        "d_est": 20,
+        "k": 4,
+        "n": 48
+      },
+      "d_min": 20,
+      "k_min": 4,
+      "k_sum": 8,
+      "perm_idx": 27
+    },
+    "B": {
+      "Gp": {
+        "d_est": 20,
+        "k": 4,
+        "n": 48
+      },
+      "Hp": {
+        "d_est": 20,
+        "k": 4,
+        "n": 48
+      },
+      "d_min": 20,
+      "k_min": 4,
+      "k_sum": 8,
+      "perm_idx": 20
+    }
+  },
+  "distance_estimate": {
+    "d_est": 17,
+    "d_ub": 17,
+    "dist_m4ri_cmd": "dist_m4ri",
+    "dx_est": 17,
+    "dx_signed": 17,
+    "dx_ub": 17,
+    "dz_est": 20,
+    "dz_signed": 20,
+    "dz_ub": 20,
+    "early_stop_x": false,
+    "early_stop_z": false,
+    "method": "dist_m4ri_rw",
+    "rng_seed": 1768922194,
+    "steps": 5000,
+    "wmin": 15
+  },
+  "group": {
+    "order": 8,
+    "spec": "C2xC2xC2"
+  },
+  "k": 4,
+  "local_codes": {
+    "C0": "hamming_6_3_3_shortened",
+    "C0p": "hamming_6_3_3_shortened",
+    "C1": "hamming_6_3_3_shortened_var27",
+    "C1p": "hamming_6_3_3_shortened_var20",
+    "permA_idx": 27,
+    "permB_idx": 20
+  },
+  "n": 288,
+  "seed": 1768922194
+}

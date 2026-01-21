@@ -87,8 +87,53 @@ def run_dist_m4ri_css_rw(
             ) from exc
 
 
+def run_dist_m4ri_classical_rw(
+    h_rows: Sequence[int],
+    n_cols: int,
+    steps: int,
+    wmin: int,
+    *,
+    seed: int = 0,
+    dist_m4ri_cmd: str = "dist_m4ri",
+) -> int:
+    """Run dist-m4ri RW (method=1) for a classical code given parity-check rows."""
+    if steps <= 0:
+        raise ValueError("steps must be positive.")
+    if wmin < 0:
+        raise ValueError("wmin must be nonnegative.")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        h_path = Path(tmpdir) / "codeH.mtx"
+        write_mtx_from_bitrows(str(h_path), list(h_rows), n_cols)
+        cmd = [
+            dist_m4ri_cmd,
+            "debug=0",
+            "method=1",
+            f"steps={int(steps)}",
+            f"wmin={int(wmin)}",
+            f"seed={int(seed)}",
+            f"finH={h_path}",
+        ]
+        try:
+            result = subprocess.run(cmd, text=True, capture_output=True, check=False)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"dist_m4ri not found on PATH (cmd='{dist_m4ri_cmd}'). "
+                "Install dist-m4ri and ensure the dist_m4ri binary is available. "
+                f"{_DOCS_HINT}"
+            ) from exc
+        output = (result.stdout or "") + (result.stderr or "")
+        try:
+            return _parse_last_distance(output)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "dist_m4ri output did not contain a parsable distance. "
+                f"Output:\n{output}"
+            ) from exc
+
+
 __all__ = [
     "dist_m4ri_is_available",
     "run_dist_m4ri_css_rw",
+    "run_dist_m4ri_classical_rw",
     "write_mtx_gf2",
 ]

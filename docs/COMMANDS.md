@@ -27,6 +27,29 @@ Notes:
 - Enumeration modes: subset (default for large groups), multiset (with repetition), ordered (ordered tuples).
 - Use `--target-distance` to reject candidates below a target distance (sets `wmin=target-1`).
 
+## 1b) Progressive exhaustive classical-first search
+OUT="results/progressive_c2xc2xc2_d16_$(date +%Y%m%d_%H%M%S)"
+
+python -m qtanner.search progressive \
+  --group C2xC2xC2 \
+  --target-distance 16 \
+  --classical-steps 100 \
+  --quantum-steps-fast 2000 \
+  --quantum-steps-slow 50000 \
+  --report-every 50 \
+  --seed 1 \
+  --results-dir "$OUT" \
+  --dist-m4ri-cmd dist_m4ri
+
+# Equivalent:
+# python -m qtanner.search --mode progressive <same args>
+
+Notes:
+- Default is to enumerate all multisets of size 6 containing the identity (no Cayley dedup unless `--dedup-cayley`).
+- Ctrl-C stops after the current evaluation and prints the final best-by-k table.
+- Outputs live under the run directory (classical JSONL + histograms, `best_codes/`, `milestones.jsonl`).
+- Quantum distance evaluation runs a fast pass first; slow pass runs only if `d_fast >= ceil(sqrt(n))` and beats the current best-by-k bound for that k. Best-by-k entries are only recorded from the slow pass.
+
 ## 2) Monitor progress (macOS: no 'watch' needed)
 OUT="$(ls -td runs/* | head -n 1)"
 
@@ -69,6 +92,7 @@ python -m qtanner.report --run "$OUT" --out "$OUT/report.tex" --pdf
 
 ## C2xC2xC2 target-16 run
 - `scripts/run_c2xc2xc2_d16.sh`
+- `scripts/run_progressive_c2xc2xc2_d16.sh`
 
 
 ## Groups of order < 20 (GAP SmallGroup identifiers)

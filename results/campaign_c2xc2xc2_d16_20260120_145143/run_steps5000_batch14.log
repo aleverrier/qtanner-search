@@ -1,0 +1,65 @@
+=== mar. 20 janv. 2026 14:59:08 CET steps=5000 batch=14 seed=1768922117 ===
+[pilot] base k_table top pairs:
+  k_base=18 permA=0 permB=0
+  k_base=12 permA=29 permB=0
+  k_base=12 permA=22 permB=0
+  k_base=12 permA=13 permB=0
+  k_base=12 permA=6 permB=0
+[pilot] A multisets raw=792 (expected=792) enum_mode=multiset cayley_unique=26 perms=30 -> total scored = 780
+[pilot] B multisets raw=792 (expected=792) enum_mode=multiset cayley_unique=26 perms=30 -> total scored = 780
+[pilot] A frontier kept 128 candidates with points: (4,20), (0,49)
+[pilot] B frontier kept 128 candidates with points: (4,20), (0,49)
+[pilot] C2xC2xC2 n=288 d0=17 A_sets=26*30 -> keep 128; B_sets=26*30 -> keep 128
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=21 d_ub=20 steps=5000 id=C2xC2xC2_c00001
+[saved] id=C2xC2xC2_c00001 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00001 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=14 target=16 id=C2xC2xC2_c00011
+[pilot] MEAS n=288 k=4 dx_ub=20 dz_ub=21 d_ub=20 steps=5000 id=C2xC2xC2_c00014
+[saved] id=C2xC2xC2_c00014 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00014 (reason: d>=sqrt(n))
+[pilot] MEAS n=288 k=8 dx_ub=17 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00030
+[pilot] MEAS n=288 k=4 dx_ub=17 dz_ub=20 d_ub=17 steps=5000 id=C2xC2xC2_c00100
+[saved] id=C2xC2xC2_c00100 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00100 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=12 target=16 id=C2xC2xC2_c00106
+[pilot] TARGET_REJECT d_ub=15 target=16 id=C2xC2xC2_c00160
+[pilot] TARGET_REJECT d_ub=12 target=16 id=C2xC2xC2_c00174
+[pilot] TARGET_REJECT d_ub=15 target=16 id=C2xC2xC2_c00188
+[pilot] TARGET_REJECT d_ub=12 target=16 id=C2xC2xC2_c00193
+[pilot] MEAS n=288 k=4 dx_ub=16 dz_ub=20 d_ub=16 steps=5000 id=C2xC2xC2_c00206
+[pilot] MEAS n=288 k=4 dx_ub=16 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00216
+[pilot] MEAS n=288 k=4 dx_ub=17 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00231
+[pilot] TARGET_REJECT d_ub=15 target=16 id=C2xC2xC2_c00307
+[pilot] MEAS n=288 k=4 dx_ub=19 dz_ub=20 d_ub=19 steps=5000 id=C2xC2xC2_c00311
+[saved] id=C2xC2xC2_c00311 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00311 (reason: d>=sqrt(n))
+[pilot] TARGET_REJECT d_ub=12 target=16 id=C2xC2xC2_c00368
+[pilot] MEAS n=288 k=4 dx_ub=16 dz_ub=16 d_ub=16 steps=5000 id=C2xC2xC2_c00398
+[pilot] TARGET_REJECT d_ub=14 target=16 id=C2xC2xC2_c00412
+[pilot] TARGET_REJECT d_ub=6 target=16 id=C2xC2xC2_c00451
+[pilot] MEAS n=288 k=4 dx_ub=17 dz_ub=20 d_ub=17 steps=5000 id=C2xC2xC2_c00454
+[saved] id=C2xC2xC2_c00454 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00454 (reason: d>=sqrt(n))
+[pilot] MEAS n=288 k=8 dx_ub=16 dz_ub=18 d_ub=16 steps=5000 id=C2xC2xC2_c00468
+[pilot] MEAS n=288 k=4 dx_ub=19 dz_ub=20 d_ub=19 steps=5000 id=C2xC2xC2_c00493
+[saved] id=C2xC2xC2_c00493 -> results/c2xc2xc2_d16_20260120_145908/promising/C2xC2xC2_c00493 (reason: d>=sqrt(n))
+[best_by_k] group=C2xC2xC2 n=288
+k  | d_ub | steps | dx_ub | dz_ub | id
+ 4 |   20 |  5000 |    20 |    21 | C2xC2xC2_c00001
+ 8 |   16 |  5000 |    17 |    16 | C2xC2xC2_c00030
+[coverage] group=C2xC2xC2 A_sel=128 B_sel=128 Q_meas=22 ratio_ge_sqrt=0.000 ratio_sel=0.001
+[coverage] run summary:
+[coverage] group=C2xC2xC2 A_sel=128 B_sel=128 Q_meas=22 ratio_ge_sqrt=0.000 ratio_sel=0.001
+[summary] best-by-k (measured; includes rejects):
+  k=4 best_d_ub=20 count_measured=12 example_id=C2xC2xC2_c00001
+  k=8 best_d_ub=16 count_measured=10 example_id=C2xC2xC2_c00030
+[summary] best-by-k (survivors; target=16):
+  k=4 best_d_ub=20 count_survivors=10 example_id=C2xC2xC2_c00001
+  k=8 best_d_ub=16 count_survivors=2 example_id=C2xC2xC2_c00030
+[pilot] top results:
+  01 group=C2xC2xC2 n=288 k=4 d_ub=20 permA=27 permB=20 saved=True
+  02 group=C2xC2xC2 n=288 k=4 d_ub=20 permA=11 permB=20 saved=True
+  03 group=C2xC2xC2 n=288 k=4 d_ub=19 permA=27 permB=27 saved=True
+  04 group=C2xC2xC2 n=288 k=4 d_ub=19 permA=27 permB=27 saved=True
+  05 group=C2xC2xC2 n=288 k=4 d_ub=17 permA=12 permB=8 saved=True
+  06 group=C2xC2xC2 n=288 k=4 d_ub=17 permA=20 permB=8 saved=True
+  07 group=C2xC2xC2 n=288 k=8 d_ub=16 permA=20 permB=8 saved=False
+  08 group=C2xC2xC2 n=288 k=8 d_ub=16 permA=20 permB=7 saved=False
+  09 group=C2xC2xC2 n=288 k=4 d_ub=16 permA=12 permB=20 saved=False
+  10 group=C2xC2xC2 n=288 k=4 d_ub=16 permA=8 permB=20 saved=False
+

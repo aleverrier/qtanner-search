@@ -2447,7 +2447,7 @@ def _process_qdistrnd_batch(
     return batch_id
 
 
-def main() -> int:
+def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Search for Tanner codes from left-right Cayley complexes."
     )
@@ -2591,7 +2591,7 @@ def main() -> int:
         default=0,
         help="Max quantum pairs to sample (0 = full cartesian product).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     group_specs: List[str] = []
     if args.groups:
@@ -2792,7 +2792,7 @@ def main() -> int:
                 )
                 continue
             d0 = _ceil_sqrt(n_est)
-            feasible_limit = 2000
+            feasible_limit = 3000
             A_sets = _enumerate_sets(
                 m=group.order,
                 max_sets=args.maxA,
@@ -3282,6 +3282,25 @@ def main() -> int:
     )
 
     return 0
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "progressive":
+        from .progressive_search import progressive_main
+
+        return progressive_main(argv[1:])
+    mode_parser = argparse.ArgumentParser(add_help=False)
+    mode_parser.add_argument("--mode", choices=["pilot", "progressive"])
+    mode_args, remaining = mode_parser.parse_known_args(argv)
+    if mode_args.mode == "progressive":
+        from .progressive_search import progressive_main
+
+        return progressive_main(remaining)
+    if mode_args.mode == "pilot":
+        argv = remaining
+    return pilot_main(argv)
 
 
 if __name__ == "__main__":

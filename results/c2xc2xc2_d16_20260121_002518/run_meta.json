@@ -1,0 +1,38 @@
+{
+  "groups": [
+    "C2xC2xC2"
+  ],
+  "max_n": 288,
+  "min_slice_dist": "sqrtN",
+  "allow_repeats": false,
+  "A_enum": "multiset",
+  "B_enum": "multiset",
+  "maxA": null,
+  "maxB": null,
+  "permH1": 5,
+  "permH1p": 5,
+  "topA": 30,
+  "topB": 30,
+  "topA_d": 30,
+  "topA_k": 30,
+  "topB_d": 30,
+  "topB_k": 30,
+  "exploreA": 0,
+  "exploreB": 0,
+  "steps": 20000,
+  "target_distance": 16,
+  "dist_m4ri_cmd": "dist_m4ri",
+  "batch_size": 150,
+  "seed": 1768937119,
+  "gap_cmd": "gap",
+  "frontier_max_per_point": 100,
+  "frontier_max_total": 200,
+  "classical_keep": "frontier",
+  "classical_cap_per_side": 0,
+  "max_quantum": 500,
+  "slice_scoring": {
+    "max_k_exact": 10,
+    "samples": 1024
+  },
+  "note": "slice scores use all 30 C1/C1p permutations"
+}
