@@ -1,0 +1,93 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+
+\title{Explicit-qT: Search Log for Quantum Tanner Codes}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Purpose}
+This document logs the best Quantum Tanner codes found by our search scripts.
+
+For each group (and local-code choice), we want to record:
+\begin{itemize}
+  \item \textbf{Quantum code:} $(n,k)$ and best distance upper bound $d_{\mathrm{ub}}$ returned by QDistRnd, plus the number of trials / steps used.
+  \item \textbf{Construction data:} the group $G$, generator multisets $A$ and $B$, and the permutations used for the local codes.
+  \item \textbf{Classical slice Tanner codes:} the 4 associated classical Tanner codes (two A-slice codes and two B-slice codes), with their parameters and distance-estimation settings.
+  \item \textbf{Artifacts:} paths to saved parity-check matrices for the quantum code and for the 4 classical codes.
+\end{itemize}
+
+\section{Folder convention for best-code artifacts}
+All matrices + metadata for the best codes should be stored under:
+\[
+\texttt{best\_codes/}
+\]
+with one subfolder per saved code (or per ``milestone'').
+
+Recommended structure:
+\begin{itemize}
+  \item \texttt{best\_codes/meta/<CODE\_TAG>.json} (all metadata: group, A/B, perms, trials, etc.)
+  \item \texttt{best\_codes/matrices/<CODE\_TAG>\_HX.mtx}
+  \item \texttt{best\_codes/matrices/<CODE\_TAG>\_HZ.mtx}
+  \item \texttt{best\_codes/matrices/<CODE\_TAG>\_classical\_A\_H0.mtx}, etc. (4 classical matrices)
+\end{itemize}
+
+\noindent \textbf{Naming suggestion for \texttt{<CODE\_TAG>}:}\\
+\texttt{G=<group>\_n=<n>\_k=<k>\_dub=<dub>\_<timestamp>\_A=<A\_id>\_B=<B\_id>}\\
+(avoid spaces; keep it filesystem-friendly).
+
+\section{Current best results recorded}
+
+\subsection{Group $G = C_2 \times C_2 \times C_2$ (order 8), length $n=288$}
+This matches the ``$n=36|G|$'' regime (e.g., local codes of length 6 on both sides), hence $n=36\cdot 8=288$.
+
+\paragraph{Best quantum codes found so far (from the reported table).}
+\begin{center}
+\begin{tabular}{@{}r r l l l@{}}
+\toprule
+$k$ & best $d_{\mathrm{ub}}$ & when\_found(eval) & A\_id & B\_id \\
+\midrule
+4  & 20 & 20260121T101724Z(2745) & Ap11\_0-0-1-2-2-7 & Bp11\_0-0-1-2-4-5 \\
+8  & 20 & 20260121T060647Z(769)  & Ap11\_0-0-1-2-2-6 & Bp6\_0-1-2-4-5-7 \\
+12 & 17 & 20260121T034427Z(49)   & Ap11\_0-1-2-4-5-6 & Bp6\_0-1-2-3-4-7 \\
+16 & 16 & 20260121T043945Z(361)  & Ap6\_0-1-2-3-4-6  & Bp6\_0-1-2-4-5-7 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Pending details to add for each row (to be filled automatically by scripts).}
+For each of the above, we still want to record:
+\begin{itemize}
+  \item explicit $A$ and $B$ as multisets of $G$ elements (not only the IDs),
+  \item the local-code permutations: \texttt{permA}, \texttt{permB},
+  \item classical slice code parameters (4 codes):
+  \begin{itemize}
+    \item A-slice (primal): $(H0 \otimes I; (H1 \otimes I)LA)$
+    \item A-slice (dual): $(G0 \otimes I; (G1 \otimes I)LA)$
+    \item B-slice (primal): $(G0' \otimes I; (G1' \otimes I)RB)$
+    \item B-slice (dual): $(H0' \otimes I; (H1' \otimes I)RB)$
+  \end{itemize}
+  \item paths to matrices saved under \texttt{best\_codes/}.
+\end{itemize}
+
+\section{Next automation step (to implement in scripts)}
+Whenever a new best quantum code is found (according to our rules):
+\begin{itemize}
+  \item write a JSON metadata file into \texttt{best\_codes/meta/},
+  \item export all parity-check matrices (quantum HX/HZ and the 4 classical ones)
+        into \texttt{best\_codes/matrices/},
+  \item append (or regenerate) the corresponding TeX table entry here.
+\end{itemize}
+
+\end{document}
