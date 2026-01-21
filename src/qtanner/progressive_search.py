@@ -12,6 +12,7 @@ from itertools import combinations_with_replacement
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from .classical_dist_fast import _estimate_classical_distance_fast_details
 from .dist_m4ri import (
     dist_m4ri_is_available,
     run_dist_m4ri_classical_rw,
@@ -224,10 +225,39 @@ def _classical_eval(
     wmin: int,
     rng: random.Random,
     dist_m4ri_cmd: str,
+    backend: str,
+    exhaustive_k_max: int,
+    sample_count: int,
 ) -> Dict[str, object]:
+    seed = rng.randrange(1 << 31)
+    if backend == "fast":
+        witness, k_val, exact, checked = _estimate_classical_distance_fast_details(
+            rows,
+            n_cols,
+            wmin,
+            exhaustive_k_max,
+            sample_count,
+            seed,
+        )
+        rank = n_cols - k_val
+        d_est = n_cols + 1 if witness is None else int(witness)
+        early_stop = witness is not None and int(witness) <= wmin
+        return {
+            "k": k_val,
+            "rank": rank,
+            "d_signed": None,
+            "d_witness": witness,
+            "d_est": d_est,
+            "exact": exact,
+            "early_stop": early_stop,
+            "seed": seed,
+            "backend": "fast",
+            "codewords_checked": checked,
+        }
+    if backend != "dist-m4ri":
+        raise ValueError(f"Unknown classical backend: {backend}")
     rank = gf2_rank(list(rows), n_cols)
     k_val = n_cols - rank
-    seed = rng.randrange(1 << 31)
     d_signed = run_dist_m4ri_classical_rw(
         rows,
         n_cols,
@@ -236,13 +266,19 @@ def _classical_eval(
         seed=seed,
         dist_m4ri_cmd=dist_m4ri_cmd,
     )
+    witness = abs(d_signed)
+    early_stop = witness <= wmin
     return {
         "k": k_val,
         "rank": rank,
         "d_signed": d_signed,
-        "d_est": abs(d_signed),
-        "early_stop": d_signed < 0,
+        "d_witness": witness,
+        "d_est": witness,
+        "exact": False,
+        "early_stop": early_stop,
         "seed": seed,
+        "backend": "dist-m4ri",
+        "codewords_checked": None,
     }
 
 
@@ -481,6 +517,9 @@ def _precompute_classical_side(
     base_code: LocalCode,
     steps: int,
     classical_target: int,
+    classical_backend: str,
+    classical_exhaustive_k_max: int,
+    classical_sample_count: int,
     dist_m4ri_cmd: str,
     rng: random.Random,
     out_path: Path,
@@ -500,6 +539,9 @@ def _precompute_classical_side(
     processed = 0
     calls = 0
     kept_count = 0
+    exact_evals = 0
+    sampled_evals = 0
+    codewords_checked = 0
     start_time = time.monotonic()
     last_report_time = start_time
     last_report_processed = 0
@@ -519,9 +561,23 @@ def _precompute_classical_side(
             return
         pct = 100.0 * processed / total_settings
         elapsed = _format_elapsed(now - start_time)
-        print(
+        elapsed_seconds = now - start_time
+        avg_settings = processed / elapsed_seconds if elapsed_seconds > 0 else 0.0
+        line = (
             f"[classical] {side} {processed}/{total_settings} "
-            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed}"
+            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed} "
+            f"avg_settings_per_sec={avg_settings:.2f}"
+        )
+        if classical_backend == "fast":
+            avg_codewords = (
+                codewords_checked / elapsed_seconds if elapsed_seconds > 0 else 0.0
+            )
+            line += (
+                f" avg_codewords_checked_per_sec={avg_codewords:.2f} "
+                f"exact={exact_evals} sampled={sampled_evals}"
+            )
+        print(
+            line
         )
         last_report_time = now
         last_report_processed = processed
@@ -552,6 +608,9 @@ def _precompute_classical_side(
                     wmin=wmin,
                     rng=rng,
                     dist_m4ri_cmd=dist_m4ri_cmd,
+                    backend=classical_backend,
+                    exhaustive_k_max=classical_exhaustive_k_max,
+                    sample_count=classical_sample_count,
                 )
                 calls += 1
                 g_eval = _classical_eval(
@@ -561,19 +620,37 @@ def _precompute_classical_side(
                     wmin=wmin,
                     rng=rng,
                     dist_m4ri_cmd=dist_m4ri_cmd,
+                    backend=classical_backend,
+                    exhaustive_k_max=classical_exhaustive_k_max,
+                    sample_count=classical_sample_count,
                 )
                 calls += 1
+                if classical_backend == "fast":
+                    for eval_entry in (h_eval, g_eval):
+                        if eval_entry.get("exact"):
+                            exact_evals += 1
+                        else:
+                            sampled_evals += 1
+                        checked = eval_entry.get("codewords_checked")
+                        if checked is not None:
+                            codewords_checked += int(checked)
                 if side == "A":
                     slice_codes = {
                         "A_H": {
                             "n": n_cols,
                             "k": int(h_eval["k"]),
+                            "d_witness": h_eval.get("d_witness"),
                             "d_ub": int(h_eval["d_est"]),
+                            "exact": bool(h_eval["exact"]),
+                            "backend": h_eval.get("backend"),
                         },
                         "A_G": {
                             "n": n_cols,
                             "k": int(g_eval["k"]),
+                            "d_witness": g_eval.get("d_witness"),
                             "d_ub": int(g_eval["d_est"]),
+                            "exact": bool(g_eval["exact"]),
+                            "backend": g_eval.get("backend"),
                         },
                     }
                 else:
@@ -581,12 +658,18 @@ def _precompute_classical_side(
                         "B_G": {
                             "n": n_cols,
                             "k": int(g_eval["k"]),
+                            "d_witness": g_eval.get("d_witness"),
                             "d_ub": int(g_eval["d_est"]),
+                            "exact": bool(g_eval["exact"]),
+                            "backend": g_eval.get("backend"),
                         },
                         "B_H": {
                             "n": n_cols,
                             "k": int(h_eval["k"]),
+                            "d_witness": h_eval.get("d_witness"),
                             "d_ub": int(h_eval["d_est"]),
+                            "exact": bool(h_eval["exact"]),
+                            "backend": h_eval.get("backend"),
                         },
                     }
                 k_min = min(int(h_eval["k"]), int(g_eval["k"]))
@@ -594,9 +677,13 @@ def _precompute_classical_side(
                 hist[(k_min, d_min)] = hist.get((k_min, d_min), 0) + 1
                 processed += 1
 
-                passes = (int(h_eval["d_signed"]) >= 0) and (
-                    int(g_eval["d_signed"]) >= 0
-                )
+                def _passes(eval_entry: Dict[str, object]) -> bool:
+                    witness = eval_entry.get("d_witness")
+                    if witness is None:
+                        return True
+                    return int(witness) > wmin
+
+                passes = _passes(h_eval) and _passes(g_eval)
                 if lookup is not None:
                     lookup_key = (
                         _canonical_multiset_key(
@@ -659,6 +746,7 @@ def _precompute_classical_side_from_lookup(
     multisets: List[List[int]],
     variant_codes: List[LocalCode],
     lookup: Dict[Tuple[Tuple[int, ...], int], Dict[str, object]],
+    classical_backend: str,
     out_path: Path,
     canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
     progress_every: int = 500,
@@ -672,6 +760,9 @@ def _precompute_classical_side_from_lookup(
     processed = 0
     kept_count = 0
     calls = 0
+    exact_evals = 0
+    sampled_evals = 0
+    codewords_checked = 0
     start_time = time.monotonic()
     last_report_time = start_time
     last_report_processed = 0
@@ -691,9 +782,23 @@ def _precompute_classical_side_from_lookup(
             return
         pct = 100.0 * processed / total_settings
         elapsed = _format_elapsed(now - start_time)
-        print(
+        elapsed_seconds = now - start_time
+        avg_settings = processed / elapsed_seconds if elapsed_seconds > 0 else 0.0
+        line = (
             f"[classical] {side} {processed}/{total_settings} "
-            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed}"
+            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed} "
+            f"avg_settings_per_sec={avg_settings:.2f}"
+        )
+        if classical_backend == "fast":
+            avg_codewords = (
+                codewords_checked / elapsed_seconds if elapsed_seconds > 0 else 0.0
+            )
+            line += (
+                f" avg_codewords_checked_per_sec={avg_codewords:.2f} "
+                f"exact={exact_evals} sampled={sampled_evals}"
+            )
+        print(
+            line
         )
         last_report_time = now
         last_report_processed = processed
@@ -716,6 +821,15 @@ def _precompute_classical_side_from_lookup(
                 slice_n = int(params["slice_n"])
                 h_eval = dict(params["h_eval"])
                 g_eval = dict(params["g_eval"])
+                if classical_backend == "fast":
+                    for eval_entry in (h_eval, g_eval):
+                        if eval_entry.get("exact"):
+                            exact_evals += 1
+                        else:
+                            sampled_evals += 1
+                        checked = eval_entry.get("codewords_checked")
+                        if checked is not None:
+                            codewords_checked += int(checked)
                 passes = bool(params["passes"])
                 slice_codes = params["slice_codes"]
                 slice_codes_b = {
@@ -879,6 +993,25 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         help="dist_m4ri RW steps for classical prefilter.",
     )
     parser.add_argument(
+        "--classical-distance-backend",
+        type=str,
+        choices=("dist-m4ri", "fast"),
+        default="fast",
+        help="Backend for classical slice distance estimation.",
+    )
+    parser.add_argument(
+        "--classical-exhaustive-k-max",
+        type=int,
+        default=8,
+        help="Exact enumeration cutoff for the fast classical backend.",
+    )
+    parser.add_argument(
+        "--classical-sample-count",
+        type=int,
+        default=256,
+        help="Random samples for the fast classical backend.",
+    )
+    parser.add_argument(
         "--quantum-steps-fast",
         type=int,
         default=2000,
@@ -947,6 +1080,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--target-distance must be positive.")
     if args.classical_steps <= 0:
         raise ValueError("--classical-steps must be positive.")
+    if args.classical_exhaustive_k_max < 0:
+        raise ValueError("--classical-exhaustive-k-max must be nonnegative.")
+    if args.classical_sample_count <= 0:
+        raise ValueError("--classical-sample-count must be positive.")
     if args.quantum_steps is not None:
         if args.quantum_steps <= 0:
             raise ValueError("--quantum-steps must be positive.")
@@ -1013,6 +1150,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "target_distance": args.target_distance,
         "classical_target": classical_target,
         "classical_steps": args.classical_steps,
+        "classical_distance_backend": args.classical_distance_backend,
+        "classical_exhaustive_k_max": args.classical_exhaustive_k_max,
+        "classical_sample_count": args.classical_sample_count,
         "quantum_steps_fast": args.quantum_steps_fast,
         "quantum_steps_slow": args.quantum_steps_slow,
         "report_every": args.report_every,
@@ -1081,6 +1221,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         base_code=base_code,
         steps=args.classical_steps,
         classical_target=classical_target,
+        classical_backend=args.classical_distance_backend,
+        classical_exhaustive_k_max=args.classical_exhaustive_k_max,
+        classical_sample_count=args.classical_sample_count,
         dist_m4ri_cmd=args.dist_m4ri_cmd,
         rng=rng,
         out_path=outdir / "classical_A_kept.jsonl",
@@ -1118,6 +1261,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             multisets=multisets,
             variant_codes=variant_codes,
             lookup=a_lookup,
+            classical_backend=args.classical_distance_backend,
             out_path=outdir / "classical_B_kept.jsonl",
             canonicalize=canonicalize,
         )
@@ -1130,6 +1274,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             base_code=base_code,
             steps=args.classical_steps,
             classical_target=classical_target,
+            classical_backend=args.classical_distance_backend,
+            classical_exhaustive_k_max=args.classical_exhaustive_k_max,
+            classical_sample_count=args.classical_sample_count,
             dist_m4ri_cmd=args.dist_m4ri_cmd,
             rng=rng,
             out_path=outdir / "classical_B_kept.jsonl",
@@ -1322,14 +1469,17 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     f"sqrt_n={distance_result.sqrt_n}"
                 )
                 if classical_slices:
-                    print(f"classical slices (steps={args.classical_steps}):")
+                    print("classical slices:")
                     for key in ("A_H", "A_G", "B_G", "B_H"):
                         entry = classical_slices.get(key)
                         if entry is None:
                             continue
+                        backend = entry.get("backend", "?")
+                        exact = entry.get("exact")
+                        mode = "exact" if exact else "sampled"
                         print(
                             f"  {key}: n={entry['n']} k={entry['k']} "
-                            f"d_ub={entry['d_ub']}"
+                            f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
                         )
 
             now = time.monotonic()

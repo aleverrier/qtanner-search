@@ -2,27 +2,13 @@
 """
 Generate docs/best_codes/data.json from best_codes/meta/*.json.
 
-This keeps the website static and lightweight:
-- index.html/style.css/app.js are committed once.
-- data.json is regenerated whenever best_codes/meta changes.
-
-It also creates GitHub links (blob/raw) so that clicking an entry can open:
-- meta JSON
-- the collected folder
-- the original source folder under results/
-- each matrix file under best_codes/matrices/
-- any other auxiliary file paths stored in meta (likely containing permutations, classical params, etc.)
-
-Usage:
-  python scripts/generate_best_codes_site.py
-  python scripts/generate_best_codes_site.py --branch main
+This turns collected metadata into a static website data file.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -50,12 +36,6 @@ def git_current_branch() -> str:
 
 
 def parse_github_owner_repo(remote: str) -> Optional[Tuple[str, str]]:
-    """
-    Supports:
-      git@github.com:OWNER/REPO.git
-      https://github.com/OWNER/REPO.git
-      ssh://git@github.com/OWNER/REPO.git
-    """
     remote = remote.strip()
     if remote.startswith("git@github.com:"):
         s = remote[len("git@github.com:"):]
@@ -135,21 +115,27 @@ def main() -> None:
         k = meta.get("k", None)
         d = meta.get("d_recorded", None)
 
-        # Paths as stored by collect_best_codes.py
+        run_dir = meta.get("run_dir", "")
         src_dir = meta.get("src_dir", "")
         collected_dir = meta.get("collected_dir", "")
-        run_dir = meta.get("run_dir", "")
+
+        settings_path = meta.get("settings_path", "")
 
         matrices_flat = meta.get("matrices_flat", []) or []
         collected_files = meta.get("collected_files", []) or []
 
-        # Build links (to GitHub). If we cannot infer owner/repo, keep empty links.
+        distance_method = meta.get("distance_method", None)
+        distance_trials = meta.get("distance_trials", None)
+        distance_seed = meta.get("distance_seed", None)
+
+        # GitHub links
         meta_path = f"best_codes/meta/{code_id}.json"
         meta_url_blob = gh_blob_url(owner, repo, branch, meta_path) if owner else ""
         meta_url_raw = gh_raw_url(owner, repo, branch, meta_path) if owner else ""
 
         src_dir_url_blob = gh_blob_url(owner, repo, branch, src_dir) if owner and src_dir else ""
         collected_dir_url_blob = gh_blob_url(owner, repo, branch, collected_dir) if owner and collected_dir else ""
+        settings_url_blob = gh_blob_url(owner, repo, branch, settings_path) if owner and settings_path else ""
 
         matrices: List[Dict[str, Any]] = []
         for p in matrices_flat:
@@ -162,7 +148,6 @@ def main() -> None:
                 "url_raw": gh_raw_url(owner, repo, branch, p) if owner else "",
             })
 
-        # “extra files”: show non-mtx files from collected_files (likely includes permutations/config/classical params)
         extra_files: List[Dict[str, Any]] = []
         for p in collected_files:
             if p.lower().endswith(".mtx"):
@@ -183,19 +168,30 @@ def main() -> None:
             "B_id": meta.get("B_id", ""),
             "A_elems": meta.get("A_elems", []),
             "B_elems": meta.get("B_elems", []),
+
+            "distance_method": distance_method,
+            "distance_trials": distance_trials,
+            "distance_seed": distance_seed,
+
             "run_dir": run_dir,
             "src_dir": src_dir,
             "collected_dir": collected_dir,
+
             "meta_path": meta_path,
             "meta_url_blob": meta_url_blob,
             "meta_url_raw": meta_url_raw,
             "src_dir_url_blob": src_dir_url_blob,
             "collected_dir_url_blob": collected_dir_url_blob,
+            "settings_url_blob": settings_url_blob,
+
             "matrices": matrices,
             "extra_files": extra_files,
+
+            # Embed the full original meta so the modal can show it
+            "source_meta": meta.get("source_meta", None),
         })
 
-    # Keep only entries with numeric n,k (otherwise the table can't place them)
+    # Keep only entries with numeric n,k so the table can place them
     filtered = [c for c in codes if isinstance(c.get("n"), int) and isinstance(c.get("k"), int)]
 
     data = {

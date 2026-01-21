@@ -14,8 +14,8 @@ mkdir -p "$OUTDIR"
 GROUP="${GROUP:-C2xC2xC2xC2}"
 TARGET_DISTANCE="${TARGET_DISTANCE:-24}"
 
-# Slice length is 6*|G| = 96 => ceil(sqrt(96)) = 10 (good default classical filter)
-CLASSICAL_TARGET="${CLASSICAL_TARGET:-10}"
+# Quantum block length is 36*|G| = 576 => sqrt(576) = 24 (classical filter default)
+CLASSICAL_TARGET="${CLASSICAL_TARGET:-24}"
 
 # Start modest; increase later for more confidence
 CLASSICAL_STEPS="${CLASSICAL_STEPS:-100}"

@@ -14,11 +14,8 @@ function clampInt(v, fallback) {
 }
 
 function makeCellColor(d, dMin, dMax) {
-  // Simple blue heat: interpolate between a very light and a deep color.
-  // If all equal, keep light.
   if (!Number.isFinite(dMin) || !Number.isFinite(dMax) || dMax <= dMin) return 'rgba(23,58,138,0.12)';
   const t = (d - dMin) / (dMax - dMin);
-  // alpha and darkness vary with t
   const alpha = 0.10 + 0.55 * t;
   return `rgba(23,58,138,${alpha.toFixed(3)})`;
 }
@@ -40,7 +37,6 @@ function filterCodes(codes, group, nMin, nMax, kMin, kMax) {
 }
 
 function buildIndex(codes) {
-  // Map: n -> k -> list of codes
   const map = new Map();
   for (const c of codes) {
     if (!map.has(c.n)) map.set(c.n, new Map());
@@ -48,13 +44,17 @@ function buildIndex(codes) {
     if (!mk.has(c.k)) mk.set(c.k, []);
     mk.get(c.k).push(c);
   }
-  // sort lists by d desc
   for (const [n, mk] of map.entries()) {
     for (const [k, lst] of mk.entries()) {
       lst.sort((a,b) => (b.d_recorded - a.d_recorded) || (a.code_id.localeCompare(b.code_id)));
     }
   }
   return map;
+}
+
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.add('hidden');
+  document.getElementById('modal').classList.add('hidden');
 }
 
 function openModal(cellInfo) {
@@ -104,20 +104,31 @@ function openModal(cellInfo) {
     const A = Array.isArray(c.A_elems) ? `[${c.A_elems.join(', ')}]` : '(unknown)';
     const B = Array.isArray(c.B_elems) ? `[${c.B_elems.join(', ')}]` : '(unknown)';
 
+    const distParts = [];
+    if (c.distance_method) distParts.push(`method=${c.distance_method}`);
+    if (Number.isFinite(c.distance_trials)) distParts.push(`trials=${c.distance_trials}`);
+    if (Number.isFinite(c.distance_seed)) distParts.push(`seed=${c.distance_seed}`);
+    const distLine = distParts.length ? distParts.join(', ') : '(unknown)';
+
     kv.innerHTML = `
       <div><b>Recorded:</b> d=${c.d_recorded} (${c.d_recorded_kind || 'recorded'})</div>
-      <div><b>Multiset A:</b> <code>${c.A_id}</code> → <code>${A}</code></div>
-      <div><b>Multiset B:</b> <code>${c.B_id}</code> → <code>${B}</code></div>
-      <div><b>Provenance:</b> <code>${c.run_dir}</code></div>
+      <div><b>Distance estimation:</b> <code>${distLine}</code></div>
+      <div><b>Multiset A:</b> <code>${c.A_id || ''}</code> → <code>${A}</code></div>
+      <div><b>Multiset B:</b> <code>${c.B_id || ''}</code> → <code>${B}</code></div>
+      <div><b>Provenance:</b> <code>${c.run_dir || ''}</code></div>
     `;
     card.appendChild(kv);
 
+    // Links
     const links = document.createElement('div');
     links.className = 'kv links';
-    const metaLink = c.meta_url_blob ? `<a href="${c.meta_url_blob}" target="_blank" rel="noreferrer">meta.json</a>` : '';
-    const srcLink = c.src_dir_url_blob ? `<a href="${c.src_dir_url_blob}" target="_blank" rel="noreferrer">source folder</a>` : '';
+
+    const metaLink = c.meta_url_blob ? `<a href="${c.meta_url_blob}" target="_blank" rel="noreferrer">best_codes/meta.json</a>` : '';
+    const settingsLink = c.settings_url_blob ? `<a href="${c.settings_url_blob}" target="_blank" rel="noreferrer">settings.json</a>` : '';
     const collLink = c.collected_dir_url_blob ? `<a href="${c.collected_dir_url_blob}" target="_blank" rel="noreferrer">collected folder</a>` : '';
-    links.innerHTML = `${metaLink} ${srcLink} ${collLink}`;
+    const srcLink = c.src_dir_url_blob ? `<a href="${c.src_dir_url_blob}" target="_blank" rel="noreferrer">source folder</a>` : '';
+
+    links.innerHTML = `${metaLink} ${settingsLink} ${collLink} ${srcLink}`;
     card.appendChild(links);
 
     // Matrices
@@ -134,28 +145,20 @@ function openModal(cellInfo) {
       card.appendChild(mdiv);
     }
 
-    // Other collected files (likely contains permutations, classical params, etc.)
-    if (Array.isArray(c.extra_files) && c.extra_files.length > 0) {
-      const fdiv = document.createElement('div');
-      fdiv.className = 'kv';
-      const list = document.createElement('ul');
-      for (const f of c.extra_files.slice(0, 30)) {
-        const li = document.createElement('li');
-        if (f.url_blob) {
-          const a = document.createElement('a');
-          a.href = f.url_blob;
-          a.target = '_blank';
-          a.rel = 'noreferrer';
-          a.textContent = f.path;
-          li.appendChild(a);
-        } else {
-          li.textContent = f.path;
-        }
-        list.appendChild(li);
-      }
-      fdiv.innerHTML = `<div><b>Settings / auxiliary files (first 30):</b></div>`;
-      fdiv.appendChild(list);
-      card.appendChild(fdiv);
+    // Expandable full meta (if present)
+    if (c.source_meta && typeof c.source_meta === 'object') {
+      const details = document.createElement('details');
+      details.className = 'kv';
+
+      const summary = document.createElement('summary');
+      summary.textContent = 'Full embedded source meta.json (for reconstruction)';
+      details.appendChild(summary);
+
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(c.source_meta, null, 2);
+      details.appendChild(pre);
+
+      card.appendChild(details);
     }
 
     body.appendChild(card);
@@ -163,11 +166,6 @@ function openModal(cellInfo) {
 
   backdrop.classList.remove('hidden');
   modal.classList.remove('hidden');
-}
-
-function closeModal() {
-  document.getElementById('modalBackdrop').classList.add('hidden');
-  document.getElementById('modal').classList.add('hidden');
 }
 
 function renderTable(allCodes, ui) {
@@ -183,7 +181,6 @@ function renderTable(allCodes, ui) {
   const ns = uniqSorted(codes.map(c => c.n));
   const ks = uniqSorted(codes.map(c => c.k));
 
-  // Determine d range for coloring
   const ds = [];
   for (const n of ns) {
     const mk = index.get(n);
@@ -195,11 +192,9 @@ function renderTable(allCodes, ui) {
   const dMin = ds.length ? Math.min(...ds) : NaN;
   const dMax = ds.length ? Math.max(...ds) : NaN;
 
-  // Summary
   const summary = document.getElementById('summary');
   summary.textContent = `Showing ${codes.length} code(s), ${ns.length} n-values, ${ks.length} k-values. d range in visible best-cells: ${Number.isFinite(dMin)?dMin:'?'}..${Number.isFinite(dMax)?dMax:'?'}.`;
 
-  // Build table
   const container = document.getElementById('tableContainer');
   container.innerHTML = '';
 
@@ -262,7 +257,9 @@ function renderTable(allCodes, ui) {
           sub.textContent = '';
         }
 
-        td.title = `n=${n}, k=${k}, best d=${best.d_recorded} (${best.group}), codes in cell: ${lst.length}`;
+        const trials = Number.isFinite(best.distance_trials) ? `, trials=${best.distance_trials}` : '';
+        td.title = `n=${n}, k=${k}, best d=${best.d_recorded} (${best.group}${trials}), codes in cell: ${lst.length}`;
+
         td.appendChild(main);
         if (sub.textContent) td.appendChild(sub);
 
@@ -289,7 +286,6 @@ function setupUI(data) {
     resetBtn: document.getElementById('resetBtn'),
   };
 
-  // Populate group dropdown
   ui.groupSelect.innerHTML = '';
   for (const g of groupOptions(data.codes)) {
     const opt = document.createElement('option');

@@ -1,34 +1,29 @@
 #!/usr/bin/env python3
 """
-Collect all best codes stored under results/**/best_codes/* into a single canonical folder.
+Collect all best codes stored under results/**/best_codes/* into a single canonical folder,
+and curate metadata for the website.
 
-Typical source layout (example):
+Source layout example:
   results/<run_name>/best_codes/<CODE_ID>/
-    (mtx files, json, etc.)
+    Hx.mtx
+    Hz.mtx
+    meta.json
 
-Where <CODE_ID> looks like:
+CODE_ID example:
   C2xC2xC2_AAp6_0_1_2_3_4_6_BBp6_0_1_2_4_5_7_k16_d16
 
 What this script does:
-- Scans for directories matching: results/**/best_codes/<CODE_ID>
-- Parses CODE_ID to extract group, A_id, B_id, k, d (from folder name)
-- Copies artifacts into:
-    best_codes/collected/<CODE_ID>/
-- Writes/updates metadata:
-    best_codes/meta/<CODE_ID>.json
-- Copies matrices into a flat folder for convenience:
-    best_codes/matrices/<CODE_ID>__<original_filename>
-- Generates:
-    best_codes/index.tsv
-    best_codes/best_by_group_k.tsv
-- Updates notes/search_log.tex between markers:
+- Finds all results/**/best_codes/<CODE_ID> directories
+- Copies artifacts into best_codes/collected/<CODE_ID>/
+- Copies all .mtx into best_codes/matrices/ (flat convenience copies)
+- Writes canonical metadata into best_codes/meta/<CODE_ID>.json
+  * includes extracted distance-trial information when present in the source meta.json
+  * embeds the full source meta.json as "source_meta" so we never lose construction data
+- Generates best_codes/index.tsv and best_codes/best_by_group_k.tsv
+- Updates notes/search_log.tex between:
     % BEGIN AUTO BEST TABLES
     ...
     % END AUTO BEST TABLES
-
-Notes:
-- "d" in CODE_ID is whatever your pipeline recorded (often an upper bound from QDistRnd).
-- We only copy a whitelist of file types by default. Use --copy-all to copy everything.
 
 Usage:
   python scripts/collect_best_codes.py --dry-run
@@ -45,12 +40,12 @@ import subprocess
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 AUTO_BEGIN = "% BEGIN AUTO BEST TABLES"
 AUTO_END = "% END AUTO BEST TABLES"
 
-# Example:
+# CODE_ID example:
 #   C2xC2xC2_AAp11_0_0_1_2_2_7_BBp11_0_0_1_2_4_5_k4_d20
 CODE_ID_RE = re.compile(
     r"^(?P<group>.+?)_AA(?P<A>.+?)_BB(?P<B>.+?)_k(?P<k>\d+)_d(?P<d>\d+)$"
@@ -59,30 +54,6 @@ CODE_ID_RE = re.compile(
 WHITELIST_EXTS = {
     ".mtx", ".json", ".txt", ".md", ".tsv", ".csv", ".npz", ".pkl", ".pickle", ".png", ".pdf"
 }
-
-
-@dataclass
-class CodeRecord:
-    code_id: str
-    group: str
-    A_id: str
-    B_id: str
-    A_elems: List[int]
-    B_elems: List[int]
-    k: int
-    d_recorded: int
-    d_recorded_kind: str  # "d_ub" by convention here
-    n: Optional[int]      # inferred from matrix shapes if possible
-
-    run_dir: str          # e.g. results/progressive_... (relative to repo root)
-    src_dir: str          # e.g. results/.../best_codes/<code_id>
-    collected_dir: str    # best_codes/collected/<code_id>
-
-    matrices_flat: List[str]   # best_codes/matrices/* copied for convenience
-    collected_files: List[str] # files copied under collected_dir
-    collected_at_utc: str
-
-    also_seen_in: List[str]    # other src dirs with same (group,A,B,k,d)
 
 
 def repo_root() -> Path:
@@ -100,10 +71,9 @@ def ensure_dir(p: Path) -> None:
 
 def parse_multiset_elems(ms_id: str) -> List[int]:
     """
-    Parse something like:
+    Parse:
       p6_0_1_2_3_4_6  -> [0,1,2,3,4,6]
       p11_0_0_1_2_2_7 -> [0,0,1,2,2,7]
-    Best-effort: take all integer tokens after the first underscore-separated token.
     """
     toks = ms_id.split("_")
     out: List[int] = []
@@ -113,7 +83,7 @@ def parse_multiset_elems(ms_id: str) -> List[int]:
     return out
 
 
-def parse_code_id(code_id: str) -> Optional[Tuple[str, str, str, List[int], List[int], int, int]]:
+def parse_code_id(code_id: str) -> Optional[Dict[str, Any]]:
     m = CODE_ID_RE.match(code_id)
     if not m:
         return None
@@ -121,8 +91,16 @@ def parse_code_id(code_id: str) -> Optional[Tuple[str, str, str, List[int], List
     A_id = m.group("A")
     B_id = m.group("B")
     k = int(m.group("k"))
-    d = int(m.group("d"))
-    return group, A_id, B_id, parse_multiset_elems(A_id), parse_multiset_elems(B_id), k, d
+    d_in_id = int(m.group("d"))
+    return {
+        "group": group,
+        "A_id": A_id,
+        "B_id": B_id,
+        "A_elems": parse_multiset_elems(A_id),
+        "B_elems": parse_multiset_elems(B_id),
+        "k": k,
+        "d_in_id": d_in_id,
+    }
 
 
 def iter_best_code_dirs(root: Path, sources: List[str]) -> Iterable[Tuple[Path, Path]]:
@@ -142,16 +120,161 @@ def iter_best_code_dirs(root: Path, sources: List[str]) -> Iterable[Tuple[Path, 
                     yield (run_dir, code_dir)
 
 
+def safe_load_json(fp: Path) -> Optional[Dict[str, Any]]:
+    try:
+        x = json.loads(fp.read_text(errors="replace"))
+        return x if isinstance(x, dict) else None
+    except Exception:
+        return None
+
+
+def find_source_meta(code_dir: Path) -> Tuple[Optional[Path], Optional[Dict[str, Any]]]:
+    """
+    Prefer code_dir/meta.json. Otherwise try first *meta*.json in code_dir.
+    """
+    p = code_dir / "meta.json"
+    if p.exists():
+        return p, safe_load_json(p)
+    cands = sorted(code_dir.glob("*meta*.json"))
+    for c in cands:
+        d = safe_load_json(c)
+        if d is not None:
+            return c, d
+    return None, None
+
+
+def walk_json(obj: Any, path: List[str]) -> Iterable[Tuple[List[str], Any]]:
+    yield path, obj
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            walk_path = path + [str(k)]
+            yield from walk_json(v, walk_path)
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            walk_path = path + [str(i)]
+            yield from walk_json(v, walk_path)
+
+
+def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Best-effort extraction. We DO NOT assume a fixed schema of the source meta.json.
+
+    Returns a dict with keys:
+      method, trials, trials_path, trials_key, seed, candidates
+    """
+    out: Dict[str, Any] = {
+        "method": None,
+        "trials": None,
+        "trials_path": None,
+        "trials_key": None,
+        "seed": None,
+        "candidates": [],
+    }
+    if not source_meta:
+        return out
+
+    # Method heuristics
+    meta_text = json.dumps(source_meta).lower()
+    if "qdistrnd" in meta_text or "qdist" in meta_text:
+        out["method"] = "QDistRnd"
+    elif "randomwalk" in meta_text or "random walk" in meta_text:
+        out["method"] = "RandomWalk"
+
+    # Gather integer candidates that look like trial budgets
+    def looks_like_trials_key(k: str) -> bool:
+        kk = k.lower()
+        return any(t in kk for t in ["trial", "trials", "eval", "evals", "step", "steps", "iter", "iters", "attempt"])
+
+    def path_relevance_score(path_str: str) -> int:
+        s = path_str.lower()
+        score = 0
+        # more relevant if it mentions distance estimation machinery
+        if any(t in s for t in ["distance", "dist", "qdistrnd", "qdist", "estimator", "estimate"]):
+            score -= 6
+        if any(t in s for t in ["trial", "eval", "step", "iter", "attempt"]):
+            score -= 3
+        return score
+
+    candidates: List[Dict[str, Any]] = []
+    for path, val in walk_json(source_meta, []):
+        if not path:
+            continue
+        key = path[-1]
+        if isinstance(val, int) and looks_like_trials_key(key):
+            pstr = "/".join(path)
+            candidates.append({
+                "path": pstr,
+                "key": key,
+                "value": val,
+                "score": path_relevance_score(pstr),
+            })
+
+    # Also try to find a seed (common key name)
+    seed_candidates: List[Dict[str, Any]] = []
+    for path, val in walk_json(source_meta, []):
+        if not path:
+            continue
+        key = path[-1].lower()
+        if isinstance(val, int) and "seed" in key:
+            pstr = "/".join(path)
+            seed_candidates.append({
+                "path": pstr,
+                "key": path[-1],
+                "value": val,
+                "score": path_relevance_score(pstr),
+            })
+
+    # Choose best trials candidate
+    if candidates:
+        candidates.sort(key=lambda c: (c["score"], -c["value"]))
+        best = candidates[0]
+        out["trials"] = int(best["value"])
+        out["trials_path"] = best["path"]
+        out["trials_key"] = best["key"]
+        out["candidates"] = candidates[:20]  # keep some for debugging
+
+    # Choose best seed candidate
+    if seed_candidates:
+        seed_candidates.sort(key=lambda c: (c["score"], c["path"]))
+        out["seed"] = int(seed_candidates[0]["value"])
+
+    return out
+
+
+def extract_permutation_candidates(source_meta: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Find arrays that look like permutations: list[int] under keys containing 'perm'.
+    We do not assume any fixed key names.
+    """
+    if not source_meta:
+        return []
+    perms: List[Dict[str, Any]] = []
+
+    for path, val in walk_json(source_meta, []):
+        if not path:
+            continue
+        key = path[-1].lower()
+        if "perm" not in key:
+            continue
+        if isinstance(val, list) and val and all(isinstance(x, int) for x in val):
+            perms.append({
+                "path": "/".join(path),
+                "length": len(val),
+                "value_preview": val[:20],
+            })
+
+    return perms[:50]
+
+
 def read_mtx_shape(fp: Path) -> Optional[Tuple[int, int, int]]:
     """
-    Parse Matrix Market header to get (nrows, ncols, nnz) if possible (coordinate format).
+    Parse Matrix Market header for (nrows,ncols,nnz).
     """
     try:
         with fp.open("r", errors="replace") as f:
             header = f.readline()
             if not header.lower().startswith("%%matrixmarket"):
                 return None
-            # skip comments
             line = f.readline()
             while line and line.strip().startswith("%"):
                 line = f.readline()
@@ -160,16 +283,12 @@ def read_mtx_shape(fp: Path) -> Optional[Tuple[int, int, int]]:
             parts = line.strip().split()
             if len(parts) < 3:
                 return None
-            nrows, ncols, nnz = int(parts[0]), int(parts[1]), int(parts[2])
-            return nrows, ncols, nnz
+            return int(parts[0]), int(parts[1]), int(parts[2])
     except Exception:
         return None
 
 
 def infer_n_from_code_dir(code_dir: Path) -> Optional[int]:
-    """
-    Try to infer n from any .mtx file (prefer ones containing hx/hz in filename).
-    """
     mtx_files = sorted(code_dir.rglob("*.mtx"))
     if not mtx_files:
         return None
@@ -192,13 +311,8 @@ def infer_n_from_code_dir(code_dir: Path) -> Optional[int]:
 
 
 def copy_artifacts(src_code_dir: Path, dst_code_dir: Path, copy_all: bool) -> List[Path]:
-    """
-    Copy whitelisted files (or all files if copy_all) preserving relative structure inside code dir.
-    Returns list of destination file paths.
-    """
     ensure_dir(dst_code_dir)
     copied: List[Path] = []
-
     for fp in src_code_dir.rglob("*"):
         if fp.is_dir():
             continue
@@ -212,14 +326,10 @@ def copy_artifacts(src_code_dir: Path, dst_code_dir: Path, copy_all: bool) -> Li
             copied.append(dst_fp)
         except Exception:
             continue
-
     return copied
 
 
 def copy_matrices_flat(dst_flat_dir: Path, code_id: str, dst_code_dir: Path) -> List[Path]:
-    """
-    Copy all .mtx under collected code dir into best_codes/matrices/ as flat files for convenience.
-    """
     ensure_dir(dst_flat_dir)
     out: List[Path] = []
     for fp in dst_code_dir.rglob("*.mtx"):
@@ -233,43 +343,8 @@ def copy_matrices_flat(dst_flat_dir: Path, code_id: str, dst_code_dir: Path) -> 
     return out
 
 
-def load_json(path: Path) -> Optional[dict]:
-    try:
-        return json.loads(path.read_text(errors="replace"))
-    except Exception:
-        return None
-
-
-def save_json(path: Path, data: dict) -> None:
+def save_json(path: Path, data: Dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
-
-
-def update_or_create_meta(root: Path, meta_dir: Path, record: CodeRecord) -> None:
-    ensure_dir(meta_dir)
-    meta_path = meta_dir / f"{record.code_id}.json"
-
-    if meta_path.exists():
-        old = load_json(meta_path)
-        if isinstance(old, dict):
-            also = set(old.get("also_seen_in", []))
-            also.update(record.also_seen_in)
-            also.add(record.src_dir)
-            old["also_seen_in"] = sorted(also)
-
-            # refresh/overwrite fields that should stay current
-            for k in [
-                "group", "A_id", "B_id", "A_elems", "B_elems",
-                "k", "d_recorded", "d_recorded_kind", "n",
-                "matrices_flat", "collected_dir", "run_dir", "src_dir",
-                "collected_files",
-            ]:
-                old[k] = getattr(record, k)
-
-            old["updated_at_utc"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            save_json(meta_path, old)
-            return
-
-    save_json(meta_path, asdict(record))
 
 
 def group_to_latex(group: str) -> str:
@@ -283,22 +358,22 @@ def group_to_latex(group: str) -> str:
     return r" \times ".join(latex_parts)
 
 
-def build_latex_block(records: List[CodeRecord]) -> str:
+def build_latex_block(records: List["CodeRecord"]) -> str:
     # best by (group,n,k): max d_recorded
-    best: Dict[Tuple[str, Optional[int], int], CodeRecord] = {}
+    best: Dict[Tuple[str, Optional[int], int], "CodeRecord"] = {}
     for r in records:
         key = (r.group, r.n, r.k)
         if key not in best or r.d_recorded > best[key].d_recorded:
             best[key] = r
 
-    grouped: Dict[Tuple[str, Optional[int]], List[CodeRecord]] = {}
+    grouped: Dict[Tuple[str, Optional[int]], List["CodeRecord"]] = {}
     for r in best.values():
         grouped.setdefault((r.group, r.n), []).append(r)
 
     lines: List[str] = []
     lines.append(r"\section{Auto-collected best results}")
     lines.append(r"This section is generated by \texttt{scripts/collect\_best\_codes.py}.")
-    lines.append(r"Here, $d$ is the recorded value stored by the search pipeline (often a QDistRnd upper bound).")
+    lines.append(r"$d$ is the recorded value saved by the search pipeline (often a QDistRnd upper bound).")
     lines.append("")
 
     for (g, n), lst in sorted(grouped.items(), key=lambda x: (x[0][0], x[0][1] if x[0][1] is not None else 10**18)):
@@ -307,15 +382,16 @@ def build_latex_block(records: List[CodeRecord]) -> str:
         n_str = str(n) if n is not None else "unknown"
         lines.append(rf"\subsection{{Group $G = {g_ltx}$, length $n={n_str}$}}")
         lines.append("")
-        lines.append(r"\begin{longtable}{@{}r r l l@{}}")
+        lines.append(r"\begin{longtable}{@{}r r r l l@{}}")
         lines.append(r"\toprule")
-        lines.append(r"$k$ & recorded $d$ & code id & source run \\")
+        lines.append(r"$k$ & recorded $d$ & trials & code id & source run \\")
         lines.append(r"\midrule")
         lines.append(r"\endhead")
         for r in lst:
             run = r.run_dir.replace("_", r"\_")
             cid = r.code_id.replace("_", r"\_")
-            lines.append(rf"{r.k} & {r.d_recorded} & \texttt{{{cid}}} & \texttt{{{run}}} \\")
+            trials = str(r.distance_trials) if r.distance_trials is not None else ""
+            lines.append(rf"{r.k} & {r.d_recorded} & {trials} & \texttt{{{cid}}} & \texttt{{{run}}} \\")
         lines.append(r"\bottomrule")
         lines.append(r"\end{longtable}")
         lines.append("")
@@ -323,11 +399,6 @@ def build_latex_block(records: List[CodeRecord]) -> str:
 
 
 def update_tex(tex_path: Path, latex_block: str) -> None:
-    """
-    Update the AUTO block safely.
-    IMPORTANT: we must NOT pass latex_block directly as a regex replacement string
-    because backslashes like \\section would be interpreted as regex escapes.
-    """
     text = tex_path.read_text(errors="replace") if tex_path.exists() else ""
 
     if not text.strip():
@@ -361,12 +432,9 @@ def update_tex(tex_path: Path, latex_block: str) -> None:
 
     pattern = re.compile(re.escape(AUTO_BEGIN) + r".*?" + re.escape(AUTO_END), re.DOTALL)
     replacement = f"{AUTO_BEGIN}\n{latex_block}\n{AUTO_END}"
-
-    # Use a function replacement to avoid backslash interpretation
     new_text, nsubs = pattern.subn(lambda _m: replacement, text, count=1)
     if nsubs != 1:
         raise RuntimeError("Could not update TeX AUTO block (unexpected marker structure).")
-
     tex_path.write_text(new_text)
 
 
@@ -374,6 +442,47 @@ def write_tsv(path: Path, header: List[str], rows: List[List[str]]) -> None:
     out = ["\t".join(header)]
     out.extend(["\t".join(r) for r in rows])
     path.write_text("\n".join(out) + "\n")
+
+
+@dataclass
+class CodeRecord:
+    schema: str
+    code_id: str
+
+    group: str
+    A_id: str
+    B_id: str
+    A_elems: List[int]
+    B_elems: List[int]
+
+    n: Optional[int]
+    k: int
+
+    d_recorded: int
+    d_recorded_kind: str
+    d_in_id: int
+
+    distance_method: Optional[str]
+    distance_trials: Optional[int]
+    distance_trials_path: Optional[str]
+    distance_seed: Optional[int]
+
+    permutation_candidates: List[Dict[str, Any]]
+
+    source_meta_path_in_src: Optional[str]
+    source_meta_path_in_collected: Optional[str]
+    source_meta: Optional[Dict[str, Any]]
+
+    run_dir: str
+    src_dir: str
+    collected_dir: str
+    settings_path: str
+
+    matrices_flat: List[str]
+    collected_files: List[str]
+
+    collected_at_utc: str
+    also_seen_in: List[str]
 
 
 def main() -> None:
@@ -396,7 +505,7 @@ def main() -> None:
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Dedup by (group, A, B, k, d)
+    # Dedup key
     by_key: Dict[Tuple[str, str, str, int, int], CodeRecord] = {}
     records: List[CodeRecord] = []
 
@@ -405,32 +514,86 @@ def main() -> None:
         parsed = parse_code_id(code_id)
         if not parsed:
             continue
-        group, A_id, B_id, A_elems, B_elems, k, drec = parsed
-        n = infer_n_from_code_dir(code_dir)
+
+        group = parsed["group"]
+        A_id = parsed["A_id"]
+        B_id = parsed["B_id"]
+        A_elems = parsed["A_elems"]
+        B_elems = parsed["B_elems"]
+        k = parsed["k"]
+        d_in_id = parsed["d_in_id"]
+
+        # Load source meta.json if present
+        src_meta_path, src_meta = find_source_meta(code_dir)
+        dist = extract_distance_info(src_meta)
+        perms = extract_permutation_candidates(src_meta)
+
+        # Infer n from matrices; prefer meta if it explicitly has "n" (common)
+        n = None
+        if isinstance(src_meta, dict):
+            if isinstance(src_meta.get("n"), int):
+                n = int(src_meta["n"])
+            elif isinstance(src_meta.get("N"), int):
+                n = int(src_meta["N"])
+            elif isinstance(src_meta.get("quantum"), dict) and isinstance(src_meta["quantum"].get("n"), int):
+                n = int(src_meta["quantum"]["n"])
+        if n is None:
+            n = infer_n_from_code_dir(code_dir)
+
+        # Prefer d from meta if it is present; otherwise folder name
+        d_recorded = d_in_id
+        d_kind = "from_code_id"
+        if isinstance(src_meta, dict):
+            if isinstance(src_meta.get("d_ub"), int):
+                d_recorded = int(src_meta["d_ub"])
+                d_kind = "d_ub"
+            elif isinstance(src_meta.get("d"), int):
+                d_recorded = int(src_meta["d"])
+                d_kind = "d"
 
         run_rel = rel(root, run_dir)
         src_rel = rel(root, code_dir)
 
-        key = (group, A_id, B_id, k, drec)
+        key = (group, A_id, B_id, k, d_in_id)
         if key in by_key:
-            by_key[key].also_seen_in.append(src_rel)
+            # Merge provenance + fill missing fields
+            rec = by_key[key]
+            rec.also_seen_in.append(src_rel)
+            if rec.distance_trials is None and dist.get("trials") is not None:
+                rec.distance_trials = dist["trials"]
+                rec.distance_trials_path = dist.get("trials_path")
+            if rec.distance_method is None and dist.get("method") is not None:
+                rec.distance_method = dist["method"]
             continue
 
         collected_dir = dest_root / code_id
+        settings_path = collected_dir / "settings.json"
+
         rec = CodeRecord(
+            schema="explicitqt_best_code_meta_v1",
             code_id=code_id,
             group=group,
             A_id=A_id,
             B_id=B_id,
             A_elems=A_elems,
             B_elems=B_elems,
-            k=k,
-            d_recorded=drec,
-            d_recorded_kind="d_ub",
             n=n,
+            k=k,
+            d_recorded=d_recorded,
+            d_recorded_kind=d_kind,
+            d_in_id=d_in_id,
+            distance_method=dist.get("method"),
+            distance_trials=dist.get("trials"),
+            distance_trials_path=dist.get("trials_path"),
+            distance_seed=dist.get("seed"),
+            permutation_candidates=perms,
+            source_meta_path_in_src=rel(root, src_meta_path) if src_meta_path else None,
+            source_meta_path_in_collected=str(Path(args.dest) / code_id / (src_meta_path.name if src_meta_path else "meta.json")),
+            source_meta=src_meta,
             run_dir=run_rel,
             src_dir=src_rel,
             collected_dir=rel(root, collected_dir),
+            settings_path=rel(root, settings_path),
             matrices_flat=[],
             collected_files=[],
             collected_at_utc=now,
@@ -447,7 +610,8 @@ def main() -> None:
     print(f"Found {len(found)} candidate code dirs; collected {len(records)} unique codes (deduped).")
     for r in records[:30]:
         n_str = str(r.n) if r.n is not None else "?"
-        print(f"  {r.code_id}  (G={r.group}, n={n_str}, k={r.k}, d={r.d_recorded})  from {r.src_dir}")
+        t_str = str(r.distance_trials) if r.distance_trials is not None else "?"
+        print(f"  {r.code_id}  (G={r.group}, n={n_str}, k={r.k}, d={r.d_recorded}, trials={t_str})  from {r.src_dir}")
     if len(records) > 30:
         print(f"  ... ({len(records)-30} more)")
 
@@ -458,19 +622,56 @@ def main() -> None:
     ensure_dir(meta_dir)
     ensure_dir(flat_mtx_dir)
 
-    # Copy artifacts + write meta
+    # Copy + write curated meta + settings.json
     for r in records:
         src = root / r.src_dir
         dst = root / r.collected_dir
+
         copied = copy_artifacts(src, dst, copy_all=args.copy_all)
         r.collected_files = [rel(root, p) for p in copied]
 
         flat = copy_matrices_flat(flat_mtx_dir, r.code_id, dst)
         r.matrices_flat = [rel(root, p) for p in flat]
 
-        update_or_create_meta(root, meta_dir, r)
+        # Write settings.json (small stable summary for humans + scripts)
+        settings_abs = root / r.settings_path
+        ensure_dir(settings_abs.parent)
+        settings = {
+            "schema": "explicitqt_best_code_settings_v1",
+            "code_id": r.code_id,
+            "group": r.group,
+            "n": r.n,
+            "k": r.k,
+            "d_recorded": r.d_recorded,
+            "d_recorded_kind": r.d_recorded_kind,
+            "distance_estimation": {
+                "method": r.distance_method,
+                "trials": r.distance_trials,
+                "seed": r.distance_seed,
+                "trials_extracted_from": r.distance_trials_path,
+            },
+            "A_id": r.A_id,
+            "B_id": r.B_id,
+            "A_elems": r.A_elems,
+            "B_elems": r.B_elems,
+            "permutation_candidates": r.permutation_candidates,
+            "matrices_flat": r.matrices_flat,
+            "source_meta_path_in_collected": r.source_meta_path_in_collected,
+            "provenance": {
+                "run_dir": r.run_dir,
+                "src_dir": r.src_dir,
+                "also_seen_in": r.also_seen_in,
+                "collected_at_utc": r.collected_at_utc,
+            },
+        }
+        save_json(settings_abs, settings)
+        if rel(root, settings_abs) not in r.collected_files:
+            r.collected_files.append(rel(root, settings_abs))
 
-    # Write index TSV
+        # Write canonical meta in best_codes/meta/
+        save_json(meta_dir / f"{r.code_id}.json", asdict(r))
+
+    # index.tsv
     index_rows: List[List[str]] = []
     for r in records:
         index_rows.append([
@@ -479,16 +680,17 @@ def main() -> None:
             str(r.n) if r.n is not None else "",
             str(r.k),
             str(r.d_recorded),
+            str(r.distance_trials) if r.distance_trials is not None else "",
+            r.distance_method or "",
             r.A_id,
             r.B_id,
             r.run_dir,
             r.src_dir,
             r.collected_dir,
         ])
-
     write_tsv(
         root / "best_codes" / "index.tsv",
-        ["code_id", "group", "n", "k", "d_recorded", "A_id", "B_id", "run_dir", "src_dir", "collected_dir"],
+        ["code_id", "group", "n", "k", "d_recorded", "distance_trials", "distance_method", "A_id", "B_id", "run_dir", "src_dir", "collected_dir"],
         index_rows,
     )
 
@@ -498,18 +700,23 @@ def main() -> None:
         key = (r.group, r.k)
         if key not in best_gk or r.d_recorded > best_gk[key].d_recorded:
             best_gk[key] = r
-
     best_rows = []
     for (g, k), r in sorted(best_gk.items(), key=lambda x: (x[0][0], x[0][1], -x[1].d_recorded)):
-        best_rows.append([g, str(k), str(r.d_recorded), r.code_id, str(r.n) if r.n is not None else ""])
-
+        best_rows.append([
+            g,
+            str(k),
+            str(r.d_recorded),
+            str(r.distance_trials) if r.distance_trials is not None else "",
+            r.code_id,
+            str(r.n) if r.n is not None else "",
+        ])
     write_tsv(
         root / "best_codes" / "best_by_group_k.tsv",
-        ["group", "k", "best_d_recorded", "code_id", "n"],
+        ["group", "k", "best_d_recorded", "distance_trials", "code_id", "n"],
         best_rows,
     )
 
-    # Update TeX
+    # TeX
     tex_path = root / args.update_tex
     latex_block = build_latex_block(records)
     try:
