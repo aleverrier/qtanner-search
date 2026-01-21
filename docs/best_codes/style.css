@@ -223,3 +223,36 @@ footer {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* About box (construction details + references) */
+details.about {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fafafa;
+}
+
+details.about summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+details.about .aboutBox {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+details.about .aboutBox .small {
+  font-size: 12px;
+}
+
+details.about code {
+  font-size: 12px;
+}
+
+details.about ul {
+  margin: 6px 0 0 18px;
+}

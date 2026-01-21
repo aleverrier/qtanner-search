@@ -18,6 +18,42 @@
       Note: “d” here is the recorded value from the search pipeline (often a QDistRnd upper bound),
       not necessarily a proven minimum distance.
     </p>
+
+    <details class="about">
+      <summary>About the construction (Quantum Tanner codes)</summary>
+      <div class="aboutBox">
+        <p>
+          The codes tracked here are <b>quantum Tanner codes</b> (CSS LDPC codes) introduced by
+          Leverrier–Zémor (FOCS 2022). Informally: you start from a small “base” CSS template built
+          from a few short classical codes (“local codes”), then you <b>lift</b> it using a finite group
+          <code>G</code> and two ordered multisets <code>A</code>, <code>B</code> in <code>G</code>. The lift acts by left and right
+          regular actions of <code>G</code>, producing the large check matrices <code>H_X</code> and <code>H_Z</code>.
+        </p>
+
+        <p>
+          This dashboard currently focuses on the <b>weight‑9</b> search regime where the local codes are the
+          shortened Hamming <b>[6,3,3]</b> code (and its dual), up to column permutations.
+        </p>
+
+        <p><b>References</b></p>
+        <ul>
+          <li>
+            A. Leverrier, G. Zémor, <i>Quantum Tanner codes</i> (FOCS 2022 / arXiv:2202.13641).
+            <a href="https://arxiv.org/abs/2202.13641" target="_blank" rel="noreferrer">arXiv</a>
+          </li>
+          <li>
+            A. Leverrier, W. Rozendaal, G. Zémor, <i>Small quantum Tanner codes from left–right Cayley complexes</i>
+            (arXiv:2512.20532).
+            <a href="https://arxiv.org/abs/2512.20532" target="_blank" rel="noreferrer">arXiv</a>
+          </li>
+        </ul>
+
+        <p class="small">
+          Practical note: distance values displayed in the table are “best recorded” from the run outputs
+          (often from QDistRnd trials). You can click a cell to open the exact code(s) and their stored matrices.
+        </p>
+      </div>
+    </details>
   </header>
 
   <section id="controls">
