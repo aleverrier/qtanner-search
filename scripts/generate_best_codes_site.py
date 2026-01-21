@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate docs/best_codes/data.json from best_codes/meta/*.json.
+Generate best_codes/data.json from best_codes/meta/*.json.
 
 This turns collected metadata into a static website data file.
 """
@@ -84,7 +84,7 @@ def safe_load_json(fp: Path) -> Optional[Dict[str, Any]]:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--meta-dir", default="best_codes/meta", help="Folder with meta JSON files")
-    ap.add_argument("--site-dir", default="docs/best_codes", help="Website folder to write data.json into")
+    ap.add_argument("--site-dir", default="best_codes", help="Website folder to write data.json into")
     ap.add_argument("--branch", default="", help="Git branch for GitHub links (default: current branch)")
     args = ap.parse_args()
 

@@ -13,7 +13,7 @@ python scripts/generate_best_codes_site.py
 # Stage ONLY curated outputs (never add results/ or runs/)
 git add \
   best_codes \
-  docs/best_codes/data.json \
+  best_codes/data.json \
   notes/search_log.tex
 
 if git diff --cached --quiet; then
