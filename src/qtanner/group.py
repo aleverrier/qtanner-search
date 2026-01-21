@@ -18,6 +18,7 @@ class FiniteGroup:
 
     name: str
     order: int
+    _is_abelian: Optional[bool] = None
 
     def mul(self, a: int, b: int) -> int:
         raise NotImplementedError
@@ -33,6 +34,21 @@ class FiniteGroup:
 
     def repr(self, a: int) -> str:
         return str(a)
+
+    def _compute_is_abelian(self) -> bool:
+        for a in self.elements():
+            for b in self.elements():
+                if self.mul(a, b) != self.mul(b, a):
+                    return False
+        return True
+
+    @property
+    def is_abelian(self) -> bool:
+        cached = getattr(self, "_is_abelian", None)
+        if cached is None:
+            cached = self._compute_is_abelian()
+            self._is_abelian = cached
+        return bool(cached)
 
     def automorphisms(
         self,
@@ -68,6 +84,7 @@ class CyclicGroup(FiniteGroup):
             raise ValueError(f"CyclicGroup order must be positive, got {n}.")
         self.order = n_int
         self.name = name or f"C{n_int}"
+        self._is_abelian = True
 
     def mul(self, a: int, b: int) -> int:
         return (int(a) + int(b)) % self.order
@@ -93,6 +110,7 @@ class DirectProductGroup(FiniteGroup):
         self.g2 = g2
         self.order = g1.order * g2.order
         self.name = name or f"{g1.name}x{g2.name}"
+        self._is_abelian = g1.is_abelian and g2.is_abelian
 
     def _decode(self, x: int) -> tuple[int, int]:
         q, r = divmod(int(x), self.g2.order)
@@ -125,12 +143,15 @@ class TableGroup(FiniteGroup):
         inv_table: Sequence[int],
         *,
         element_repr: Optional[Sequence[str]] = None,
+        is_abelian: Optional[bool] = None,
     ) -> None:
         self.name = str(name)
         self.order = len(mul_table)
         norm_mul, norm_inv = _normalize_table(self.order, mul_table, inv_table)
         self.mul_table = norm_mul
         self.inv_table = norm_inv
+        if is_abelian is not None:
+            self._is_abelian = bool(is_abelian)
         if element_repr is None:
             self._repr_table = None
         else:
@@ -296,7 +317,13 @@ def _load_smallgroup(
             mul = payload.get("mul_table")
             inv = payload.get("inv_table", payload.get("inv"))
             if isinstance(mul, list) and isinstance(inv, list):
-                return TableGroup(spec_norm, mul, inv)
+                is_abelian = payload.get("is_abelian")
+                return TableGroup(
+                    spec_norm,
+                    mul,
+                    inv,
+                    is_abelian=is_abelian if isinstance(is_abelian, bool) else None,
+                )
     data = gap_group_data(spec_norm, gap_cmd=gap_cmd)
     mul = data.mul_table
     inv = data.inv_table
@@ -308,9 +335,10 @@ def _load_smallgroup(
             "gid": gid,
             "mul_table": mul,
             "inv_table": inv,
+            "is_abelian": bool(data.is_abelian),
         }
         cache_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    return TableGroup(spec_norm, mul, inv)
+    return TableGroup(spec_norm, mul, inv, is_abelian=bool(data.is_abelian))
 
 
 def _tail(text: str, n: int = 2000) -> str:

@@ -19,12 +19,16 @@ def _gap_missing_error(gap_cmd: str, context: str) -> RuntimeError:
     )
 
 
-def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List[int]]:
+_ISABELIAN_PREFIX = "ISABELIAN "
+
+
+def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List[int], bool]:
     lines = output.splitlines()
     mul_begin = None
     mul_end = None
     inv_begin = None
     inv_end = None
+    is_abelian = None
     for idx, line in enumerate(lines):
         marker = line.strip()
         if marker == "MUL_BEGIN":
@@ -35,6 +39,14 @@ def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List
             inv_begin = idx
         elif marker == "INV_END":
             inv_end = idx
+        elif marker.startswith(_ISABELIAN_PREFIX):
+            token = marker[len(_ISABELIAN_PREFIX) :].strip().lower()
+            if token in ("true", "false"):
+                is_abelian = token == "true"
+            elif token in ("1", "0"):
+                is_abelian = token == "1"
+            else:
+                raise RuntimeError(f"Invalid GAP IsAbelian line: {marker!r}")
     if mul_begin is None or mul_end is None or mul_begin >= mul_end:
         raise RuntimeError("GAP output missing MUL_BEGIN/MUL_END markers.")
     if inv_begin is None or inv_end is None or inv_begin >= inv_end:
@@ -71,7 +83,14 @@ def _parse_gap_marked_output(output: str, n: int) -> Tuple[List[List[int]], List
     except ValueError as exc:
         raise RuntimeError("Invalid GAP inverse entry.") from exc
 
-    return mul_table, inv
+    if is_abelian is None:
+        is_abelian = all(
+            mul_table[i][j] == mul_table[j][i]
+            for i in range(n)
+            for j in range(n)
+        )
+
+    return mul_table, inv, bool(is_abelian)
 
 
 def _gap_error_preview(stdout: str, stderr: str) -> str:
@@ -120,10 +139,12 @@ def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") 
         with open(cache_path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         if payload.get("format_version") == 2:
+            is_abelian = payload.get("is_abelian")
             return TableGroup(
                 name=f"SmallGroup({order},{gid})",
                 mul_table=payload["mul_table"],
                 inv_table=payload["inv"],
+                is_abelian=is_abelian if isinstance(is_abelian, bool) else None,
             )
 
     script = "\n".join(
@@ -149,18 +170,20 @@ def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") 
             "  Print(Position(elts, Inverse(elts[i])), \" \");",
             "od;",
             'Print("\\nINV_END\\n");',
+            'Print("ISABELIAN ", IsAbelian(G), "\\n");',
             "QuitGap(0);",
         ]
     )
     proc = _run_gap_script(script)
 
-    mul_table, inv = _parse_gap_marked_output(proc.stdout, order)
+    mul_table, inv, is_abelian = _parse_gap_marked_output(proc.stdout, order)
     payload = {
         "format_version": 2,
         "order": order,
         "gid": gid,
         "mul_table": mul_table,
         "inv": inv,
+        "is_abelian": bool(is_abelian),
     }
     with open(cache_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
@@ -169,6 +192,7 @@ def smallgroup(order: int, gid: int, cache_dir: str = ".cache/gap_smallgroups") 
         name=f"SmallGroup({order},{gid})",
         mul_table=mul_table,
         inv_table=inv,
+        is_abelian=bool(is_abelian),
     )
 
 

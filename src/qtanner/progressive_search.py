@@ -67,6 +67,13 @@ def _timestamp_utc() -> str:
     return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
 
 
+def _format_elapsed(seconds: float) -> str:
+    total = int(seconds)
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
 def _safe_id_component(text: str) -> str:
     cleaned = []
     for ch in str(text):
@@ -107,6 +114,39 @@ def _build_variant_codes(base_code: LocalCode) -> List[LocalCode]:
     ]
 
 
+def _local_code_signature(
+    base_code: LocalCode,
+    variant_codes: Sequence[LocalCode],
+) -> Tuple[Tuple[int, int, Tuple[int, ...], Tuple[int, ...]], Tuple[Tuple[int, int, Tuple[int, ...], Tuple[int, ...]], ...]]:
+    base_sig = (
+        int(base_code.n),
+        int(base_code.k),
+        tuple(int(x) for x in base_code.H_rows),
+        tuple(int(x) for x in base_code.G_rows),
+    )
+    variant_sig = tuple(
+        (
+            int(code.n),
+            int(code.k),
+            tuple(int(x) for x in code.H_rows),
+            tuple(int(x) for x in code.G_rows),
+        )
+        for code in variant_codes
+    )
+    return base_sig, variant_sig
+
+
+def _local_code_specs_match(
+    base_a: LocalCode,
+    variants_a: Sequence[LocalCode],
+    base_b: LocalCode,
+    variants_b: Sequence[LocalCode],
+) -> bool:
+    return _local_code_signature(base_a, variants_a) == _local_code_signature(
+        base_b, variants_b
+    )
+
+
 def _enumerate_multisets_with_identity(order: int) -> List[List[int]]:
     if order <= 0:
         return []
@@ -134,6 +174,29 @@ def canonical_multiset(
         if mapped < best:
             best = mapped
     return best
+
+
+def _canonical_multiset_key(
+    multiset: Sequence[int],
+    *,
+    canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
+) -> Tuple[int, ...]:
+    base = tuple(sorted(int(x) for x in multiset))
+    if canonicalize is None:
+        return base
+    return canonicalize(base)
+
+
+def _inverse_multiset_key(
+    group: FiniteGroup,
+    multiset: Sequence[int],
+    *,
+    canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
+) -> Tuple[int, ...]:
+    inv_base = tuple(sorted(int(group.inv(x)) for x in multiset))
+    if canonicalize is None:
+        return inv_base
+    return canonicalize(inv_base)
 
 
 def _dedup_multisets(
@@ -379,6 +442,19 @@ def _print_histogram_top(
         )
 
 
+def _print_classical_summary(
+    *,
+    side: str,
+    total: int,
+    kept: int,
+    hist: Dict[Tuple[int, int], int],
+) -> None:
+    print(
+        f"[classical] summary {side} settings={total} kept={kept} "
+        f"hist_pairs={len(hist)}"
+    )
+
+
 def _write_histogram(
     *,
     path: Path,
@@ -408,13 +484,47 @@ def _precompute_classical_side(
     dist_m4ri_cmd: str,
     rng: random.Random,
     out_path: Path,
+    lookup: Optional[Dict[Tuple[Tuple[int, ...], int], Dict[str, object]]] = None,
+    canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
+    progress_every: int = 500,
+    progress_seconds: float = 5.0,
 ) -> Tuple[List[ProgressiveSetting], Dict[Tuple[int, int], int], int]:
     if classical_target <= 0:
         raise ValueError("--classical-target must be positive.")
+    if lookup is not None and side != "A":
+        raise ValueError("lookup can only be populated for side 'A'.")
     wmin = max(0, classical_target - 1)
     kept: List[ProgressiveSetting] = []
     hist: Dict[Tuple[int, int], int] = {}
-    total_settings = 0
+    total_settings = len(multisets) * len(variant_codes)
+    processed = 0
+    calls = 0
+    kept_count = 0
+    start_time = time.monotonic()
+    last_report_time = start_time
+    last_report_processed = 0
+
+    def _report(force: bool = False) -> None:
+        nonlocal last_report_time, last_report_processed
+        if total_settings == 0:
+            return
+        if force and processed == last_report_processed:
+            return
+        now = time.monotonic()
+        if (
+            not force
+            and processed - last_report_processed < progress_every
+            and now - last_report_time < progress_seconds
+        ):
+            return
+        pct = 100.0 * processed / total_settings
+        elapsed = _format_elapsed(now - start_time)
+        print(
+            f"[classical] {side} {processed}/{total_settings} "
+            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed}"
+        )
+        last_report_time = now
+        last_report_processed = processed
 
     if side == "A":
         build_h = build_a_slice_checks_H
@@ -443,6 +553,7 @@ def _precompute_classical_side(
                     rng=rng,
                     dist_m4ri_cmd=dist_m4ri_cmd,
                 )
+                calls += 1
                 g_eval = _classical_eval(
                     rows_g,
                     n_cols,
@@ -451,6 +562,7 @@ def _precompute_classical_side(
                     rng=rng,
                     dist_m4ri_cmd=dist_m4ri_cmd,
                 )
+                calls += 1
                 if side == "A":
                     slice_codes = {
                         "A_H": {
@@ -480,11 +592,27 @@ def _precompute_classical_side(
                 k_min = min(int(h_eval["k"]), int(g_eval["k"]))
                 d_min = min(int(h_eval["d_est"]), int(g_eval["d_est"]))
                 hist[(k_min, d_min)] = hist.get((k_min, d_min), 0) + 1
-                total_settings += 1
+                processed += 1
 
                 passes = (int(h_eval["d_signed"]) >= 0) and (
                     int(g_eval["d_signed"]) >= 0
                 )
+                if lookup is not None:
+                    lookup_key = (
+                        _canonical_multiset_key(
+                            elements, canonicalize=canonicalize
+                        ),
+                        perm_idx,
+                    )
+                    lookup[lookup_key] = {
+                        "k_min": k_min,
+                        "d_min": d_min,
+                        "slice_n": n_cols,
+                        "slice_codes": dict(slice_codes),
+                        "h_eval": dict(h_eval),
+                        "g_eval": dict(g_eval),
+                        "passes": passes,
+                    }
                 record = {
                     "side": side,
                     "group": {"spec": group.name, "order": group.order},
@@ -516,9 +644,123 @@ def _precompute_classical_side(
                             setting_id=setting_id,
                         )
                     )
+                    kept_count += 1
                     out_file.write(json.dumps(record, sort_keys=True) + "\n")
+                _report()
         out_file.flush()
-    return kept, hist, total_settings
+    _report(force=True)
+    return kept, hist, processed
+
+
+def _precompute_classical_side_from_lookup(
+    *,
+    side: str,
+    group: FiniteGroup,
+    multisets: List[List[int]],
+    variant_codes: List[LocalCode],
+    lookup: Dict[Tuple[Tuple[int, ...], int], Dict[str, object]],
+    out_path: Path,
+    canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
+    progress_every: int = 500,
+    progress_seconds: float = 5.0,
+) -> Tuple[List[ProgressiveSetting], Dict[Tuple[int, int], int], int]:
+    if side != "B":
+        raise ValueError("lookup reuse is only supported for side 'B'.")
+    kept: List[ProgressiveSetting] = []
+    hist: Dict[Tuple[int, int], int] = {}
+    total_settings = len(multisets) * len(variant_codes)
+    processed = 0
+    kept_count = 0
+    calls = 0
+    start_time = time.monotonic()
+    last_report_time = start_time
+    last_report_processed = 0
+
+    def _report(force: bool = False) -> None:
+        nonlocal last_report_time, last_report_processed
+        if total_settings == 0:
+            return
+        if force and processed == last_report_processed:
+            return
+        now = time.monotonic()
+        if (
+            not force
+            and processed - last_report_processed < progress_every
+            and now - last_report_time < progress_seconds
+        ):
+            return
+        pct = 100.0 * processed / total_settings
+        elapsed = _format_elapsed(now - start_time)
+        print(
+            f"[classical] {side} {processed}/{total_settings} "
+            f"({pct:.1f}%) kept={kept_count} calls={calls} elapsed={elapsed}"
+        )
+        last_report_time = now
+        last_report_processed = processed
+
+    with out_path.open("w", encoding="utf-8") as out_file:
+        for elements in multisets:
+            elements_repr = [group.repr(x) for x in elements]
+            inv_key = _inverse_multiset_key(
+                group, elements, canonicalize=canonicalize
+            )
+            for perm_idx, _ in enumerate(variant_codes):
+                lookup_key = (inv_key, perm_idx)
+                params = lookup.get(lookup_key)
+                if params is None:
+                    raise KeyError(
+                        f"Missing A lookup for multiset={inv_key} perm={perm_idx}."
+                    )
+                k_min = int(params["k_min"])
+                d_min = int(params["d_min"])
+                slice_n = int(params["slice_n"])
+                h_eval = dict(params["h_eval"])
+                g_eval = dict(params["g_eval"])
+                passes = bool(params["passes"])
+                slice_codes = params["slice_codes"]
+                slice_codes_b = {
+                    "B_G": dict(slice_codes["A_G"]),
+                    "B_H": dict(slice_codes["A_H"]),
+                }
+                hist[(k_min, d_min)] = hist.get((k_min, d_min), 0) + 1
+                processed += 1
+                record = {
+                    "side": side,
+                    "group": {"spec": group.name, "order": group.order},
+                    "elements": list(elements),
+                    "elements_repr": elements_repr,
+                    "perm_idx": perm_idx,
+                    "k_classical": k_min,
+                    "d_est": d_min,
+                    "slice_n": slice_n,
+                    "slice_codes": slice_codes_b,
+                    "checks": {
+                        "Hp": h_eval,
+                        "Gp": g_eval,
+                    },
+                    "passes": passes,
+                }
+                if passes:
+                    setting_id = _progressive_setting_id(side, elements, perm_idx)
+                    record["id"] = setting_id
+                    kept.append(
+                        ProgressiveSetting(
+                            side=side,
+                            elements=list(elements),
+                            elements_repr=elements_repr,
+                            perm_idx=perm_idx,
+                            k_classical=k_min,
+                            d_est=d_min,
+                            record=record,
+                            setting_id=setting_id,
+                        )
+                    )
+                    kept_count += 1
+                    out_file.write(json.dumps(record, sort_keys=True) + "\n")
+                _report()
+        out_file.flush()
+    _report(force=True)
+    return kept, hist, processed
 
 
 def _group_settings_by_k(
@@ -787,12 +1029,16 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     base_code = hamming_6_3_3_shortened()
     variant_codes = _build_variant_codes(base_code)
     perm_total = len(variant_codes)
+    local_codes_match = _local_code_specs_match(
+        base_code, variant_codes, base_code, variant_codes
+    )
 
     multisets = _enumerate_multisets_with_identity(group.order)
     raw_multiset_count = len(multisets)
     if args.min_distinct is not None:
         multisets = _filter_min_distinct(multisets, args.min_distinct)
     after_distinct_count = len(multisets)
+    automorphisms = None
     if args.dedup_cayley:
         automorphisms = group.automorphisms(
             gap_cmd=args.gap_cmd,
@@ -818,6 +1064,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         f"[progressive] perms={perm_total} settings_per_side={total_settings}"
     )
 
+    canonicalize = None
+    if automorphisms is not None:
+        canonicalize = lambda mult: canonical_multiset(  # noqa: E731
+            group, mult, automorphisms=automorphisms
+        )
+
+    use_abelian_opt = bool(group.is_abelian and local_codes_match)
+    a_lookup = {} if use_abelian_opt else None
+
     a_keep, a_hist, a_total = _precompute_classical_side(
         side="A",
         group=group,
@@ -829,6 +1084,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         dist_m4ri_cmd=args.dist_m4ri_cmd,
         rng=rng,
         out_path=outdir / "classical_A_kept.jsonl",
+        lookup=a_lookup,
+        canonicalize=canonicalize,
     )
     _print_histogram_top(side="A", hist=a_hist)
     _write_histogram(
@@ -838,22 +1095,45 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         hist=a_hist,
         classical_target=classical_target,
     )
+    _print_classical_summary(
+        side="A",
+        total=a_total,
+        kept=len(a_keep),
+        hist=a_hist,
+    )
     print(
         f"[progressive] A settings={a_total} kept={len(a_keep)}"
     )
 
-    b_keep, b_hist, b_total = _precompute_classical_side(
-        side="B",
-        group=group,
-        multisets=multisets,
-        variant_codes=variant_codes,
-        base_code=base_code,
-        steps=args.classical_steps,
-        classical_target=classical_target,
-        dist_m4ri_cmd=args.dist_m4ri_cmd,
-        rng=rng,
-        out_path=outdir / "classical_B_kept.jsonl",
-    )
+    if use_abelian_opt:
+        print(
+            "[classical] abelian optimization: skipping B dist-m4ri calls; "
+            "reusing A via inversion mapping"
+        )
+        if a_lookup is None:
+            raise RuntimeError("A lookup is missing for abelian optimization.")
+        b_keep, b_hist, b_total = _precompute_classical_side_from_lookup(
+            side="B",
+            group=group,
+            multisets=multisets,
+            variant_codes=variant_codes,
+            lookup=a_lookup,
+            out_path=outdir / "classical_B_kept.jsonl",
+            canonicalize=canonicalize,
+        )
+    else:
+        b_keep, b_hist, b_total = _precompute_classical_side(
+            side="B",
+            group=group,
+            multisets=multisets,
+            variant_codes=variant_codes,
+            base_code=base_code,
+            steps=args.classical_steps,
+            classical_target=classical_target,
+            dist_m4ri_cmd=args.dist_m4ri_cmd,
+            rng=rng,
+            out_path=outdir / "classical_B_kept.jsonl",
+        )
     _print_histogram_top(side="B", hist=b_hist)
     _write_histogram(
         path=outdir / "classical_B_histogram.json",
@@ -861,6 +1141,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         group=group,
         hist=b_hist,
         classical_target=classical_target,
+    )
+    _print_classical_summary(
+        side="B",
+        total=b_total,
+        kept=len(b_keep),
+        hist=b_hist,
     )
     print(
         f"[progressive] B settings={b_total} kept={len(b_keep)}"

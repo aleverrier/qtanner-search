@@ -49,6 +49,7 @@ Notes:
 - Ctrl-C stops after the current evaluation and prints the final best-by-k table.
 - Outputs live under the run directory (classical JSONL + histograms, `best_codes/`, `milestones.jsonl`).
 - Quantum distance evaluation runs a fast pass first; slow pass runs only if `d_fast >= ceil(sqrt(n))` and beats the current best-by-k bound for that k. Best-by-k entries are only recorded from the slow pass.
+- For abelian groups with identical local codes, B classical precompute is skipped and reuses A via inversion mapping; classical precompute logs `[classical]` progress lines with counts and elapsed time.
 
 ## 2) Monitor progress (macOS: no 'watch' needed)
 OUT="$(ls -td runs/* | head -n 1)"

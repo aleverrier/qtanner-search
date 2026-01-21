@@ -6,12 +6,13 @@ import re
 import subprocess
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 _SMALLGROUP_RE = re.compile(r"(?:SmallGroup|SG)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)", re.IGNORECASE)
 _CYCLIC_RE = re.compile(r"([CZ])(\d+)$", re.IGNORECASE)
 
 _ORDER_PREFIX = "ORDER "
+_ISABELIAN_PREFIX = "ISABELIAN "
 _ELTS_BEGIN = "ELTS_BEGIN"
 _ELTS_END = "ELTS_END"
 _MUL_BEGIN = "MUL_BEGIN"
@@ -32,6 +33,7 @@ class GapGroupData:
     mul_table: List[List[int]]
     inv_table: List[int]
     automorphisms: List[List[int]]
+    is_abelian: bool
 
 
 def _normalize_spec(spec: str) -> str:
@@ -120,6 +122,7 @@ def _build_group_script(gap_expr: str, *, needs_smallgrp: bool) -> str:
             "fi;",
             "n := Length(elts);;",
             f'Print("{_ORDER_PREFIX}", n, "\\n");',
+            f'Print("{_ISABELIAN_PREFIX}", IsAbelian(G), "\\n");',
             f'Print("{_ELTS_BEGIN}\\n");',
             "for i in [1..n] do",
             "  Print(String(elts[i]), \"\\n\");",
@@ -165,12 +168,23 @@ def _build_group_script(gap_expr: str, *, needs_smallgrp: bool) -> str:
 def _parse_gap_group_output(output: str, spec: str) -> GapGroupData:
     lines = output.splitlines()
     order = None
+    is_abelian: Optional[bool] = None
     for line in lines:
         if line.startswith(_ORDER_PREFIX):
             try:
                 order = int(line[len(_ORDER_PREFIX) :].strip())
             except ValueError as exc:
                 raise RuntimeError(f"Invalid GAP order line: {line!r}") from exc
+            break
+    for line in lines:
+        if line.startswith(_ISABELIAN_PREFIX):
+            token = line[len(_ISABELIAN_PREFIX) :].strip().lower()
+            if token in ("true", "false"):
+                is_abelian = token == "true"
+            elif token in ("1", "0"):
+                is_abelian = token == "1"
+            else:
+                raise RuntimeError(f"Invalid GAP IsAbelian line: {line!r}")
             break
     if order is None:
         raise RuntimeError("GAP output missing ORDER line.")
@@ -228,6 +242,13 @@ def _parse_gap_group_output(output: str, spec: str) -> GapGroupData:
     if not automorphisms:
         automorphisms = [list(range(order))]
 
+    if is_abelian is None:
+        is_abelian = all(
+            mul_table[i][j] == mul_table[j][i]
+            for i in range(order)
+            for j in range(order)
+        )
+
     return GapGroupData(
         spec=spec,
         order=order,
@@ -235,6 +256,7 @@ def _parse_gap_group_output(output: str, spec: str) -> GapGroupData:
         mul_table=mul_table,
         inv_table=inv_table,
         automorphisms=automorphisms,
+        is_abelian=bool(is_abelian),
     )
 
 

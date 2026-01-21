@@ -10,6 +10,7 @@ def test_gap_backend_parses_group_data(monkeypatch) -> None:
     output = "\n".join(
         [
             "ORDER 2",
+            "ISABELIAN true",
             "ELTS_BEGIN",
             "<identity>",
             "a",
@@ -40,6 +41,7 @@ def test_gap_backend_parses_group_data(monkeypatch) -> None:
     assert data.mul_table == [[0, 1], [1, 0]]
     assert data.inv_table == [0, 1]
     assert data.automorphisms == [[0, 1], [1, 0]]
+    assert data.is_abelian is True
 
 
 def test_gap_backend_missing_gap(monkeypatch) -> None:
