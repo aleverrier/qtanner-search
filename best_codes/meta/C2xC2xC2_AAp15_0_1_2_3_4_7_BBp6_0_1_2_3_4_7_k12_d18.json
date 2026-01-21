@@ -19,15 +19,21 @@
   "B_id": "p6_0_1_2_3_4_7",
   "also_seen_in": [],
   "code_id": "C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18",
-  "collected_at_utc": "2026-01-21T14:28:32Z",
+  "collected_at_utc": "2026-01-21T15:47:20Z",
   "collected_dir": "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18",
   "collected_files": [
     "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/Hz.mtx",
     "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/Hx.mtx",
-    "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/meta.json"
+    "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/meta.json",
+    "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/settings.json"
   ],
+  "d_in_id": 18,
   "d_recorded": 18,
-  "d_recorded_kind": "d_ub",
+  "d_recorded_kind": "from_code_id",
+  "distance_method": null,
+  "distance_seed": 440096125,
+  "distance_trials": 50000,
+  "distance_trials_path": "distance/slow/steps",
   "group": "C2xC2xC2",
   "k": 12,
   "matrices_flat": [
@@ -35,6 +41,204 @@
     "best_codes/matrices/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18__Hx.mtx"
   ],
   "n": 288,
+  "permutation_candidates": [],
   "run_dir": "results/progressive_c2xc2xc2_d16_20260121_133928",
+  "schema": "explicitqt_best_code_meta_v1",
+  "settings_path": "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/settings.json",
+  "source_meta": {
+    "A": {
+      "checks": {
+        "G": {
+          "d_est": 12,
+          "d_signed": 12,
+          "early_stop": false,
+          "k": 7,
+          "rank": 41,
+          "seed": 2055770188
+        },
+        "H": {
+          "d_est": 12,
+          "d_signed": 12,
+          "early_stop": false,
+          "k": 7,
+          "rank": 41,
+          "seed": 155970325
+        }
+      },
+      "d_est": 12,
+      "elements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "elements_repr": [
+        "((0,0),0)",
+        "((0,0),1)",
+        "((0,1),0)",
+        "((0,1),1)",
+        "((1,0),0)",
+        "((1,1),1)"
+      ],
+      "group": {
+        "order": 8,
+        "spec": "C2xC2xC2"
+      },
+      "id": "Ap15_0-1-2-3-4-7",
+      "k_classical": 7,
+      "passes": true,
+      "perm_idx": 15,
+      "side": "A",
+      "slice_codes": {
+        "A_G": {
+          "d_ub": 12,
+          "k": 7,
+          "n": 48
+        },
+        "A_H": {
+          "d_ub": 12,
+          "k": 7,
+          "n": 48
+        }
+      },
+      "slice_n": 48
+    },
+    "B": {
+      "checks": {
+        "Gp": {
+          "d_est": 24,
+          "d_signed": 24,
+          "early_stop": false,
+          "k": 6,
+          "rank": 42,
+          "seed": 741685757
+        },
+        "Hp": {
+          "d_est": 24,
+          "d_signed": 24,
+          "early_stop": false,
+          "k": 6,
+          "rank": 42,
+          "seed": 1732956158
+        }
+      },
+      "d_est": 24,
+      "elements": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        7
+      ],
+      "elements_repr": [
+        "((0,0),0)",
+        "((0,0),1)",
+        "((0,1),0)",
+        "((0,1),1)",
+        "((1,0),0)",
+        "((1,1),1)"
+      ],
+      "group": {
+        "order": 8,
+        "spec": "C2xC2xC2"
+      },
+      "id": "Bp6_0-1-2-3-4-7",
+      "k_classical": 6,
+      "passes": true,
+      "perm_idx": 6,
+      "side": "B",
+      "slice_codes": {
+        "B_G": {
+          "d_ub": 24,
+          "k": 6,
+          "n": 48
+        },
+        "B_H": {
+          "d_ub": 24,
+          "k": 6,
+          "n": 48
+        }
+      },
+      "slice_n": 48
+    },
+    "classical_slices": {
+      "A_G": {
+        "d_ub": 12,
+        "k": 7,
+        "n": 48
+      },
+      "A_H": {
+        "d_ub": 12,
+        "k": 7,
+        "n": 48
+      },
+      "B_G": {
+        "d_ub": 24,
+        "k": 6,
+        "n": 48
+      },
+      "B_H": {
+        "d_ub": 24,
+        "k": 6,
+        "n": 48
+      }
+    },
+    "code_id": "C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18",
+    "distance": {
+      "d_fast_ub": 18,
+      "d_slow_ub": 18,
+      "d_ub": 18,
+      "fast": {
+        "d_ub": 18,
+        "dx_signed": 18,
+        "dx_ub": 18,
+        "dz_signed": 18,
+        "dz_ub": 18,
+        "early_stop_x": false,
+        "early_stop_z": false,
+        "seed_x": 440096125,
+        "seed_z": 161730479,
+        "steps": 2000
+      },
+      "method": "dist_m4ri_rw",
+      "slow": {
+        "d_ub": 18,
+        "dx_signed": 18,
+        "dx_ub": 18,
+        "dz_signed": 18,
+        "dz_ub": 18,
+        "early_stop_x": false,
+        "early_stop_z": false,
+        "seed_x": 678434173,
+        "seed_z": 1900171997,
+        "steps": 50000
+      },
+      "sqrt_n": 17,
+      "steps_fast": 2000,
+      "steps_slow": 50000,
+      "wmin": 15
+    },
+    "group": {
+      "order": 8,
+      "spec": "C2xC2xC2"
+    },
+    "k": 12,
+    "local_codes": {
+      "C0": "hamming_6_3_3_shortened",
+      "C0p": "hamming_6_3_3_shortened",
+      "C1": "hamming_6_3_3_shortened_var15",
+      "C1p": "hamming_6_3_3_shortened_var6",
+      "permA_idx": 15,
+      "permB_idx": 6
+    },
+    "n": 288,
+    "seed": 1,
+    "target_distance": 16
+  },
+  "source_meta_path_in_collected": "best_codes/collected/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/meta.json",
+  "source_meta_path_in_src": "results/progressive_c2xc2xc2_d16_20260121_133928/best_codes/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18/meta.json",
   "src_dir": "results/progressive_c2xc2xc2_d16_20260121_133928/best_codes/C2xC2xC2_AAp15_0_1_2_3_4_7_BBp6_0_1_2_3_4_7_k12_d18"
 }
