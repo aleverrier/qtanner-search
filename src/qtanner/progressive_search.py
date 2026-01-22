@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import multiprocessing as mp
+import os
 import random
+import sys
 import time
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from pathlib import Path
@@ -55,15 +58,17 @@ class ProgressiveSetting:
 
 
 @dataclass(frozen=True)
-class TwoStageDistanceResult:
-    passed: bool
-    d_final_ub: Optional[int]
-    d_fast_ub: Optional[int]
-    d_slow_ub: Optional[int]
-    sqrt_n: int
+class ProgressiveDistanceResult:
+    passed_fast: bool
+    d_x_best: int
+    d_z_best: int
+    steps_x: int
+    steps_z: int
     fast: Dict[str, object]
-    slow: Optional[Dict[str, object]]
-    ran_slow: bool
+    refine_chunks: List[Dict[str, object]]
+    ran_refine: bool
+    aborted: bool
+    abort_reason: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -151,6 +156,12 @@ def _format_elapsed(seconds: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
+def _stable_seed(seed: int, label: str) -> int:
+    payload = f"{int(seed)}:{label}".encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    return int.from_bytes(digest[:4], "big") & ((1 << 31) - 1)
+
+
 def _safe_id_component(text: str) -> str:
     cleaned = []
     for ch in str(text):
@@ -165,6 +176,19 @@ def _safe_id_component(text: str) -> str:
 def _ceil_sqrt(n: int) -> int:
     root = math.isqrt(n)
     return root if root * root == n else root + 1
+
+
+def _adaptive_quantum_steps_slow(n_cols: int) -> int:
+    if n_cols <= 200:
+        return 50000
+    if n_cols <= 600:
+        return 200000
+    return 500000
+
+
+def _argv_has_flag(argv: Sequence[str], flag: str) -> bool:
+    prefix = f"{flag}="
+    return any(arg == flag or arg.startswith(prefix) for arg in argv)
 
 
 def _progressive_setting_id(side: str, elements: Sequence[int], perm_idx: int) -> str:
@@ -369,7 +393,7 @@ def _classical_eval(
 
 
 def _evaluate_classical_chunk(
-    settings: List[Tuple[List[int], int, int, int]],
+    settings: List[Tuple[List[int], int]],
     *,
     side: str,
     group: FiniteGroup,
@@ -383,14 +407,20 @@ def _evaluate_classical_chunk(
     dist_m4ri_cmd: str,
     first_label: str,
     timings_enabled: bool,
+    classical_jobs: int,
+    seed_base: int,
     eval_fn: Callable[..., Dict[str, object]] = _classical_eval,
 ) -> Tuple[List[ClassicalEvalResult], Dict[str, float], int]:
     if side == "A":
         build_h = build_a_slice_checks_H
         build_g = build_a_slice_checks_G
+        slice_h_key = "A_H"
+        slice_g_key = "A_G"
     elif side == "B":
         build_h = build_b_slice_checks_Hp
         build_g = build_b_slice_checks_Gp
+        slice_h_key = "B_H"
+        slice_g_key = "B_G"
     else:
         raise ValueError("side must be 'A' or 'B'.")
 
@@ -399,6 +429,9 @@ def _evaluate_classical_chunk(
     results: List[ClassicalEvalResult] = []
     calls = 0
     first_is_h = first_label.upper().startswith("H")
+    thread_pool: Optional[ThreadPoolExecutor] = None
+    if classical_jobs > 1:
+        thread_pool = ThreadPoolExecutor(max_workers=classical_jobs)
 
     def _passes(eval_entry: Dict[str, object]) -> bool:
         witness = eval_entry.get("d_witness")
@@ -406,72 +439,56 @@ def _evaluate_classical_chunk(
             return True
         return int(witness) > wmin
 
-    for elements, perm_idx, seed_h, seed_g in settings:
-        C1 = variant_codes[perm_idx]
-        if first_is_h:
-            build_start = time.perf_counter()
-            rows_h, n_cols = build_h(group, elements, base_code, C1)
-            _add_timing(timings, "build_slices", time.perf_counter() - build_start)
-            h_eval = eval_fn(
-                rows_h,
-                n_cols,
-                steps=steps,
-                wmin=wmin,
-                rng=dummy_rng,
-                dist_m4ri_cmd=dist_m4ri_cmd,
-                backend=backend,
-                exhaustive_k_max=exhaustive_k_max,
-                sample_count=sample_count,
-                seed_override=seed_h,
-                timings=timings,
-            )
-            calls += 1
-            passes = _passes(h_eval)
-            if passes:
+    def _slice_seed(slice_key: str, setting_id: str) -> int:
+        return _stable_seed(seed_base, f"{slice_key}:{setting_id}")
+
+    def _eval_rows(
+        rows: Sequence[int],
+        n_cols: int,
+        seed_override: int,
+    ) -> Tuple[Dict[str, object], Optional[Dict[str, float]]]:
+        local_timings: Optional[Dict[str, float]] = (
+            {} if timings_enabled else None
+        )
+        eval_entry = eval_fn(
+            rows,
+            n_cols,
+            steps=steps,
+            wmin=wmin,
+            rng=dummy_rng,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+            backend=backend,
+            exhaustive_k_max=exhaustive_k_max,
+            sample_count=sample_count,
+            seed_override=seed_override,
+            timings=local_timings,
+        )
+        return eval_entry, local_timings
+
+    try:
+        for elements, perm_idx in settings:
+            C1 = variant_codes[perm_idx]
+            setting_id = _progressive_setting_id(side, elements, perm_idx)
+            seed_h = _slice_seed(slice_h_key, setting_id)
+            seed_g = _slice_seed(slice_g_key, setting_id)
+            if thread_pool is not None:
                 build_start = time.perf_counter()
+                rows_h, n_cols = build_h(group, elements, base_code, C1)
                 rows_g, _ = build_g(group, elements, base_code, C1)
                 _add_timing(
                     timings, "build_slices", time.perf_counter() - build_start
                 )
-                g_eval = eval_fn(
-                    rows_g,
-                    n_cols,
-                    steps=steps,
-                    wmin=wmin,
-                    rng=dummy_rng,
-                    dist_m4ri_cmd=dist_m4ri_cmd,
-                    backend=backend,
-                    exhaustive_k_max=exhaustive_k_max,
-                    sample_count=sample_count,
-                    seed_override=seed_g,
-                    timings=timings,
-                )
-                calls += 1
-                passes = passes and _passes(g_eval)
-            else:
-                g_eval = _skipped_eval(backend)
-        else:
-            build_start = time.perf_counter()
-            rows_g, n_cols = build_g(group, elements, base_code, C1)
-            _add_timing(timings, "build_slices", time.perf_counter() - build_start)
-            g_eval = eval_fn(
-                rows_g,
-                n_cols,
-                steps=steps,
-                wmin=wmin,
-                rng=dummy_rng,
-                dist_m4ri_cmd=dist_m4ri_cmd,
-                backend=backend,
-                exhaustive_k_max=exhaustive_k_max,
-                sample_count=sample_count,
-                seed_override=seed_g,
-                timings=timings,
-            )
-            calls += 1
-            passes = _passes(g_eval)
-            if passes:
+                future_h = thread_pool.submit(_eval_rows, rows_h, n_cols, seed_h)
+                future_g = thread_pool.submit(_eval_rows, rows_g, n_cols, seed_g)
+                h_eval, h_timings = future_h.result()
+                g_eval, g_timings = future_g.result()
+                calls += 2
+                _merge_timings(timings, h_timings)
+                _merge_timings(timings, g_timings)
+                passes = _passes(h_eval) and _passes(g_eval)
+            elif first_is_h:
                 build_start = time.perf_counter()
-                rows_h, _ = build_h(group, elements, base_code, C1)
+                rows_h, n_cols = build_h(group, elements, base_code, C1)
                 _add_timing(
                     timings, "build_slices", time.perf_counter() - build_start
                 )
@@ -489,218 +506,283 @@ def _evaluate_classical_chunk(
                     timings=timings,
                 )
                 calls += 1
-                passes = passes and _passes(h_eval)
+                passes = _passes(h_eval)
+                if passes:
+                    build_start = time.perf_counter()
+                    rows_g, _ = build_g(group, elements, base_code, C1)
+                    _add_timing(
+                        timings, "build_slices", time.perf_counter() - build_start
+                    )
+                    g_eval = eval_fn(
+                        rows_g,
+                        n_cols,
+                        steps=steps,
+                        wmin=wmin,
+                        rng=dummy_rng,
+                        dist_m4ri_cmd=dist_m4ri_cmd,
+                        backend=backend,
+                        exhaustive_k_max=exhaustive_k_max,
+                        sample_count=sample_count,
+                        seed_override=seed_g,
+                        timings=timings,
+                    )
+                    calls += 1
+                    passes = passes and _passes(g_eval)
+                else:
+                    g_eval = _skipped_eval(backend)
             else:
-                h_eval = _skipped_eval(backend)
+                build_start = time.perf_counter()
+                rows_g, n_cols = build_g(group, elements, base_code, C1)
+                _add_timing(
+                    timings, "build_slices", time.perf_counter() - build_start
+                )
+                g_eval = eval_fn(
+                    rows_g,
+                    n_cols,
+                    steps=steps,
+                    wmin=wmin,
+                    rng=dummy_rng,
+                    dist_m4ri_cmd=dist_m4ri_cmd,
+                    backend=backend,
+                    exhaustive_k_max=exhaustive_k_max,
+                    sample_count=sample_count,
+                    seed_override=seed_g,
+                    timings=timings,
+                )
+                calls += 1
+                passes = _passes(g_eval)
+                if passes:
+                    build_start = time.perf_counter()
+                    rows_h, _ = build_h(group, elements, base_code, C1)
+                    _add_timing(
+                        timings, "build_slices", time.perf_counter() - build_start
+                    )
+                    h_eval = eval_fn(
+                        rows_h,
+                        n_cols,
+                        steps=steps,
+                        wmin=wmin,
+                        rng=dummy_rng,
+                        dist_m4ri_cmd=dist_m4ri_cmd,
+                        backend=backend,
+                        exhaustive_k_max=exhaustive_k_max,
+                        sample_count=sample_count,
+                        seed_override=seed_h,
+                        timings=timings,
+                    )
+                    calls += 1
+                    passes = passes and _passes(h_eval)
+                else:
+                    h_eval = _skipped_eval(backend)
 
-        k_vals = [val for val in (h_eval.get("k"), g_eval.get("k")) if val is not None]
-        d_vals = [val for val in (h_eval.get("d_est"), g_eval.get("d_est")) if val is not None]
-        k_min = min(int(val) for val in k_vals) if k_vals else 0
-        d_min = min(int(val) for val in d_vals) if d_vals else 0
-        results.append(
-            ClassicalEvalResult(
-                elements=list(elements),
-                perm_idx=perm_idx,
-                n_cols=n_cols,
-                h_eval=h_eval,
-                g_eval=g_eval,
-                passes=passes,
-                k_min=k_min,
-                d_min=d_min,
+            k_vals = [
+                val for val in (h_eval.get("k"), g_eval.get("k")) if val is not None
+            ]
+            d_vals = [
+                val
+                for val in (h_eval.get("d_est"), g_eval.get("d_est"))
+                if val is not None
+            ]
+            k_min = min(int(val) for val in k_vals) if k_vals else 0
+            d_min = min(int(val) for val in d_vals) if d_vals else 0
+            results.append(
+                ClassicalEvalResult(
+                    elements=list(elements),
+                    perm_idx=perm_idx,
+                    n_cols=n_cols,
+                    h_eval=h_eval,
+                    g_eval=g_eval,
+                    passes=passes,
+                    k_min=k_min,
+                    d_min=d_min,
+                )
             )
-        )
+    finally:
+        if thread_pool is not None:
+            thread_pool.shutdown()
 
     return results, (timings or {}), calls
 
 
-def _estimate_css_distance_rw(
+def _estimate_css_distance_direction(
     hx_rows: Sequence[int],
     hz_rows: Sequence[int],
     n_cols: int,
     *,
     steps: int,
     wmin: int,
-    target_distance: int,
     rng: random.Random,
     dist_m4ri_cmd: str,
     estimator: Callable[..., int] = run_dist_m4ri_css_rw,
     timings: Optional[Dict[str, float]] = None,
-) -> Tuple[Dict[str, object], bool]:
-    seed_z = rng.randrange(1 << 31)
+) -> Dict[str, object]:
+    seed = rng.randrange(1 << 31)
     if timings is None:
-        dz_signed = estimator(
+        signed = estimator(
             hx_rows,
             hz_rows,
             n_cols,
             steps,
             wmin,
-            seed=seed_z,
+            seed=seed,
             dist_m4ri_cmd=dist_m4ri_cmd,
         )
     else:
-        dz_signed = estimator(
+        signed = estimator(
             hx_rows,
             hz_rows,
             n_cols,
             steps,
             wmin,
-            seed=seed_z,
+            seed=seed,
             dist_m4ri_cmd=dist_m4ri_cmd,
             timings=timings,
         )
-    dz_ub = abs(dz_signed)
-    early_stop_z = dz_signed < 0
-    if early_stop_z or dz_ub < target_distance:
-        return (
-            {
-                "steps": steps,
-                "seed_z": seed_z,
-                "seed_x": None,
-                "dz_signed": dz_signed,
-                "dx_signed": None,
-                "dz_ub": dz_ub,
-                "dx_ub": None,
-                "d_ub": None,
-                "early_stop_z": early_stop_z,
-                "early_stop_x": False,
-            },
-            False,
-        )
-
-    seed_x = rng.randrange(1 << 31)
-    if timings is None:
-        dx_signed = estimator(
-            hz_rows,
-            hx_rows,
-            n_cols,
-            steps,
-            wmin,
-            seed=seed_x,
-            dist_m4ri_cmd=dist_m4ri_cmd,
-        )
-    else:
-        dx_signed = estimator(
-            hz_rows,
-            hx_rows,
-            n_cols,
-            steps,
-            wmin,
-            seed=seed_x,
-            dist_m4ri_cmd=dist_m4ri_cmd,
-            timings=timings,
-        )
-    dx_ub = abs(dx_signed)
-    early_stop_x = dx_signed < 0
-    d_ub = min(dz_ub, dx_ub)
-    passed = (not early_stop_x) and d_ub >= target_distance
-    return (
-        {
-            "steps": steps,
-            "seed_z": seed_z,
-            "seed_x": seed_x,
-            "dz_signed": dz_signed,
-            "dx_signed": dx_signed,
-            "dz_ub": dz_ub,
-            "dx_ub": dx_ub,
-            "d_ub": d_ub,
-            "early_stop_z": early_stop_z,
-            "early_stop_x": early_stop_x,
-        },
-        passed,
-    )
+    d_ub = abs(signed)
+    return {
+        "steps": steps,
+        "seed": seed,
+        "signed": signed,
+        "d_ub": d_ub,
+        "early_stop": signed < 0,
+    }
 
 
-def _two_stage_css_distance(
+def _progressive_css_distance(
     hx_rows: Sequence[int],
     hz_rows: Sequence[int],
     n_cols: int,
     *,
-    target_distance: int,
-    wmin: int,
+    must_exceed: int,
     steps_fast: int,
     steps_slow: int,
-    current_best: float,
+    refine_chunk: int,
     rng: random.Random,
     dist_m4ri_cmd: str,
     estimator: Callable[..., int] = run_dist_m4ri_css_rw,
-    on_refine: Optional[Callable[[int, int, float], None]] = None,
+    on_chunk: Optional[
+        Callable[[int, int, int, int, int, Optional[str]], None]
+    ] = None,
     timings: Optional[Dict[str, float]] = None,
-) -> TwoStageDistanceResult:
-    sqrt_n = math.isqrt(n_cols)
-    if sqrt_n * sqrt_n < n_cols:
-        sqrt_n += 1
-
-    fast_eval, fast_ok = _estimate_css_distance_rw(
+) -> ProgressiveDistanceResult:
+    wmin = max(0, int(must_exceed))
+    dz_fast = _estimate_css_distance_direction(
         hx_rows,
         hz_rows,
         n_cols,
         steps=steps_fast,
         wmin=wmin,
-        target_distance=target_distance,
         rng=rng,
         dist_m4ri_cmd=dist_m4ri_cmd,
         estimator=estimator,
         timings=timings,
     )
-    d_fast_ub = (
-        None if fast_eval.get("d_ub") is None else int(fast_eval["d_ub"])
+    dx_fast = _estimate_css_distance_direction(
+        hz_rows,
+        hx_rows,
+        n_cols,
+        steps=steps_fast,
+        wmin=wmin,
+        rng=rng,
+        dist_m4ri_cmd=dist_m4ri_cmd,
+        estimator=estimator,
+        timings=timings,
     )
-    if not fast_ok or d_fast_ub is None:
-        return TwoStageDistanceResult(
-            passed=False,
-            d_final_ub=None,
-            d_fast_ub=d_fast_ub,
-            d_slow_ub=None,
-            sqrt_n=sqrt_n,
-            fast=fast_eval,
-            slow=None,
-            ran_slow=False,
-        )
+    d_z_best = int(dz_fast["d_ub"])
+    d_x_best = int(dx_fast["d_ub"])
+    steps_z = steps_fast
+    steps_x = steps_fast
+    passed_fast = d_x_best > must_exceed and d_z_best > must_exceed
+    refine_chunks: List[Dict[str, object]] = []
+    ran_refine = False
+    aborted = False
+    abort_reason: Optional[str] = None
 
-    should_slow = d_fast_ub >= sqrt_n and d_fast_ub > current_best
-    slow_eval: Optional[Dict[str, object]] = None
-    d_slow_ub: Optional[int] = None
-    if should_slow:
-        if on_refine is not None:
-            on_refine(d_fast_ub, sqrt_n, current_best)
-        slow_eval, slow_ok = _estimate_css_distance_rw(
-            hx_rows,
-            hz_rows,
-            n_cols,
-            steps=steps_slow,
-            wmin=wmin,
-            target_distance=target_distance,
-            rng=rng,
-            dist_m4ri_cmd=dist_m4ri_cmd,
-            estimator=estimator,
-            timings=timings,
-        )
-        if slow_eval.get("d_ub") is not None:
-            d_slow_ub = int(slow_eval["d_ub"])
-        if not slow_ok or d_slow_ub is None:
-            return TwoStageDistanceResult(
-                passed=False,
-                d_final_ub=None,
-                d_fast_ub=d_fast_ub,
-                d_slow_ub=d_slow_ub,
-                sqrt_n=sqrt_n,
-                fast=fast_eval,
-                slow=slow_eval,
-                ran_slow=True,
+    if passed_fast and steps_slow > steps_fast:
+        ran_refine = True
+        steps_used = steps_fast
+        chunk_index = 0
+        while steps_used < steps_slow:
+            chunk_steps = min(refine_chunk, steps_slow - steps_used)
+            chunk_index += 1
+            dx_chunk = _estimate_css_distance_direction(
+                hz_rows,
+                hx_rows,
+                n_cols,
+                steps=chunk_steps,
+                wmin=wmin,
+                rng=rng,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+                estimator=estimator,
+                timings=timings,
             )
-        d_final_ub = d_slow_ub
-    else:
-        d_final_ub = d_fast_ub
+            steps_x += chunk_steps
+            d_x_best = min(d_x_best, int(dx_chunk["d_ub"]))
+            chunk_record: Dict[str, object] = {
+                "chunk": chunk_index,
+                "steps": chunk_steps,
+                "dx": dx_chunk,
+                "d_x_best": d_x_best,
+            }
+            if d_x_best <= must_exceed:
+                aborted = True
+                abort_reason = "dx<=must_exceed"
+                chunk_record["abort_reason"] = abort_reason
+                refine_chunks.append(chunk_record)
+                if on_chunk is not None:
+                    on_chunk(
+                        chunk_index,
+                        steps_x,
+                        steps_z,
+                        d_x_best,
+                        d_z_best,
+                        abort_reason,
+                    )
+                break
+            dz_chunk = _estimate_css_distance_direction(
+                hx_rows,
+                hz_rows,
+                n_cols,
+                steps=chunk_steps,
+                wmin=wmin,
+                rng=rng,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+                estimator=estimator,
+                timings=timings,
+            )
+            steps_z += chunk_steps
+            d_z_best = min(d_z_best, int(dz_chunk["d_ub"]))
+            chunk_record["dz"] = dz_chunk
+            chunk_record["d_z_best"] = d_z_best
+            if d_z_best <= must_exceed:
+                aborted = True
+                abort_reason = "dz<=must_exceed"
+                chunk_record["abort_reason"] = abort_reason
+            refine_chunks.append(chunk_record)
+            if on_chunk is not None:
+                on_chunk(
+                    chunk_index,
+                    steps_x,
+                    steps_z,
+                    d_x_best,
+                    d_z_best,
+                    abort_reason,
+                )
+            if aborted:
+                break
+            steps_used += chunk_steps
 
-    return TwoStageDistanceResult(
-        passed=True,
-        d_final_ub=d_final_ub,
-        d_fast_ub=d_fast_ub,
-        d_slow_ub=d_slow_ub,
-        sqrt_n=sqrt_n,
-        fast=fast_eval,
-        slow=slow_eval,
-        ran_slow=should_slow,
+    return ProgressiveDistanceResult(
+        passed_fast=passed_fast,
+        d_x_best=d_x_best,
+        d_z_best=d_z_best,
+        steps_x=steps_x,
+        steps_z=steps_z,
+        fast={"dx": dx_fast, "dz": dz_fast},
+        refine_chunks=refine_chunks,
+        ran_refine=ran_refine,
+        aborted=aborted,
+        abort_reason=abort_reason,
     )
 
 
@@ -780,9 +862,11 @@ def _precompute_classical_side(
     classical_exhaustive_k_max: int,
     classical_sample_count: int,
     dist_m4ri_cmd: str,
-    rng: random.Random,
+    seed_base: Optional[int] = None,
+    rng: Optional[random.Random] = None,
     out_path: Path,
     classical_workers: int = 1,
+    classical_jobs: int = 1,
     lookup: Optional[Dict[Tuple[Tuple[int, ...], int], Dict[str, object]]] = None,
     canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
     progress_every: int = 500,
@@ -796,6 +880,12 @@ def _precompute_classical_side(
         raise ValueError("lookup can only be populated for side 'A'.")
     if classical_workers <= 0:
         raise ValueError("--classical-workers must be positive.")
+    if classical_jobs <= 0:
+        raise ValueError("--classical-jobs must be positive.")
+    if seed_base is None:
+        if rng is None:
+            raise ValueError("seed_base or rng is required for classical seeding.")
+        seed_base = rng.randrange(1 << 31)
     if classical_eval_fn is None:
         classical_eval_fn = _classical_eval
     wmin = max(0, classical_target - 1)
@@ -920,7 +1010,7 @@ def _precompute_classical_side(
             executor = None
 
     def _consume_batch(
-        batch: List[Tuple[List[int], int, int, int]],
+        batch: List[Tuple[List[int], int]],
         out_file,
     ) -> None:
         nonlocal calls, processed, kept_count, exact_evals, sampled_evals
@@ -949,6 +1039,8 @@ def _precompute_classical_side(
                     dist_m4ri_cmd=dist_m4ri_cmd,
                     first_label=first_label,
                     timings_enabled=timings is not None,
+                    classical_jobs=classical_jobs,
+                    seed_base=seed_base,
                     eval_fn=classical_eval_fn,
                 )
         else:
@@ -968,6 +1060,8 @@ def _precompute_classical_side(
                     dist_m4ri_cmd=dist_m4ri_cmd,
                     first_label=first_label,
                     timings_enabled=timings is not None,
+                    classical_jobs=classical_jobs,
+                    seed_base=seed_base,
                     eval_fn=classical_eval_fn,
                 )
                 for idx, chunk in enumerate(chunks)
@@ -1064,12 +1158,10 @@ def _precompute_classical_side(
 
     try:
         with out_path.open("w", encoding="utf-8") as out_file:
-            batch: List[Tuple[List[int], int, int, int]] = []
+            batch: List[Tuple[List[int], int]] = []
             for elements in multisets:
                 for perm_idx in range(len(variant_codes)):
-                    seed_h = rng.randrange(1 << 31)
-                    seed_g = rng.randrange(1 << 31)
-                    batch.append((list(elements), perm_idx, seed_h, seed_g))
+                    batch.append((list(elements), perm_idx))
                     if len(batch) >= batch_size:
                         _consume_batch(batch, out_file)
                         batch = []
@@ -1372,6 +1464,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         help="Process count for classical precompute (default: 1).",
     )
     parser.add_argument(
+        "--classical-jobs",
+        type=int,
+        default=0,
+        help="Thread count for per-setting classical slice eval (0=auto).",
+    )
+    parser.add_argument(
         "--quantum-steps-fast",
         type=int,
         default=2000,
@@ -1380,8 +1478,17 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument(
         "--quantum-steps-slow",
         type=int,
-        default=50000,
-        help="dist_m4ri RW steps for slow quantum distance estimates.",
+        default=None,
+        help=(
+            "dist_m4ri RW steps for slow quantum distance estimates "
+            "(default: adaptive based on n)."
+        ),
+    )
+    parser.add_argument(
+        "--quantum-refine-chunk",
+        type=int,
+        default=20000,
+        help="dist_m4ri RW steps per refinement chunk.",
     )
     parser.add_argument(
         "--quantum-steps",
@@ -1439,7 +1546,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         action="store_true",
         help="Print timing breakdowns for progressive runs.",
     )
-    args = parser.parse_args(argv)
+    raw_argv = list(argv) if argv is not None else sys.argv[1:]
+    args = parser.parse_args(raw_argv)
 
     if args.target_distance <= 0:
         raise ValueError("--target-distance must be positive.")
@@ -1451,12 +1559,13 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--classical-sample-count must be positive.")
     if args.classical_workers <= 0:
         raise ValueError("--classical-workers must be positive.")
+    if args.classical_jobs < 0:
+        raise ValueError("--classical-jobs must be nonnegative.")
     if args.quantum_steps is not None:
         if args.quantum_steps <= 0:
             raise ValueError("--quantum-steps must be positive.")
-        if (
-            args.quantum_steps_fast != 2000
-            or args.quantum_steps_slow != 50000
+        if _argv_has_flag(raw_argv, "--quantum-steps-fast") or _argv_has_flag(
+            raw_argv, "--quantum-steps-slow"
         ):
             raise ValueError(
                 "--quantum-steps is deprecated; do not mix with "
@@ -1464,10 +1573,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             )
         args.quantum_steps_fast = args.quantum_steps
         args.quantum_steps_slow = args.quantum_steps
+        quantum_steps_slow_set = True
+    else:
+        quantum_steps_slow_set = _argv_has_flag(raw_argv, "--quantum-steps-slow")
     if args.quantum_steps_fast <= 0:
         raise ValueError("--quantum-steps-fast must be positive.")
-    if args.quantum_steps_slow <= 0:
+    if args.quantum_steps_slow is not None and args.quantum_steps_slow <= 0:
         raise ValueError("--quantum-steps-slow must be positive.")
+    if args.quantum_refine_chunk <= 0:
+        raise ValueError("--quantum-refine-chunk must be positive.")
     if args.report_every <= 0:
         raise ValueError("--report-every must be positive.")
     if args.max_quantum_evals < 0:
@@ -1476,6 +1590,13 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--min-distinct must be positive.")
     if args.min_distinct is not None and args.min_distinct > SIDE_LEN:
         raise ValueError("--min-distinct cannot exceed 6.")
+
+    if args.classical_jobs == 0:
+        cpu_count = os.cpu_count() or 1
+        if args.classical_distance_backend == "dist-m4ri":
+            args.classical_jobs = min(4, cpu_count)
+        else:
+            args.classical_jobs = 1
 
     group_spec = canonical_group_spec(args.group)
     needs_gap = args.dedup_cayley or group_spec.startswith("SmallGroup")
@@ -1539,10 +1660,22 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     aut_cache_dir = outdir / "cache" / "aut"
     group = group_from_spec(group_spec, gap_cmd=args.gap_cmd, cache_dir=group_cache_dir)
 
+    base_code = hamming_6_3_3_shortened()
+    variant_codes = _build_variant_codes(base_code)
+    perm_total = len(variant_codes)
+    local_codes_match = _local_code_specs_match(
+        base_code, variant_codes, base_code, variant_codes
+    )
+
     n_slice = SIDE_LEN * group.order
     classical_target = args.classical_target
     if classical_target is None:
         classical_target = _ceil_sqrt(n_slice)
+    if not quantum_steps_slow_set:
+        n_cols_default = base_code.n * base_code.n * group.order
+        args.quantum_steps_slow = _adaptive_quantum_steps_slow(n_cols_default)
+    if args.quantum_steps_slow is None or args.quantum_steps_slow <= 0:
+        raise ValueError("--quantum-steps-slow must be positive.")
 
     run_meta = {
         "mode": "progressive",
@@ -1554,8 +1687,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "classical_exhaustive_k_max": args.classical_exhaustive_k_max,
         "classical_sample_count": args.classical_sample_count,
         "classical_workers": args.classical_workers,
+        "classical_jobs": args.classical_jobs,
         "quantum_steps_fast": args.quantum_steps_fast,
         "quantum_steps_slow": args.quantum_steps_slow,
+        "quantum_refine_chunk": args.quantum_refine_chunk,
         "report_every": args.report_every,
         "max_quantum_evals": args.max_quantum_evals,
         "seed": seed,
@@ -1571,12 +1706,6 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     if timings_enabled:
         classical_start = time.monotonic()
         gen_start = time.perf_counter()
-    base_code = hamming_6_3_3_shortened()
-    variant_codes = _build_variant_codes(base_code)
-    perm_total = len(variant_codes)
-    local_codes_match = _local_code_specs_match(
-        base_code, variant_codes, base_code, variant_codes
-    )
 
     multisets = _enumerate_multisets_with_identity(group.order)
     raw_multiset_count = len(multisets)
@@ -1637,9 +1766,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         classical_exhaustive_k_max=args.classical_exhaustive_k_max,
         classical_sample_count=args.classical_sample_count,
         dist_m4ri_cmd=args.dist_m4ri_cmd,
-        rng=rng,
+        seed_base=seed,
         out_path=outdir / "classical_A_kept.jsonl",
         classical_workers=args.classical_workers,
+        classical_jobs=args.classical_jobs,
         lookup=a_lookup,
         canonicalize=canonicalize,
         timings=classical_timings,
@@ -1693,9 +1823,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             classical_exhaustive_k_max=args.classical_exhaustive_k_max,
             classical_sample_count=args.classical_sample_count,
             dist_m4ri_cmd=args.dist_m4ri_cmd,
-            rng=rng,
+            seed_base=seed,
             out_path=outdir / "classical_B_kept.jsonl",
             classical_workers=args.classical_workers,
+            classical_jobs=args.classical_jobs,
             timings=classical_timings,
         )
     _print_histogram_top(side="B", hist=b_hist)
@@ -1735,7 +1866,6 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     pairs_seen = 0
     last_report_time = time.monotonic()
     last_report_eval = 0
-    wmin_q = max(0, args.target_distance - 1)
 
     interrupted = False
     try:
@@ -1778,145 +1908,164 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             eval_index += 1
 
             current = best_by_k.get(k_val)
-            current_best: float = (
-                float("-inf") if current is None else int(current["d_ub"])
-            )
+            best = 0 if current is None else int(current["d_ub"])
+            must_exceed = max(best, args.target_distance - 1)
 
-            def _log_refine(d_fast: int, sqrt_n: int, best_d: float) -> None:
-                best_text = "-inf" if best_d == float("-inf") else str(int(best_d))
+            def _log_refine(
+                chunk_index: int,
+                steps_x: int,
+                steps_z: int,
+                d_x_best: int,
+                d_z_best: int,
+                abort_reason: Optional[str],
+            ) -> None:
+                note = f" abort={abort_reason}" if abort_reason else ""
                 print(
-                    f"[refine] eval={eval_index} k={k_val} d_fast={d_fast} "
-                    f">= sqrt(n)={sqrt_n} and beats best={best_text} -> "
-                    f"running {args.quantum_steps_slow} steps"
+                    f"[refine] eval={eval_index} k={k_val} chunk={chunk_index} "
+                    f"steps_x={steps_x} steps_z={steps_z} "
+                    f"dX_best={d_x_best} dZ_best={d_z_best}{note}"
                 )
 
-            distance_result = _two_stage_css_distance(
+            distance_result = _progressive_css_distance(
                 hx_rows,
                 hz_rows,
                 n_cols,
-                target_distance=args.target_distance,
-                wmin=wmin_q,
+                must_exceed=must_exceed,
                 steps_fast=args.quantum_steps_fast,
                 steps_slow=args.quantum_steps_slow,
-                current_best=current_best,
+                refine_chunk=args.quantum_refine_chunk,
                 rng=rng,
                 dist_m4ri_cmd=args.dist_m4ri_cmd,
-                on_refine=_log_refine,
+                on_chunk=_log_refine,
                 timings=run_timings,
             )
-            if (
-                not distance_result.passed
-                or distance_result.d_final_ub is None
-                or not distance_result.ran_slow
-            ):
+            d_x_best = distance_result.d_x_best
+            d_z_best = distance_result.d_z_best
+            steps_used = distance_result.steps_x + distance_result.steps_z
+            d_final_ub = min(d_x_best, d_z_best)
+            is_new_best = False
+            decision = "reject"
+            if distance_result.passed_fast:
+                if distance_result.aborted:
+                    decision = "refine"
+                else:
+                    is_new_best = (
+                        d_final_ub > best
+                        and d_final_ub >= args.target_distance
+                    )
+                    decision = "new_best" if is_new_best else "refine"
+            print(
+                f"[eval] eval={eval_index} n={n_cols} k={k_val} best={best} "
+                f"target_distance={args.target_distance} "
+                f"must_exceed={must_exceed} steps_used={steps_used} "
+                f"dX_best={d_x_best} dZ_best={d_z_best} decision={decision}"
+            )
+            if not is_new_best:
                 continue
 
-            if distance_result.d_slow_ub is None:
-                continue
-            d_final_ub = int(distance_result.d_slow_ub)
-            if d_final_ub > current_best:
-                bookkeeping_start = time.perf_counter()
-                timestamp = _timestamp_utc()
-                code_id_raw = (
-                    f"{group.name}_A{a_setting.setting_id}_B{b_setting.setting_id}_"
-                    f"k{k_val}_d{d_final_ub}"
-                )
-                code_id = _safe_id_component(code_id_raw)
-                classical_slices = {
-                    **a_setting.record.get("slice_codes", {}),
-                    **b_setting.record.get("slice_codes", {}),
-                }
-                meta = {
-                    "code_id": code_id,
-                    "group": {"spec": group.name, "order": group.order},
-                    "A": a_setting.record,
-                    "B": b_setting.record,
-                    "local_codes": {
-                        "C0": base_code.name,
-                        "C1": C1.name,
-                        "C0p": base_code.name,
-                        "C1p": C1p.name,
-                        "permA_idx": permA,
-                        "permB_idx": permB,
-                    },
-                    "classical_slices": classical_slices,
-                    "n": n_cols,
-                    "k": k_val,
-                    "distance": {
-                        "method": "dist_m4ri_rw",
-                        "wmin": wmin_q,
-                        "steps_fast": args.quantum_steps_fast,
-                        "steps_slow": args.quantum_steps_slow,
-                        "fast": distance_result.fast,
-                        "slow": distance_result.slow,
-                        "d_fast_ub": distance_result.d_fast_ub,
-                        "d_slow_ub": distance_result.d_slow_ub,
-                        "d_ub": d_final_ub,
-                        "sqrt_n": distance_result.sqrt_n,
-                    },
-                    "target_distance": args.target_distance,
-                    "seed": seed,
-                }
-                _save_best_code(
-                    outdir=outdir,
-                    code_id=code_id,
-                    hx_rows=hx_rows,
-                    hz_rows=hz_rows,
-                    n_cols=n_cols,
-                    meta=meta,
-                    timings=run_timings,
-                )
-                best_by_k[k_val] = {
+            bookkeeping_start = time.perf_counter()
+            timestamp = _timestamp_utc()
+            code_id_raw = (
+                f"{group.name}_A{a_setting.setting_id}_B{b_setting.setting_id}_"
+                f"k{k_val}_d{d_final_ub}"
+            )
+            code_id = _safe_id_component(code_id_raw)
+            classical_slices = {
+                **a_setting.record.get("slice_codes", {}),
+                **b_setting.record.get("slice_codes", {}),
+            }
+            meta = {
+                "code_id": code_id,
+                "group": {"spec": group.name, "order": group.order},
+                "A": a_setting.record,
+                "B": b_setting.record,
+                "local_codes": {
+                    "C0": base_code.name,
+                    "C1": C1.name,
+                    "C0p": base_code.name,
+                    "C1p": C1p.name,
+                    "permA_idx": permA,
+                    "permB_idx": permB,
+                },
+                "classical_slices": classical_slices,
+                "n": n_cols,
+                "k": k_val,
+                "distance": {
+                    "method": "dist_m4ri_rw_progressive",
+                    "wmin": must_exceed,
+                    "steps_fast": args.quantum_steps_fast,
+                    "steps_slow": args.quantum_steps_slow,
+                    "refine_chunk": args.quantum_refine_chunk,
+                    "fast": distance_result.fast,
+                    "refine_chunks": distance_result.refine_chunks,
+                    "steps_used_x": distance_result.steps_x,
+                    "steps_used_z": distance_result.steps_z,
+                    "steps_used_total": steps_used,
+                    "dX_best": d_x_best,
+                    "dZ_best": d_z_best,
                     "d_ub": d_final_ub,
-                    "steps": args.quantum_steps_slow,
-                    "eval": eval_index,
-                    "when": timestamp,
-                    "A_id": a_setting.setting_id,
-                    "B_id": b_setting.setting_id,
-                    "code_id": code_id,
-                }
-                with milestones_path.open("a", encoding="utf-8") as mfile:
-                    mfile.write(
-                        json.dumps(
-                            {
-                                "timestamp": timestamp,
-                                "eval": eval_index,
-                                "k": k_val,
-                                "d_ub": d_final_ub,
-                                "A_id": a_setting.setting_id,
-                                "B_id": b_setting.setting_id,
-                                "code_id": code_id,
-                            },
-                            sort_keys=True,
-                        )
-                        + "\n"
+                },
+                "target_distance": args.target_distance,
+                "seed": seed,
+            }
+            _save_best_code(
+                outdir=outdir,
+                code_id=code_id,
+                hx_rows=hx_rows,
+                hz_rows=hz_rows,
+                n_cols=n_cols,
+                meta=meta,
+                timings=run_timings,
+            )
+            best_by_k[k_val] = {
+                "d_ub": d_final_ub,
+                "steps": max(distance_result.steps_x, distance_result.steps_z),
+                "eval": eval_index,
+                "when": timestamp,
+                "A_id": a_setting.setting_id,
+                "B_id": b_setting.setting_id,
+                "code_id": code_id,
+            }
+            with milestones_path.open("a", encoding="utf-8") as mfile:
+                mfile.write(
+                    json.dumps(
+                        {
+                            "timestamp": timestamp,
+                            "eval": eval_index,
+                            "k": k_val,
+                            "d_ub": d_final_ub,
+                            "A_id": a_setting.setting_id,
+                            "B_id": b_setting.setting_id,
+                            "code_id": code_id,
+                        },
+                        sort_keys=True,
                     )
-                print(
-                    f"NEW_BEST {timestamp} eval={eval_index} n={n_cols} "
-                    f"k={k_val} d_fast={distance_result.d_fast_ub} "
-                    f"d_slow={distance_result.d_slow_ub} d_ub={d_final_ub} "
-                    f"steps={args.quantum_steps_slow} "
-                    f"A={a_setting.setting_id} B={b_setting.setting_id} "
-                    f"sqrt_n={distance_result.sqrt_n}"
+                    + "\n"
                 )
-                if classical_slices:
-                    print("classical slices:")
-                    for key in ("A_H", "A_G", "B_G", "B_H"):
-                        entry = classical_slices.get(key)
-                        if entry is None:
-                            continue
-                        backend = entry.get("backend", "?")
-                        exact = entry.get("exact")
-                        mode = "exact" if exact else "sampled"
-                        print(
-                            f"  {key}: n={entry['n']} k={entry['k']} "
-                            f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
-                        )
-                _add_timing(
-                    run_timings,
-                    "bookkeeping",
-                    time.perf_counter() - bookkeeping_start,
-                )
+            print(
+                f"NEW_BEST {timestamp} eval={eval_index} n={n_cols} "
+                f"k={k_val} dX_best={d_x_best} dZ_best={d_z_best} "
+                f"d_ub={d_final_ub} steps_used={steps_used} "
+                f"A={a_setting.setting_id} B={b_setting.setting_id}"
+            )
+            if classical_slices:
+                print("classical slices:")
+                for key in ("A_H", "A_G", "B_G", "B_H"):
+                    entry = classical_slices.get(key)
+                    if entry is None:
+                        continue
+                    backend = entry.get("backend", "?")
+                    exact = entry.get("exact")
+                    mode = "exact" if exact else "sampled"
+                    print(
+                        f"  {key}: n={entry['n']} k={entry['k']} "
+                        f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
+                    )
+            _add_timing(
+                run_timings,
+                "bookkeeping",
+                time.perf_counter() - bookkeeping_start,
+            )
 
             now = time.monotonic()
             if (

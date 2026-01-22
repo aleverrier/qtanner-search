@@ -7,7 +7,7 @@ from qtanner.progressive_search import (
     _enumerate_multisets_with_identity,
     _interleaved_rounds,
     _iter_progressive_pairs,
-    _two_stage_css_distance,
+    _progressive_css_distance,
 )
 
 
@@ -65,85 +65,92 @@ def test_progressive_interleaving_diagonals() -> None:
     assert rank_sums[4] == 1
 
 
-def test_two_stage_skips_slow_when_fast_below_sqrt() -> None:
+def test_progressive_rejects_fast_below_threshold() -> None:
     calls = []
-    values = [3, 4]
+    values = [4, 7]
 
     def fake_estimator(hx, hz, n_cols, steps, wmin, seed, dist_m4ri_cmd):
         calls.append(steps)
         return values.pop(0)
 
     rng = random.Random(0)
-    result = _two_stage_css_distance(
+    result = _progressive_css_distance(
         [0b1],
         [0b1],
         10,
-        target_distance=1,
-        wmin=0,
+        must_exceed=5,
         steps_fast=10,
         steps_slow=100,
-        current_best=0,
+        refine_chunk=10,
         rng=rng,
         dist_m4ri_cmd="dist_m4ri",
         estimator=fake_estimator,
     )
-    assert result.passed is True
-    assert result.ran_slow is False
-    assert result.d_final_ub == 3
+    assert result.passed_fast is False
+    assert result.ran_refine is False
+    assert result.d_z_best == 4
+    assert result.d_x_best == 7
     assert calls == [10, 10]
 
 
-def test_two_stage_skips_slow_when_not_improving_best() -> None:
+def test_progressive_refine_aborts_on_dx_chunk() -> None:
     calls = []
-    values = [5, 6]
+    values = [8, 9, 5]
 
     def fake_estimator(hx, hz, n_cols, steps, wmin, seed, dist_m4ri_cmd):
         calls.append(steps)
         return values.pop(0)
 
     rng = random.Random(1)
-    result = _two_stage_css_distance(
+    result = _progressive_css_distance(
         [0b1],
         [0b1],
         10,
-        target_distance=1,
-        wmin=0,
+        must_exceed=5,
         steps_fast=10,
-        steps_slow=100,
-        current_best=5,
+        steps_slow=30,
+        refine_chunk=10,
         rng=rng,
         dist_m4ri_cmd="dist_m4ri",
         estimator=fake_estimator,
     )
-    assert result.passed is True
-    assert result.ran_slow is False
-    assert result.d_final_ub == 5
-    assert calls == [10, 10]
+    assert result.passed_fast is True
+    assert result.ran_refine is True
+    assert result.aborted is True
+    assert result.abort_reason == "dx<=must_exceed"
+    assert result.d_z_best == 8
+    assert result.d_x_best == 5
+    assert result.steps_z == 10
+    assert result.steps_x == 20
+    assert calls == [10, 10, 10]
 
 
-def test_two_stage_runs_slow_and_uses_slow_bound() -> None:
+def test_progressive_refine_runs_to_completion() -> None:
     calls = []
-    values = [7, 6, 4, 5]
+    values = [9, 8, 7, 8, 6, 7]
 
     def fake_estimator(hx, hz, n_cols, steps, wmin, seed, dist_m4ri_cmd):
         calls.append(steps)
         return values.pop(0)
 
     rng = random.Random(2)
-    result = _two_stage_css_distance(
+    result = _progressive_css_distance(
         [0b1],
         [0b1],
         16,
-        target_distance=1,
-        wmin=0,
+        must_exceed=5,
         steps_fast=10,
-        steps_slow=100,
-        current_best=3,
+        steps_slow=20,
+        refine_chunk=5,
         rng=rng,
         dist_m4ri_cmd="dist_m4ri",
         estimator=fake_estimator,
     )
-    assert result.passed is True
-    assert result.ran_slow is True
-    assert result.d_final_ub == 4
-    assert calls == [10, 10, 100, 100]
+    assert result.passed_fast is True
+    assert result.ran_refine is True
+    assert result.aborted is False
+    assert result.d_z_best == 7
+    assert result.d_x_best == 6
+    assert result.steps_z == 20
+    assert result.steps_x == 20
+    assert calls == [10, 10, 5, 5, 5, 5]

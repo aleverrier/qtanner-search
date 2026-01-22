@@ -137,6 +137,10 @@ def _estimate_classical_distance_fast_details(
     if k <= exhaustive_k_max:
         witness, checked, _ = _min_weight_gray(basis, wmin=wmin)
         return witness, k, True, checked
+    max_samples = 1 << min(k, 8)
+    if k <= 8:
+        max_samples = (1 << k) - 1
+    sample_count = min(sample_count, max_samples)
     rng = random.Random(rng_seed)
     witness, checked, _ = _min_weight_sample(
         basis, sample_count=sample_count, rng=rng, wmin=wmin
