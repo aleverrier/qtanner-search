@@ -6,13 +6,13 @@ mkdir -p logs
 
 # Usage:
 #   ./scripts/run_progressive.sh GROUP TARGET_DISTANCE CLASSICAL_TARGET [MAX_EVALS] [QFAST] [QSLOW]
-GROUP="${1:?Missing group, e.g. 'C2^4'}"
+GROUP="${1:?Missing group, e.g. 'C2xC2xC2xC2'}"
 TARGET="${2:?Missing quantum target distance, e.g. 24}"
 CLASSICAL_TARGET="${3:?Missing classical target distance, e.g. 24}"
 
-MAX_EVALS="${4:-}"
-QFAST="${5:-}"
-QSLOW="${6:-}"
+MAX_EVALS="${4:-}"   # number of quantum candidates to evaluate
+QFAST="${5:-}"       # quantum distance fast estimator steps
+QSLOW="${6:-}"       # quantum distance slow estimator steps
 
 DIST_M4RI_CMD="${DIST_M4RI:-$HOME/research/qtanner-tools/dist-m4ri/src/dist_m4ri}"
 export PYTHONUNBUFFERED=1
@@ -37,9 +37,6 @@ ARGS=(
 
 [[ -n "$MAX_EVALS" ]] && ARGS+=( --max-quantum-evals "$MAX_EVALS" )
 [[ -n "$QFAST"    ]] && ARGS+=( --quantum-steps-fast "$QFAST" )
-if [[ -n "$QSLOW" ]]; then
-  # IMPORTANT: also set --quantum-steps to avoid an override/default (often 50000).
-  ARGS+=( --quantum-steps-slow "$QSLOW" --quantum-steps "$QSLOW" )
-fi
+[[ -n "$QSLOW"    ]] && ARGS+=( --quantum-steps-slow "$QSLOW" )
 
 python -u scripts/search_progressive.py "${ARGS[@]}" 2>&1 | tee "$LOG"
