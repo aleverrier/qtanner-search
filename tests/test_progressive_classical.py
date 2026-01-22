@@ -5,6 +5,38 @@ from qtanner.local_codes import hamming_6_3_3_shortened
 import qtanner.progressive_search as progressive_search
 
 
+def mock_classical_eval_deterministic(
+    rows,
+    n_cols,
+    *,
+    steps,
+    wmin,
+    rng,
+    dist_m4ri_cmd,
+    backend,
+    exhaustive_k_max,
+    sample_count,
+    seed_override=None,
+    timings=None,
+):
+    seed = 0 if seed_override is None else int(seed_override)
+    witness = (seed % 5) + 1
+    k_val = max(1, n_cols - (seed % 3))
+    rank = n_cols - k_val
+    return {
+        "k": k_val,
+        "rank": rank,
+        "d_signed": None,
+        "d_witness": witness,
+        "d_est": witness,
+        "early_stop": witness <= wmin,
+        "exact": seed % 2 == 0,
+        "seed": seed,
+        "backend": backend,
+        "codewords_checked": seed % 7,
+    }
+
+
 def test_abelian_precompute_skips_b_dist_m4ri(monkeypatch, tmp_path) -> None:
     group = CyclicGroup(2)
     base_code = hamming_6_3_3_shortened()
@@ -27,6 +59,8 @@ def test_abelian_precompute_skips_b_dist_m4ri(monkeypatch, tmp_path) -> None:
         backend,
         exhaustive_k_max,
         sample_count,
+        seed_override=None,
+        timings=None,
     ):
         calls["count"] += 1
         return {
@@ -119,3 +153,121 @@ def test_fast_backend_skips_dist_m4ri(monkeypatch, tmp_path) -> None:
         progress_every=1000,
         progress_seconds=1000.0,
     )
+
+
+def test_classical_workers_consistency(tmp_path) -> None:
+    group = CyclicGroup(2)
+    base_code = hamming_6_3_3_shortened()
+    variant_codes = [base_code]
+    multisets = [
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1],
+    ]
+    rng_a = random.Random(123)
+    kept_a, hist_a, total_a = progressive_search._precompute_classical_side(
+        side="A",
+        group=group,
+        multisets=multisets,
+        variant_codes=variant_codes,
+        base_code=base_code,
+        steps=5,
+        classical_target=2,
+        classical_backend="fast",
+        classical_exhaustive_k_max=0,
+        classical_sample_count=1,
+        dist_m4ri_cmd="dist_m4ri",
+        rng=rng_a,
+        out_path=tmp_path / "classical_A_workers1.jsonl",
+        classical_workers=1,
+        classical_eval_fn=mock_classical_eval_deterministic,
+        progress_every=1000,
+        progress_seconds=1000.0,
+    )
+    rng_b = random.Random(123)
+    kept_b, hist_b, total_b = progressive_search._precompute_classical_side(
+        side="A",
+        group=group,
+        multisets=multisets,
+        variant_codes=variant_codes,
+        base_code=base_code,
+        steps=5,
+        classical_target=2,
+        classical_backend="fast",
+        classical_exhaustive_k_max=0,
+        classical_sample_count=1,
+        dist_m4ri_cmd="dist_m4ri",
+        rng=rng_b,
+        out_path=tmp_path / "classical_A_workers2.jsonl",
+        classical_workers=2,
+        classical_eval_fn=mock_classical_eval_deterministic,
+        progress_every=1000,
+        progress_seconds=1000.0,
+    )
+    assert total_a == total_b
+    assert hist_a == hist_b
+    assert {setting.setting_id for setting in kept_a} == {
+        setting.setting_id for setting in kept_b
+    }
+
+
+def test_early_abort_reduces_calls(tmp_path) -> None:
+    group = CyclicGroup(2)
+    base_code = hamming_6_3_3_shortened()
+    variant_codes = [base_code]
+    multisets = [
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1],
+    ]
+    rng = random.Random(0)
+    calls = {"count": 0}
+
+    def always_fail_eval(
+        rows,
+        n_cols,
+        *,
+        steps,
+        wmin,
+        rng,
+        dist_m4ri_cmd,
+        backend,
+        exhaustive_k_max,
+        sample_count,
+        seed_override=None,
+        timings=None,
+    ):
+        calls["count"] += 1
+        witness = max(0, int(wmin))
+        return {
+            "k": n_cols,
+            "rank": 0,
+            "d_signed": None,
+            "d_witness": witness,
+            "d_est": witness,
+            "early_stop": True,
+            "exact": False,
+            "seed": seed_override if seed_override is not None else 0,
+            "backend": backend,
+            "codewords_checked": None,
+        }
+
+    total_settings = len(multisets) * len(variant_codes)
+    progressive_search._precompute_classical_side(
+        side="A",
+        group=group,
+        multisets=multisets,
+        variant_codes=variant_codes,
+        base_code=base_code,
+        steps=5,
+        classical_target=2,
+        classical_backend="fast",
+        classical_exhaustive_k_max=0,
+        classical_sample_count=1,
+        dist_m4ri_cmd="dist_m4ri",
+        rng=rng,
+        out_path=tmp_path / "classical_A_abort.jsonl",
+        classical_workers=1,
+        classical_eval_fn=always_fail_eval,
+        progress_every=1000,
+        progress_seconds=1000.0,
+    )
+    assert calls["count"] == total_settings

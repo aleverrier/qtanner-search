@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import multiprocessing as mp
 import random
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
 from pathlib import Path
@@ -62,6 +64,80 @@ class TwoStageDistanceResult:
     fast: Dict[str, object]
     slow: Optional[Dict[str, object]]
     ran_slow: bool
+
+
+@dataclass(frozen=True)
+class ClassicalEvalResult:
+    elements: List[int]
+    perm_idx: int
+    n_cols: int
+    h_eval: Dict[str, object]
+    g_eval: Dict[str, object]
+    passes: bool
+    k_min: int
+    d_min: int
+
+
+def _add_timing(
+    timings: Optional[Dict[str, float]],
+    key: str,
+    delta: float,
+) -> None:
+    if timings is None:
+        return
+    timings[key] = timings.get(key, 0.0) + float(delta)
+
+
+def _merge_timings(
+    dest: Optional[Dict[str, float]],
+    src: Optional[Dict[str, float]],
+) -> None:
+    if dest is None or src is None:
+        return
+    for key, value in src.items():
+        dest[key] = dest.get(key, 0.0) + float(value)
+
+
+def _format_seconds(seconds: float) -> str:
+    return f"{seconds:.2f}s"
+
+
+def _print_timing_summary(
+    label: str,
+    timings: Optional[Dict[str, float]],
+    *,
+    wall_seconds: Optional[float] = None,
+) -> None:
+    if timings is None and wall_seconds is None:
+        return
+    data = timings or {}
+    total = sum(data.values())
+    line = f"[timings] {label} total={_format_seconds(total)}"
+    if wall_seconds is not None:
+        other = max(0.0, wall_seconds - total)
+        line += (
+            f" wall={_format_seconds(wall_seconds)} "
+            f"other={_format_seconds(other)}"
+        )
+    print(line)
+    for key, value in sorted(data.items(), key=lambda item: -item[1]):
+        print(f"  {key}: {_format_seconds(value)}")
+
+
+def _skipped_eval(backend: str) -> Dict[str, object]:
+    return {
+        "k": None,
+        "rank": None,
+        "d_signed": None,
+        "d_witness": None,
+        "d_est": None,
+        "exact": False,
+        "early_stop": None,
+        "seed": None,
+        "backend": backend,
+        "codewords_checked": None,
+        "skipped": True,
+    }
 
 
 def _timestamp_utc() -> str:
@@ -223,13 +299,20 @@ def _classical_eval(
     *,
     steps: int,
     wmin: int,
-    rng: random.Random,
+    rng: Optional[random.Random],
     dist_m4ri_cmd: str,
     backend: str,
     exhaustive_k_max: int,
     sample_count: int,
+    seed_override: Optional[int] = None,
+    timings: Optional[Dict[str, float]] = None,
 ) -> Dict[str, object]:
-    seed = rng.randrange(1 << 31)
+    if seed_override is None:
+        if rng is None:
+            raise ValueError("rng is required when seed_override is not set.")
+        seed = rng.randrange(1 << 31)
+    else:
+        seed = int(seed_override)
     if backend == "fast":
         witness, k_val, exact, checked = _estimate_classical_distance_fast_details(
             rows,
@@ -256,7 +339,9 @@ def _classical_eval(
         }
     if backend != "dist-m4ri":
         raise ValueError(f"Unknown classical backend: {backend}")
+    rank_start = time.perf_counter()
     rank = gf2_rank(list(rows), n_cols)
+    _add_timing(timings, "rank", time.perf_counter() - rank_start)
     k_val = n_cols - rank
     d_signed = run_dist_m4ri_classical_rw(
         rows,
@@ -265,6 +350,7 @@ def _classical_eval(
         wmin,
         seed=seed,
         dist_m4ri_cmd=dist_m4ri_cmd,
+        timings=timings,
     )
     witness = abs(d_signed)
     early_stop = witness <= wmin
@@ -282,6 +368,151 @@ def _classical_eval(
     }
 
 
+def _evaluate_classical_chunk(
+    settings: List[Tuple[List[int], int, int, int]],
+    *,
+    side: str,
+    group: FiniteGroup,
+    variant_codes: Sequence[LocalCode],
+    base_code: LocalCode,
+    steps: int,
+    wmin: int,
+    backend: str,
+    exhaustive_k_max: int,
+    sample_count: int,
+    dist_m4ri_cmd: str,
+    first_label: str,
+    timings_enabled: bool,
+    eval_fn: Callable[..., Dict[str, object]] = _classical_eval,
+) -> Tuple[List[ClassicalEvalResult], Dict[str, float], int]:
+    if side == "A":
+        build_h = build_a_slice_checks_H
+        build_g = build_a_slice_checks_G
+    elif side == "B":
+        build_h = build_b_slice_checks_Hp
+        build_g = build_b_slice_checks_Gp
+    else:
+        raise ValueError("side must be 'A' or 'B'.")
+
+    timings: Optional[Dict[str, float]] = {} if timings_enabled else None
+    dummy_rng = random.Random(0)
+    results: List[ClassicalEvalResult] = []
+    calls = 0
+    first_is_h = first_label.upper().startswith("H")
+
+    def _passes(eval_entry: Dict[str, object]) -> bool:
+        witness = eval_entry.get("d_witness")
+        if witness is None:
+            return True
+        return int(witness) > wmin
+
+    for elements, perm_idx, seed_h, seed_g in settings:
+        C1 = variant_codes[perm_idx]
+        if first_is_h:
+            build_start = time.perf_counter()
+            rows_h, n_cols = build_h(group, elements, base_code, C1)
+            _add_timing(timings, "build_slices", time.perf_counter() - build_start)
+            h_eval = eval_fn(
+                rows_h,
+                n_cols,
+                steps=steps,
+                wmin=wmin,
+                rng=dummy_rng,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+                backend=backend,
+                exhaustive_k_max=exhaustive_k_max,
+                sample_count=sample_count,
+                seed_override=seed_h,
+                timings=timings,
+            )
+            calls += 1
+            passes = _passes(h_eval)
+            if passes:
+                build_start = time.perf_counter()
+                rows_g, _ = build_g(group, elements, base_code, C1)
+                _add_timing(
+                    timings, "build_slices", time.perf_counter() - build_start
+                )
+                g_eval = eval_fn(
+                    rows_g,
+                    n_cols,
+                    steps=steps,
+                    wmin=wmin,
+                    rng=dummy_rng,
+                    dist_m4ri_cmd=dist_m4ri_cmd,
+                    backend=backend,
+                    exhaustive_k_max=exhaustive_k_max,
+                    sample_count=sample_count,
+                    seed_override=seed_g,
+                    timings=timings,
+                )
+                calls += 1
+                passes = passes and _passes(g_eval)
+            else:
+                g_eval = _skipped_eval(backend)
+        else:
+            build_start = time.perf_counter()
+            rows_g, n_cols = build_g(group, elements, base_code, C1)
+            _add_timing(timings, "build_slices", time.perf_counter() - build_start)
+            g_eval = eval_fn(
+                rows_g,
+                n_cols,
+                steps=steps,
+                wmin=wmin,
+                rng=dummy_rng,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+                backend=backend,
+                exhaustive_k_max=exhaustive_k_max,
+                sample_count=sample_count,
+                seed_override=seed_g,
+                timings=timings,
+            )
+            calls += 1
+            passes = _passes(g_eval)
+            if passes:
+                build_start = time.perf_counter()
+                rows_h, _ = build_h(group, elements, base_code, C1)
+                _add_timing(
+                    timings, "build_slices", time.perf_counter() - build_start
+                )
+                h_eval = eval_fn(
+                    rows_h,
+                    n_cols,
+                    steps=steps,
+                    wmin=wmin,
+                    rng=dummy_rng,
+                    dist_m4ri_cmd=dist_m4ri_cmd,
+                    backend=backend,
+                    exhaustive_k_max=exhaustive_k_max,
+                    sample_count=sample_count,
+                    seed_override=seed_h,
+                    timings=timings,
+                )
+                calls += 1
+                passes = passes and _passes(h_eval)
+            else:
+                h_eval = _skipped_eval(backend)
+
+        k_vals = [val for val in (h_eval.get("k"), g_eval.get("k")) if val is not None]
+        d_vals = [val for val in (h_eval.get("d_est"), g_eval.get("d_est")) if val is not None]
+        k_min = min(int(val) for val in k_vals) if k_vals else 0
+        d_min = min(int(val) for val in d_vals) if d_vals else 0
+        results.append(
+            ClassicalEvalResult(
+                elements=list(elements),
+                perm_idx=perm_idx,
+                n_cols=n_cols,
+                h_eval=h_eval,
+                g_eval=g_eval,
+                passes=passes,
+                k_min=k_min,
+                d_min=d_min,
+            )
+        )
+
+    return results, (timings or {}), calls
+
+
 def _estimate_css_distance_rw(
     hx_rows: Sequence[int],
     hz_rows: Sequence[int],
@@ -293,17 +524,30 @@ def _estimate_css_distance_rw(
     rng: random.Random,
     dist_m4ri_cmd: str,
     estimator: Callable[..., int] = run_dist_m4ri_css_rw,
+    timings: Optional[Dict[str, float]] = None,
 ) -> Tuple[Dict[str, object], bool]:
     seed_z = rng.randrange(1 << 31)
-    dz_signed = estimator(
-        hx_rows,
-        hz_rows,
-        n_cols,
-        steps,
-        wmin,
-        seed=seed_z,
-        dist_m4ri_cmd=dist_m4ri_cmd,
-    )
+    if timings is None:
+        dz_signed = estimator(
+            hx_rows,
+            hz_rows,
+            n_cols,
+            steps,
+            wmin,
+            seed=seed_z,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+        )
+    else:
+        dz_signed = estimator(
+            hx_rows,
+            hz_rows,
+            n_cols,
+            steps,
+            wmin,
+            seed=seed_z,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+            timings=timings,
+        )
     dz_ub = abs(dz_signed)
     early_stop_z = dz_signed < 0
     if early_stop_z or dz_ub < target_distance:
@@ -324,15 +568,27 @@ def _estimate_css_distance_rw(
         )
 
     seed_x = rng.randrange(1 << 31)
-    dx_signed = estimator(
-        hz_rows,
-        hx_rows,
-        n_cols,
-        steps,
-        wmin,
-        seed=seed_x,
-        dist_m4ri_cmd=dist_m4ri_cmd,
-    )
+    if timings is None:
+        dx_signed = estimator(
+            hz_rows,
+            hx_rows,
+            n_cols,
+            steps,
+            wmin,
+            seed=seed_x,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+        )
+    else:
+        dx_signed = estimator(
+            hz_rows,
+            hx_rows,
+            n_cols,
+            steps,
+            wmin,
+            seed=seed_x,
+            dist_m4ri_cmd=dist_m4ri_cmd,
+            timings=timings,
+        )
     dx_ub = abs(dx_signed)
     early_stop_x = dx_signed < 0
     d_ub = min(dz_ub, dx_ub)
@@ -368,6 +624,7 @@ def _two_stage_css_distance(
     dist_m4ri_cmd: str,
     estimator: Callable[..., int] = run_dist_m4ri_css_rw,
     on_refine: Optional[Callable[[int, int, float], None]] = None,
+    timings: Optional[Dict[str, float]] = None,
 ) -> TwoStageDistanceResult:
     sqrt_n = math.isqrt(n_cols)
     if sqrt_n * sqrt_n < n_cols:
@@ -383,6 +640,7 @@ def _two_stage_css_distance(
         rng=rng,
         dist_m4ri_cmd=dist_m4ri_cmd,
         estimator=estimator,
+        timings=timings,
     )
     d_fast_ub = (
         None if fast_eval.get("d_ub") is None else int(fast_eval["d_ub"])
@@ -415,6 +673,7 @@ def _two_stage_css_distance(
             rng=rng,
             dist_m4ri_cmd=dist_m4ri_cmd,
             estimator=estimator,
+            timings=timings,
         )
         if slow_eval.get("d_ub") is not None:
             d_slow_ub = int(slow_eval["d_ub"])
@@ -523,15 +782,22 @@ def _precompute_classical_side(
     dist_m4ri_cmd: str,
     rng: random.Random,
     out_path: Path,
+    classical_workers: int = 1,
     lookup: Optional[Dict[Tuple[Tuple[int, ...], int], Dict[str, object]]] = None,
     canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
     progress_every: int = 500,
     progress_seconds: float = 5.0,
+    timings: Optional[Dict[str, float]] = None,
+    classical_eval_fn: Optional[Callable[..., Dict[str, object]]] = None,
 ) -> Tuple[List[ProgressiveSetting], Dict[Tuple[int, int], int], int]:
     if classical_target <= 0:
         raise ValueError("--classical-target must be positive.")
     if lookup is not None and side != "A":
         raise ValueError("lookup can only be populated for side 'A'.")
+    if classical_workers <= 0:
+        raise ValueError("--classical-workers must be positive.")
+    if classical_eval_fn is None:
+        classical_eval_fn = _classical_eval
     wmin = max(0, classical_target - 1)
     kept: List[ProgressiveSetting] = []
     hist: Dict[Tuple[int, int], int] = {}
@@ -583,50 +849,143 @@ def _precompute_classical_side(
         last_report_processed = processed
 
     if side == "A":
-        build_h = build_a_slice_checks_H
-        build_g = build_a_slice_checks_G
         h_label = "H"
         g_label = "G"
+        slice_h_key = "A_H"
+        slice_g_key = "A_G"
     elif side == "B":
-        build_h = build_b_slice_checks_Hp
-        build_g = build_b_slice_checks_Gp
         h_label = "Hp"
         g_label = "Gp"
+        slice_h_key = "B_H"
+        slice_g_key = "B_G"
     else:
         raise ValueError("side must be 'A' or 'B'.")
 
-    with out_path.open("w", encoding="utf-8") as out_file:
-        for elements in multisets:
-            elements_repr = [group.repr(x) for x in elements]
-            for perm_idx, C1 in enumerate(variant_codes):
-                rows_h, n_cols = build_h(group, elements, base_code, C1)
-                rows_g, _ = build_g(group, elements, base_code, C1)
-                h_eval = _classical_eval(
-                    rows_h,
-                    n_cols,
+    task_chunk_size = 200
+    batch_size = max(task_chunk_size, task_chunk_size * 4)
+    fail_stats = {"H": {"fails": 0, "total": 0}, "G": {"fails": 0, "total": 0}}
+
+    def _pick_first_label() -> str:
+        h_total = fail_stats["H"]["total"]
+        g_total = fail_stats["G"]["total"]
+        h_rate = fail_stats["H"]["fails"] / h_total if h_total else 0.0
+        g_rate = fail_stats["G"]["fails"] / g_total if g_total else 0.0
+        return "H" if h_rate >= g_rate else "G"
+
+    def _update_fail_stats(eval_entry: Dict[str, object], label: str) -> None:
+        if eval_entry.get("skipped"):
+            return
+        fail_stats[label]["total"] += 1
+        witness = eval_entry.get("d_witness")
+        if witness is not None and int(witness) <= wmin:
+            fail_stats[label]["fails"] += 1
+
+    def _slice_payload(
+        eval_entry: Dict[str, object],
+        n_cols: int,
+    ) -> Dict[str, object]:
+        if eval_entry.get("skipped"):
+            return {
+                "n": n_cols,
+                "k": None,
+                "d_witness": None,
+                "d_ub": None,
+                "exact": False,
+                "backend": eval_entry.get("backend"),
+                "skipped": True,
+            }
+        k_val = eval_entry.get("k")
+        d_est = eval_entry.get("d_est")
+        return {
+            "n": n_cols,
+            "k": None if k_val is None else int(k_val),
+            "d_witness": eval_entry.get("d_witness"),
+            "d_ub": None if d_est is None else int(d_est),
+            "exact": bool(eval_entry.get("exact")),
+            "backend": eval_entry.get("backend"),
+        }
+
+    executor: Optional[ProcessPoolExecutor] = None
+    if classical_workers > 1:
+        ctx = mp.get_context("spawn")
+        try:
+            executor = ProcessPoolExecutor(
+                max_workers=classical_workers, mp_context=ctx
+            )
+        except (NotImplementedError, PermissionError, OSError) as exc:
+            print(
+                "[classical] parallel workers unavailable; "
+                f"falling back to serial ({exc})"
+            )
+            executor = None
+
+    def _consume_batch(
+        batch: List[Tuple[List[int], int, int, int]],
+        out_file,
+    ) -> None:
+        nonlocal calls, processed, kept_count, exact_evals, sampled_evals
+        nonlocal codewords_checked
+        if not batch:
+            return
+        first_label = _pick_first_label()
+        chunks = [
+            batch[i : i + task_chunk_size]
+            for i in range(0, len(batch), task_chunk_size)
+        ]
+        results_by_idx: Dict[int, Tuple[List[ClassicalEvalResult], Dict[str, float], int]] = {}
+        if executor is None:
+            for idx, chunk in enumerate(chunks):
+                results_by_idx[idx] = _evaluate_classical_chunk(
+                    chunk,
+                    side=side,
+                    group=group,
+                    variant_codes=variant_codes,
+                    base_code=base_code,
                     steps=steps,
                     wmin=wmin,
-                    rng=rng,
-                    dist_m4ri_cmd=dist_m4ri_cmd,
                     backend=classical_backend,
                     exhaustive_k_max=classical_exhaustive_k_max,
                     sample_count=classical_sample_count,
+                    dist_m4ri_cmd=dist_m4ri_cmd,
+                    first_label=first_label,
+                    timings_enabled=timings is not None,
+                    eval_fn=classical_eval_fn,
                 )
-                calls += 1
-                g_eval = _classical_eval(
-                    rows_g,
-                    n_cols,
+        else:
+            futures = {
+                idx: executor.submit(
+                    _evaluate_classical_chunk,
+                    chunk,
+                    side=side,
+                    group=group,
+                    variant_codes=variant_codes,
+                    base_code=base_code,
                     steps=steps,
                     wmin=wmin,
-                    rng=rng,
-                    dist_m4ri_cmd=dist_m4ri_cmd,
                     backend=classical_backend,
                     exhaustive_k_max=classical_exhaustive_k_max,
                     sample_count=classical_sample_count,
+                    dist_m4ri_cmd=dist_m4ri_cmd,
+                    first_label=first_label,
+                    timings_enabled=timings is not None,
+                    eval_fn=classical_eval_fn,
                 )
-                calls += 1
+                for idx, chunk in enumerate(chunks)
+            }
+            for idx, future in futures.items():
+                results_by_idx[idx] = future.result()
+
+        for idx in range(len(chunks)):
+            chunk_results, chunk_timings, chunk_calls = results_by_idx[idx]
+            calls += chunk_calls
+            _merge_timings(timings, chunk_timings)
+            for result in chunk_results:
+                _update_fail_stats(result.h_eval, "H")
+                _update_fail_stats(result.g_eval, "G")
                 if classical_backend == "fast":
-                    for eval_entry in (h_eval, g_eval):
+                    for eval_entry in (result.h_eval, result.g_eval):
+                        if eval_entry.get("skipped"):
+                            continue
                         if eval_entry.get("exact"):
                             exact_evals += 1
                         else:
@@ -634,70 +993,33 @@ def _precompute_classical_side(
                         checked = eval_entry.get("codewords_checked")
                         if checked is not None:
                             codewords_checked += int(checked)
-                if side == "A":
-                    slice_codes = {
-                        "A_H": {
-                            "n": n_cols,
-                            "k": int(h_eval["k"]),
-                            "d_witness": h_eval.get("d_witness"),
-                            "d_ub": int(h_eval["d_est"]),
-                            "exact": bool(h_eval["exact"]),
-                            "backend": h_eval.get("backend"),
-                        },
-                        "A_G": {
-                            "n": n_cols,
-                            "k": int(g_eval["k"]),
-                            "d_witness": g_eval.get("d_witness"),
-                            "d_ub": int(g_eval["d_est"]),
-                            "exact": bool(g_eval["exact"]),
-                            "backend": g_eval.get("backend"),
-                        },
-                    }
-                else:
-                    slice_codes = {
-                        "B_G": {
-                            "n": n_cols,
-                            "k": int(g_eval["k"]),
-                            "d_witness": g_eval.get("d_witness"),
-                            "d_ub": int(g_eval["d_est"]),
-                            "exact": bool(g_eval["exact"]),
-                            "backend": g_eval.get("backend"),
-                        },
-                        "B_H": {
-                            "n": n_cols,
-                            "k": int(h_eval["k"]),
-                            "d_witness": h_eval.get("d_witness"),
-                            "d_ub": int(h_eval["d_est"]),
-                            "exact": bool(h_eval["exact"]),
-                            "backend": h_eval.get("backend"),
-                        },
-                    }
-                k_min = min(int(h_eval["k"]), int(g_eval["k"]))
-                d_min = min(int(h_eval["d_est"]), int(g_eval["d_est"]))
+
+                bookkeeping_start = time.perf_counter()
+                elements = result.elements
+                elements_repr = [group.repr(x) for x in elements]
+                k_min = int(result.k_min)
+                d_min = int(result.d_min)
                 hist[(k_min, d_min)] = hist.get((k_min, d_min), 0) + 1
                 processed += 1
-
-                def _passes(eval_entry: Dict[str, object]) -> bool:
-                    witness = eval_entry.get("d_witness")
-                    if witness is None:
-                        return True
-                    return int(witness) > wmin
-
-                passes = _passes(h_eval) and _passes(g_eval)
+                slice_codes = {
+                    slice_h_key: _slice_payload(result.h_eval, result.n_cols),
+                    slice_g_key: _slice_payload(result.g_eval, result.n_cols),
+                }
+                passes = bool(result.passes)
                 if lookup is not None:
                     lookup_key = (
                         _canonical_multiset_key(
                             elements, canonicalize=canonicalize
                         ),
-                        perm_idx,
+                        result.perm_idx,
                     )
                     lookup[lookup_key] = {
                         "k_min": k_min,
                         "d_min": d_min,
-                        "slice_n": n_cols,
+                        "slice_n": result.n_cols,
                         "slice_codes": dict(slice_codes),
-                        "h_eval": dict(h_eval),
-                        "g_eval": dict(g_eval),
+                        "h_eval": dict(result.h_eval),
+                        "g_eval": dict(result.g_eval),
                         "passes": passes,
                     }
                 record = {
@@ -705,26 +1027,28 @@ def _precompute_classical_side(
                     "group": {"spec": group.name, "order": group.order},
                     "elements": list(elements),
                     "elements_repr": elements_repr,
-                    "perm_idx": perm_idx,
+                    "perm_idx": result.perm_idx,
                     "k_classical": k_min,
                     "d_est": d_min,
-                    "slice_n": n_cols,
+                    "slice_n": result.n_cols,
                     "slice_codes": slice_codes,
                     "checks": {
-                        h_label: h_eval,
-                        g_label: g_eval,
+                        h_label: result.h_eval,
+                        g_label: result.g_eval,
                     },
                     "passes": passes,
                 }
                 if passes:
-                    setting_id = _progressive_setting_id(side, elements, perm_idx)
+                    setting_id = _progressive_setting_id(
+                        side, elements, result.perm_idx
+                    )
                     record["id"] = setting_id
                     kept.append(
                         ProgressiveSetting(
                             side=side,
                             elements=list(elements),
                             elements_repr=elements_repr,
-                            perm_idx=perm_idx,
+                            perm_idx=result.perm_idx,
                             k_classical=k_min,
                             d_est=d_min,
                             record=record,
@@ -733,8 +1057,28 @@ def _precompute_classical_side(
                     )
                     kept_count += 1
                     out_file.write(json.dumps(record, sort_keys=True) + "\n")
+                _add_timing(
+                    timings, "bookkeeping", time.perf_counter() - bookkeeping_start
+                )
                 _report()
-        out_file.flush()
+
+    try:
+        with out_path.open("w", encoding="utf-8") as out_file:
+            batch: List[Tuple[List[int], int, int, int]] = []
+            for elements in multisets:
+                for perm_idx in range(len(variant_codes)):
+                    seed_h = rng.randrange(1 << 31)
+                    seed_g = rng.randrange(1 << 31)
+                    batch.append((list(elements), perm_idx, seed_h, seed_g))
+                    if len(batch) >= batch_size:
+                        _consume_batch(batch, out_file)
+                        batch = []
+            if batch:
+                _consume_batch(batch, out_file)
+            out_file.flush()
+    finally:
+        if executor is not None:
+            executor.shutdown()
     _report(force=True)
     return kept, hist, processed
 
@@ -751,6 +1095,7 @@ def _precompute_classical_side_from_lookup(
     canonicalize: Optional[Callable[[Sequence[int]], Tuple[int, ...]]] = None,
     progress_every: int = 500,
     progress_seconds: float = 5.0,
+    timings: Optional[Dict[str, float]] = None,
 ) -> Tuple[List[ProgressiveSetting], Dict[Tuple[int, int], int], int]:
     if side != "B":
         raise ValueError("lookup reuse is only supported for side 'B'.")
@@ -823,6 +1168,8 @@ def _precompute_classical_side_from_lookup(
                 g_eval = dict(params["g_eval"])
                 if classical_backend == "fast":
                     for eval_entry in (h_eval, g_eval):
+                        if eval_entry.get("skipped"):
+                            continue
                         if eval_entry.get("exact"):
                             exact_evals += 1
                         else:
@@ -836,6 +1183,7 @@ def _precompute_classical_side_from_lookup(
                     "B_G": dict(slice_codes["A_G"]),
                     "B_H": dict(slice_codes["A_H"]),
                 }
+                bookkeeping_start = time.perf_counter()
                 hist[(k_min, d_min)] = hist.get((k_min, d_min), 0) + 1
                 processed += 1
                 record = {
@@ -871,6 +1219,9 @@ def _precompute_classical_side_from_lookup(
                     )
                     kept_count += 1
                     out_file.write(json.dumps(record, sort_keys=True) + "\n")
+                _add_timing(
+                    timings, "bookkeeping", time.perf_counter() - bookkeeping_start
+                )
                 _report()
         out_file.flush()
     _report(force=True)
@@ -959,11 +1310,14 @@ def _save_best_code(
     hz_rows: Sequence[int],
     n_cols: int,
     meta: Dict[str, object],
+    timings: Optional[Dict[str, float]] = None,
 ) -> None:
     code_dir = outdir / "best_codes" / code_id
     code_dir.mkdir(parents=True, exist_ok=True)
+    write_start = time.perf_counter()
     write_mtx_from_bitrows(str(code_dir / "Hx.mtx"), list(hx_rows), n_cols)
     write_mtx_from_bitrows(str(code_dir / "Hz.mtx"), list(hz_rows), n_cols)
+    _add_timing(timings, "write_mtx", time.perf_counter() - write_start)
     (code_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True), encoding="utf-8"
     )
@@ -1010,6 +1364,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         type=int,
         default=256,
         help="Random samples for the fast classical backend.",
+    )
+    parser.add_argument(
+        "--classical-workers",
+        type=int,
+        default=1,
+        help="Process count for classical precompute (default: 1).",
     )
     parser.add_argument(
         "--quantum-steps-fast",
@@ -1074,6 +1434,11 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         default=None,
         help="Require at least this many distinct elements per multiset.",
     )
+    parser.add_argument(
+        "--timings",
+        action="store_true",
+        help="Print timing breakdowns for progressive runs.",
+    )
     args = parser.parse_args(argv)
 
     if args.target_distance <= 0:
@@ -1084,6 +1449,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--classical-exhaustive-k-max must be nonnegative.")
     if args.classical_sample_count <= 0:
         raise ValueError("--classical-sample-count must be positive.")
+    if args.classical_workers <= 0:
+        raise ValueError("--classical-workers must be positive.")
     if args.quantum_steps is not None:
         if args.quantum_steps <= 0:
             raise ValueError("--quantum-steps must be positive.")
@@ -1128,6 +1495,39 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         seed = random.SystemRandom().randrange(1 << 31)
     rng = random.Random(seed)
 
+    timings_enabled = bool(args.timings)
+    run_timings: Optional[Dict[str, float]] = {} if timings_enabled else None
+    classical_timings: Optional[Dict[str, float]] = (
+        {} if timings_enabled else None
+    )
+    run_start = time.monotonic() if timings_enabled else None
+    classical_start: Optional[float] = None
+    classical_finalized = False
+
+    def _finalize_classical_timings() -> None:
+        nonlocal classical_finalized
+        if not timings_enabled or classical_finalized:
+            return
+        wall = None
+        if classical_start is not None:
+            wall = time.monotonic() - classical_start
+        _print_timing_summary(
+            "classical_precompute", classical_timings, wall_seconds=wall
+        )
+        _merge_timings(run_timings, classical_timings)
+        classical_finalized = True
+
+    def _finalize_run_timings() -> None:
+        if not timings_enabled:
+            return
+        _finalize_classical_timings()
+        wall = None
+        if run_start is not None:
+            wall = time.monotonic() - run_start
+        _print_timing_summary(
+            "run_total", run_timings, wall_seconds=wall
+        )
+
     group_tag = _safe_id_component(group_spec)
     if args.results_dir:
         outdir = Path(args.results_dir)
@@ -1153,6 +1553,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "classical_distance_backend": args.classical_distance_backend,
         "classical_exhaustive_k_max": args.classical_exhaustive_k_max,
         "classical_sample_count": args.classical_sample_count,
+        "classical_workers": args.classical_workers,
         "quantum_steps_fast": args.quantum_steps_fast,
         "quantum_steps_slow": args.quantum_steps_slow,
         "report_every": args.report_every,
@@ -1161,11 +1562,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "dist_m4ri_cmd": args.dist_m4ri_cmd,
         "dedup_cayley": bool(args.dedup_cayley),
         "min_distinct": args.min_distinct,
+        "timings": bool(args.timings),
     }
     (outdir / "run_meta.json").write_text(
         json.dumps(run_meta, indent=2, sort_keys=True), encoding="utf-8"
     )
 
+    if timings_enabled:
+        classical_start = time.monotonic()
+        gen_start = time.perf_counter()
     base_code = hamming_6_3_3_shortened()
     variant_codes = _build_variant_codes(base_code)
     perm_total = len(variant_codes)
@@ -1190,6 +1595,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         print(
             f"[progressive] dedup-cayley raw={raw_count} unique={uniq_count}"
         )
+    if timings_enabled:
+        _add_timing(
+            classical_timings,
+            "generate_multisets_perms",
+            time.perf_counter() - gen_start,
+        )
     print(
         f"[progressive] multisets enumerated={raw_multiset_count} "
         f"after_min_distinct={after_distinct_count} "
@@ -1197,6 +1608,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     )
     if not multisets:
         print("[progressive] no multisets to score after filtering; exiting.")
+        _finalize_run_timings()
         return 0
 
     total_settings = len(multisets) * perm_total
@@ -1227,8 +1639,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         dist_m4ri_cmd=args.dist_m4ri_cmd,
         rng=rng,
         out_path=outdir / "classical_A_kept.jsonl",
+        classical_workers=args.classical_workers,
         lookup=a_lookup,
         canonicalize=canonicalize,
+        timings=classical_timings,
     )
     _print_histogram_top(side="A", hist=a_hist)
     _write_histogram(
@@ -1264,6 +1678,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             classical_backend=args.classical_distance_backend,
             out_path=outdir / "classical_B_kept.jsonl",
             canonicalize=canonicalize,
+            timings=classical_timings,
         )
     else:
         b_keep, b_hist, b_total = _precompute_classical_side(
@@ -1280,6 +1695,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             dist_m4ri_cmd=args.dist_m4ri_cmd,
             rng=rng,
             out_path=outdir / "classical_B_kept.jsonl",
+            classical_workers=args.classical_workers,
+            timings=classical_timings,
         )
     _print_histogram_top(side="B", hist=b_hist)
     _write_histogram(
@@ -1299,8 +1716,11 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         f"[progressive] B settings={b_total} kept={len(b_keep)}"
     )
 
+    _finalize_classical_timings()
+
     if not a_keep or not b_keep:
         print("[progressive] no settings passed classical filter; exiting.")
+        _finalize_run_timings()
         return 0
 
     a_rounds = _interleaved_rounds(a_keep)
@@ -1325,6 +1745,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             permB = b_setting.perm_idx
             C1 = variant_codes[permA]
             C1p = variant_codes[permB]
+            build_start = time.perf_counter()
             hx_rows, hz_rows, n_cols = build_hx_hz(
                 group,
                 a_setting.elements,
@@ -1334,13 +1755,20 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 base_code,
                 C1p,
             )
+            _add_timing(
+                run_timings, "build_slices", time.perf_counter() - build_start
+            )
             if not css_commutes(hx_rows, hz_rows):
                 raise RuntimeError(
                     f"HX/HZ do not commute for A={a_setting.setting_id} "
                     f"B={b_setting.setting_id}."
                 )
+            rank_start = time.perf_counter()
             rank_hx = gf2_rank(hx_rows[:], n_cols)
             rank_hz = gf2_rank(hz_rows[:], n_cols)
+            _add_timing(
+                run_timings, "rank", time.perf_counter() - rank_start
+            )
             k_val = n_cols - rank_hx - rank_hz
             if k_val <= 0:
                 continue
@@ -1374,6 +1802,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 rng=rng,
                 dist_m4ri_cmd=args.dist_m4ri_cmd,
                 on_refine=_log_refine,
+                timings=run_timings,
             )
             if (
                 not distance_result.passed
@@ -1386,6 +1815,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 continue
             d_final_ub = int(distance_result.d_slow_ub)
             if d_final_ub > current_best:
+                bookkeeping_start = time.perf_counter()
                 timestamp = _timestamp_utc()
                 code_id_raw = (
                     f"{group.name}_A{a_setting.setting_id}_B{b_setting.setting_id}_"
@@ -1434,6 +1864,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     hz_rows=hz_rows,
                     n_cols=n_cols,
                     meta=meta,
+                    timings=run_timings,
                 )
                 best_by_k[k_val] = {
                     "d_ub": d_final_ub,
@@ -1481,6 +1912,11 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                             f"  {key}: n={entry['n']} k={entry['k']} "
                             f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
                         )
+                _add_timing(
+                    run_timings,
+                    "bookkeeping",
+                    time.perf_counter() - bookkeeping_start,
+                )
 
             now = time.monotonic()
             if (
@@ -1504,6 +1940,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     (outdir / "best_by_k.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8"
     )
+    _finalize_run_timings()
     return 0
 
 

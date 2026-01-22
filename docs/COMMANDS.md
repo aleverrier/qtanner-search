@@ -34,9 +34,11 @@ python -m qtanner.search progressive \
   --group C2xC2xC2 \
   --target-distance 16 \
   --classical-steps 100 \
+  --classical-workers 6 \
   --quantum-steps-fast 2000 \
   --quantum-steps-slow 50000 \
   --report-every 50 \
+  --timings \
   --seed 1 \
   --results-dir "$OUT" \
   --dist-m4ri-cmd dist_m4ri
@@ -50,6 +52,8 @@ Notes:
 - Outputs live under the run directory (classical JSONL + histograms, `best_codes/`, `milestones.jsonl`).
 - Quantum distance evaluation runs a fast pass first; slow pass runs only if `d_fast >= ceil(sqrt(n))` and beats the current best-by-k bound for that k. Best-by-k entries are only recorded from the slow pass.
 - For abelian groups with identical local codes, B classical precompute is skipped and reuses A via inversion mapping; classical precompute logs `[classical]` progress lines with counts and elapsed time.
+- For a laptop, start with `--classical-workers 6` or `--classical-workers 8` and tune from there.
+- `--timings` prints summaries after classical precompute and at the end of the run (multiset/perm generation, slice builds, rank, MTX writes, dist-m4ri time, bookkeeping).
 
 ## 2) Monitor progress (macOS: no 'watch' needed)
 OUT="$(ls -td runs/* | head -n 1)"

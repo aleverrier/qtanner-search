@@ -8,26 +8,24 @@ Source layout example:
     Hx.mtx
     Hz.mtx
     meta.json
+  results/<run_name>/run_meta.json   (run-level parameters; used as fallback for trials)
 
 CODE_ID example:
-  C2xC2xC2_AAp6_0_1_2_3_4_6_BBp6_0_1_2_4_5_7_k16_d16
+  C2xC2xC2_AAp11_0_0_1_2_2_7_BBp11_0_0_1_2_4_5_k4_d20
 
 What this script does:
 - Finds all results/**/best_codes/<CODE_ID> directories
 - Copies artifacts into best_codes/collected/<CODE_ID>/
 - Copies all .mtx into best_codes/matrices/ (flat convenience copies)
 - Writes canonical metadata into best_codes/meta/<CODE_ID>.json
-  * includes extracted distance-trial information when present in the source meta.json
-  * embeds the full source meta.json as "source_meta" so we never lose construction data
+  * includes extracted distance-trial information; if missing in per-code meta.json,
+    it backfills from run_dir/run_meta.json (so it's always present when possible).
+  * embeds the full source meta.json as "source_meta" (construction details)
 - Generates best_codes/index.tsv and best_codes/best_by_group_k.tsv
 - Updates notes/search_log.tex between:
     % BEGIN AUTO BEST TABLES
     ...
     % END AUTO BEST TABLES
-
-Usage:
-  python scripts/collect_best_codes.py --dry-run
-  python scripts/collect_best_codes.py
 """
 
 from __future__ import annotations
@@ -45,8 +43,6 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 AUTO_BEGIN = "% BEGIN AUTO BEST TABLES"
 AUTO_END = "% END AUTO BEST TABLES"
 
-# CODE_ID example:
-#   C2xC2xC2_AAp11_0_0_1_2_2_7_BBp11_0_0_1_2_4_5_k4_d20
 CODE_ID_RE = re.compile(
     r"^(?P<group>.+?)_AA(?P<A>.+?)_BB(?P<B>.+?)_k(?P<k>\d+)_d(?P<d>\d+)$"
 )
@@ -70,11 +66,6 @@ def ensure_dir(p: Path) -> None:
 
 
 def parse_multiset_elems(ms_id: str) -> List[int]:
-    """
-    Parse:
-      p6_0_1_2_3_4_6  -> [0,1,2,3,4,6]
-      p11_0_0_1_2_2_7 -> [0,0,1,2,2,7]
-    """
     toks = ms_id.split("_")
     out: List[int] = []
     for t in toks[1:]:
@@ -147,19 +138,64 @@ def walk_json(obj: Any, path: List[str]) -> Iterable[Tuple[List[str], Any]]:
     yield path, obj
     if isinstance(obj, dict):
         for k, v in obj.items():
-            walk_path = path + [str(k)]
-            yield from walk_json(v, walk_path)
+            yield from walk_json(v, path + [str(k)])
     elif isinstance(obj, list):
         for i, v in enumerate(obj):
-            walk_path = path + [str(i)]
-            yield from walk_json(v, walk_path)
+            yield from walk_json(v, path + [str(i)])
+
+
+def fallback_distance_from_run_meta(run_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Fallback when per-code meta.json doesn't include trials. We extract a *requested budget*
+    from run_meta.json, prioritizing progressive quantum budgets.
+
+    Returns keys: method, trials, trials_path
+    """
+    out: Dict[str, Any] = {"method": None, "trials": None, "trials_path": None}
+    if not run_meta:
+        return out
+
+    # Heuristic method detection
+    text = json.dumps(run_meta).lower()
+    if "qdistrnd" in text or "qdist" in text:
+        out["method"] = "QDistRnd"
+    elif "dist_m4ri" in text or "m4ri" in text:
+        out["method"] = "dist-m4ri"
+
+    # Prefer progressive quantum budget if present
+    if isinstance(run_meta.get("quantum_steps_slow"), int):
+        out["trials"] = int(run_meta["quantum_steps_slow"])
+        out["trials_path"] = "quantum_steps_slow"
+        return out
+    if isinstance(run_meta.get("quantum_steps_fast"), int):
+        out["trials"] = int(run_meta["quantum_steps_fast"])
+        out["trials_path"] = "quantum_steps_fast"
+        return out
+
+    # Non-progressive typical key
+    if isinstance(run_meta.get("steps"), int):
+        out["trials"] = int(run_meta["steps"])
+        out["trials_path"] = "steps"
+        return out
+
+    # Last resort: look for something that looks like steps/iters
+    candidates: List[Tuple[str, int]] = []
+    for path, val in walk_json(run_meta, []):
+        if isinstance(val, int):
+            key = path[-1].lower() if path else ""
+            if any(t in key for t in ["trial", "trials", "eval", "evals", "step", "steps", "iter", "iters"]):
+                candidates.append(("/".join(path), int(val)))
+    if candidates:
+        candidates.sort(key=lambda x: -x[1])
+        out["trials_path"], out["trials"] = candidates[0]
+    return out
 
 
 def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Best-effort extraction. We DO NOT assume a fixed schema of the source meta.json.
+    Best-effort extraction from per-code meta.json (schema not assumed).
 
-    Returns a dict with keys:
+    Returns keys:
       method, trials, trials_path, trials_key, seed, candidates
     """
     out: Dict[str, Any] = {
@@ -173,14 +209,12 @@ def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, An
     if not source_meta:
         return out
 
-    # Method heuristics
     meta_text = json.dumps(source_meta).lower()
     if "qdistrnd" in meta_text or "qdist" in meta_text:
         out["method"] = "QDistRnd"
-    elif "randomwalk" in meta_text or "random walk" in meta_text:
-        out["method"] = "RandomWalk"
+    elif "dist_m4ri" in meta_text or "m4ri" in meta_text:
+        out["method"] = "dist-m4ri"
 
-    # Gather integer candidates that look like trial budgets
     def looks_like_trials_key(k: str) -> bool:
         kk = k.lower()
         return any(t in kk for t in ["trial", "trials", "eval", "evals", "step", "steps", "iter", "iters", "attempt"])
@@ -188,8 +222,7 @@ def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, An
     def path_relevance_score(path_str: str) -> int:
         s = path_str.lower()
         score = 0
-        # more relevant if it mentions distance estimation machinery
-        if any(t in s for t in ["distance", "dist", "qdistrnd", "qdist", "estimator", "estimate"]):
+        if any(t in s for t in ["distance", "dist", "qdistrnd", "qdist", "estimator", "estimate", "m4ri"]):
             score -= 6
         if any(t in s for t in ["trial", "eval", "step", "iter", "attempt"]):
             score -= 3
@@ -209,7 +242,6 @@ def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, An
                 "score": path_relevance_score(pstr),
             })
 
-    # Also try to find a seed (common key name)
     seed_candidates: List[Dict[str, Any]] = []
     for path, val in walk_json(source_meta, []):
         if not path:
@@ -224,16 +256,14 @@ def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, An
                 "score": path_relevance_score(pstr),
             })
 
-    # Choose best trials candidate
     if candidates:
         candidates.sort(key=lambda c: (c["score"], -c["value"]))
         best = candidates[0]
         out["trials"] = int(best["value"])
         out["trials_path"] = best["path"]
         out["trials_key"] = best["key"]
-        out["candidates"] = candidates[:20]  # keep some for debugging
+        out["candidates"] = candidates[:20]
 
-    # Choose best seed candidate
     if seed_candidates:
         seed_candidates.sort(key=lambda c: (c["score"], c["path"]))
         out["seed"] = int(seed_candidates[0]["value"])
@@ -242,14 +272,9 @@ def extract_distance_info(source_meta: Optional[Dict[str, Any]]) -> Dict[str, An
 
 
 def extract_permutation_candidates(source_meta: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Find arrays that look like permutations: list[int] under keys containing 'perm'.
-    We do not assume any fixed key names.
-    """
     if not source_meta:
         return []
     perms: List[Dict[str, Any]] = []
-
     for path, val in walk_json(source_meta, []):
         if not path:
             continue
@@ -262,14 +287,10 @@ def extract_permutation_candidates(source_meta: Optional[Dict[str, Any]]) -> Lis
                 "length": len(val),
                 "value_preview": val[:20],
             })
-
     return perms[:50]
 
 
 def read_mtx_shape(fp: Path) -> Optional[Tuple[int, int, int]]:
-    """
-    Parse Matrix Market header for (nrows,ncols,nnz).
-    """
     try:
         with fp.open("r", errors="replace") as f:
             header = f.readline()
@@ -359,7 +380,6 @@ def group_to_latex(group: str) -> str:
 
 
 def build_latex_block(records: List["CodeRecord"]) -> str:
-    # best by (group,n,k): max d_recorded
     best: Dict[Tuple[str, Optional[int], int], "CodeRecord"] = {}
     for r in records:
         key = (r.group, r.n, r.k)
@@ -373,7 +393,7 @@ def build_latex_block(records: List["CodeRecord"]) -> str:
     lines: List[str] = []
     lines.append(r"\section{Auto-collected best results}")
     lines.append(r"This section is generated by \texttt{scripts/collect\_best\_codes.py}.")
-    lines.append(r"$d$ is the recorded value saved by the search pipeline (often a QDistRnd upper bound).")
+    lines.append(r"$d$ is the recorded value saved by the search pipeline.")
     lines.append("")
 
     for (g, n), lst in sorted(grouped.items(), key=lambda x: (x[0][0], x[0][1] if x[0][1] is not None else 10**18)):
@@ -469,6 +489,9 @@ class CodeRecord:
 
     permutation_candidates: List[Dict[str, Any]]
 
+    run_meta_path_in_src: Optional[str]
+    run_meta: Optional[Dict[str, Any]]
+
     source_meta_path_in_src: Optional[str]
     source_meta_path_in_collected: Optional[str]
     source_meta: Optional[Dict[str, Any]]
@@ -505,7 +528,6 @@ def main() -> None:
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Dedup key
     by_key: Dict[Tuple[str, str, str, int, int], CodeRecord] = {}
     records: List[CodeRecord] = []
 
@@ -523,12 +545,25 @@ def main() -> None:
         k = parsed["k"]
         d_in_id = parsed["d_in_id"]
 
-        # Load source meta.json if present
+        # Per-code meta
         src_meta_path, src_meta = find_source_meta(code_dir)
+
+        # Run meta fallback (for distance step budgets etc.)
+        run_meta_path = run_dir / "run_meta.json"
+        run_meta = safe_load_json(run_meta_path) if run_meta_path.exists() else None
+
         dist = extract_distance_info(src_meta)
+        if dist.get("trials") is None:
+            fb = fallback_distance_from_run_meta(run_meta)
+            if fb.get("trials") is not None:
+                dist["trials"] = fb["trials"]
+                dist["trials_path"] = f"run_meta.json/{fb.get('trials_path') or ''}".rstrip("/")
+                if dist.get("method") is None and fb.get("method") is not None:
+                    dist["method"] = fb["method"]
+
         perms = extract_permutation_candidates(src_meta)
 
-        # Infer n from matrices; prefer meta if it explicitly has "n" (common)
+        # Infer n
         n = None
         if isinstance(src_meta, dict):
             if isinstance(src_meta.get("n"), int):
@@ -540,7 +575,7 @@ def main() -> None:
         if n is None:
             n = infer_n_from_code_dir(code_dir)
 
-        # Prefer d from meta if it is present; otherwise folder name
+        # Prefer d from meta if present; otherwise folder name
         d_recorded = d_in_id
         d_kind = "from_code_id"
         if isinstance(src_meta, dict):
@@ -556,7 +591,6 @@ def main() -> None:
 
         key = (group, A_id, B_id, k, d_in_id)
         if key in by_key:
-            # Merge provenance + fill missing fields
             rec = by_key[key]
             rec.also_seen_in.append(src_rel)
             if rec.distance_trials is None and dist.get("trials") is not None:
@@ -564,6 +598,9 @@ def main() -> None:
                 rec.distance_trials_path = dist.get("trials_path")
             if rec.distance_method is None and dist.get("method") is not None:
                 rec.distance_method = dist["method"]
+            if rec.run_meta is None and run_meta is not None:
+                rec.run_meta = run_meta
+                rec.run_meta_path_in_src = rel(root, run_meta_path) if run_meta_path.exists() else None
             continue
 
         collected_dir = dest_root / code_id
@@ -587,6 +624,8 @@ def main() -> None:
             distance_trials_path=dist.get("trials_path"),
             distance_seed=dist.get("seed"),
             permutation_candidates=perms,
+            run_meta_path_in_src=rel(root, run_meta_path) if run_meta_path.exists() else None,
+            run_meta=run_meta,
             source_meta_path_in_src=rel(root, src_meta_path) if src_meta_path else None,
             source_meta_path_in_collected=str(Path(args.dest) / code_id / (src_meta_path.name if src_meta_path else "meta.json")),
             source_meta=src_meta,
@@ -622,7 +661,6 @@ def main() -> None:
     ensure_dir(meta_dir)
     ensure_dir(flat_mtx_dir)
 
-    # Copy + write curated meta + settings.json
     for r in records:
         src = root / r.src_dir
         dst = root / r.collected_dir
@@ -633,7 +671,7 @@ def main() -> None:
         flat = copy_matrices_flat(flat_mtx_dir, r.code_id, dst)
         r.matrices_flat = [rel(root, p) for p in flat]
 
-        # Write settings.json (small stable summary for humans + scripts)
+        # settings.json
         settings_abs = root / r.settings_path
         ensure_dir(settings_abs.parent)
         settings = {
@@ -656,6 +694,8 @@ def main() -> None:
             "B_elems": r.B_elems,
             "permutation_candidates": r.permutation_candidates,
             "matrices_flat": r.matrices_flat,
+            "run_meta_path_in_src": r.run_meta_path_in_src,
+            "run_meta": r.run_meta,
             "source_meta_path_in_collected": r.source_meta_path_in_collected,
             "provenance": {
                 "run_dir": r.run_dir,
@@ -668,10 +708,8 @@ def main() -> None:
         if rel(root, settings_abs) not in r.collected_files:
             r.collected_files.append(rel(root, settings_abs))
 
-        # Write canonical meta in best_codes/meta/
         save_json(meta_dir / f"{r.code_id}.json", asdict(r))
 
-    # index.tsv
     index_rows: List[List[str]] = []
     for r in records:
         index_rows.append([
@@ -694,7 +732,6 @@ def main() -> None:
         index_rows,
     )
 
-    # best_by_group_k.tsv
     best_gk: Dict[Tuple[str, int], CodeRecord] = {}
     for r in records:
         key = (r.group, r.k)
@@ -716,7 +753,6 @@ def main() -> None:
         best_rows,
     )
 
-    # TeX
     tex_path = root / args.update_tex
     latex_block = build_latex_block(records)
     try:

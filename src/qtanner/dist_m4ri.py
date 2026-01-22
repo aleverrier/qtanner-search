@@ -6,12 +6,23 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
-from typing import Sequence
+from typing import Dict, Optional, Sequence
 
 from .mtx import write_mtx_from_bitrows
 
 _DOCS_HINT = "See README.md#dist-m4ri for setup instructions."
+
+
+def _add_timing(
+    timings: Optional[Dict[str, float]],
+    key: str,
+    delta: float,
+) -> None:
+    if timings is None:
+        return
+    timings[key] = timings.get(key, 0.0) + float(delta)
 
 
 def write_mtx_gf2(path: str | Path, rows: Sequence[int], n_cols: int) -> None:
@@ -48,6 +59,7 @@ def run_dist_m4ri_css_rw(
     *,
     seed: int = 0,
     dist_m4ri_cmd: str = "dist_m4ri",
+    timings: Optional[Dict[str, float]] = None,
 ) -> int:
     """Run dist-m4ri RW (method=1) on CSS code defined by Hx/Hz bitrows."""
     if steps <= 0:
@@ -58,8 +70,10 @@ def run_dist_m4ri_css_rw(
         base = Path(tmpdir) / "code"
         hx_path = f"{base}X.mtx"
         hz_path = f"{base}Z.mtx"
+        write_start = time.perf_counter()
         write_mtx_from_bitrows(hx_path, list(hx_rows), n_cols)
         write_mtx_from_bitrows(hz_path, list(hz_rows), n_cols)
+        _add_timing(timings, "write_mtx", time.perf_counter() - write_start)
         cmd = [
             dist_m4ri_cmd,
             "debug=0",
@@ -70,7 +84,13 @@ def run_dist_m4ri_css_rw(
             f"fin={base}",
         ]
         try:
+            run_start = time.perf_counter()
             result = subprocess.run(cmd, text=True, capture_output=True, check=False)
+            _add_timing(
+                timings,
+                "dist_m4ri_subprocess",
+                time.perf_counter() - run_start,
+            )
         except FileNotFoundError as exc:
             raise RuntimeError(
                 f"dist_m4ri not found on PATH (cmd='{dist_m4ri_cmd}'). "
@@ -95,6 +115,7 @@ def run_dist_m4ri_classical_rw(
     *,
     seed: int = 0,
     dist_m4ri_cmd: str = "dist_m4ri",
+    timings: Optional[Dict[str, float]] = None,
 ) -> int:
     """Run dist-m4ri RW (method=1) for a classical code given parity-check rows."""
     if steps <= 0:
@@ -103,7 +124,9 @@ def run_dist_m4ri_classical_rw(
         raise ValueError("wmin must be nonnegative.")
     with tempfile.TemporaryDirectory() as tmpdir:
         h_path = Path(tmpdir) / "codeH.mtx"
+        write_start = time.perf_counter()
         write_mtx_from_bitrows(str(h_path), list(h_rows), n_cols)
+        _add_timing(timings, "write_mtx", time.perf_counter() - write_start)
         cmd = [
             dist_m4ri_cmd,
             "debug=0",
@@ -114,7 +137,13 @@ def run_dist_m4ri_classical_rw(
             f"finH={h_path}",
         ]
         try:
+            run_start = time.perf_counter()
             result = subprocess.run(cmd, text=True, capture_output=True, check=False)
+            _add_timing(
+                timings,
+                "dist_m4ri_subprocess",
+                time.perf_counter() - run_start,
+            )
         except FileNotFoundError as exc:
             raise RuntimeError(
                 f"dist_m4ri not found on PATH (cmd='{dist_m4ri_cmd}'). "
