@@ -2,32 +2,52 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage:"
-  echo "  bash scripts/refine_group_and_publish.sh --group GROUP --trials N [--best-dir DIR] [--dry-run] [--no-push]"
-  echo "  bash scripts/refine_group_and_publish.sh --list-groups [--best-dir DIR]"
-  echo ""
-  echo "Notes:"
-  echo "  - Codes are expected under: BEST_DIR/collected/"
-  echo "  - GROUP matches directories starting with: GROUP_"
-  echo ""
-  echo "Examples:"
-  echo "  bash scripts/refine_group_and_publish.sh --list-groups"
-  echo "  bash scripts/refine_group_and_publish.sh --group C2xC2xC2xC2 --trials 500000 --dry-run"
-  echo "  bash scripts/refine_group_and_publish.sh --group C2xC2xC2xC2 --trials 500000"
+  cat <<'EOF'
+Usage:
+  bash scripts/refine_group_and_publish.sh --group GROUP --trials N [--best-dir DIR] [--dry-run] [--no-push]
+  bash scripts/refine_group_and_publish.sh --list-groups [--best-dir DIR]
+
+What it does:
+  - Finds all codes in BEST_DIR/collected/ whose folder name starts with GROUP_
+  - Runs:
+      python3 scripts/refine_best_codes.py --best-dir BEST_DIR --pattern GROUP_ --steps N
+  - Then runs:
+      bash scripts/update_best_codes_repo.sh
+  - Then commits + pushes the changes (including inside BEST_DIR if it is its own git repo)
+
+Examples:
+  bash scripts/refine_group_and_publish.sh --list-groups
+  bash scripts/refine_group_and_publish.sh --group C2xC2xC2xC2 --trials 500000 --dry-run
+  bash scripts/refine_group_and_publish.sh --group C2xC2xC2xC2 --trials 500000
+EOF
 }
 
 GROUP=""
-TRIALS=""
+STEPS=""
 BEST_DIR=""
 DRYRUN=0
 PUSH=1
 LIST_GROUPS=0
 
+# Optional pass-through knobs to refine_best_codes.py
+LIMIT=""
+MINDIST=""
+TIMEOUT=""
+FORCE=0
+GAP=""
+PATTERN=""
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --group) GROUP="$2"; shift 2 ;;
-    --trials) TRIALS="$2"; shift 2 ;;
+    --trials|--steps) STEPS="$2"; shift 2 ;;
     --best-dir) BEST_DIR="$2"; shift 2 ;;
+    --pattern) PATTERN="$2"; shift 2 ;;
+    --limit) LIMIT="$2"; shift 2 ;;
+    --mindist) MINDIST="$2"; shift 2 ;;
+    --timeout) TIMEOUT="$2"; shift 2 ;;
+    --gap) GAP="$2"; shift 2 ;;
+    --force) FORCE=1; shift ;;
     --dry-run) DRYRUN=1; shift ;;
     --no-push) PUSH=0; shift ;;
     --list-groups) LIST_GROUPS=1; shift ;;
@@ -39,14 +59,14 @@ done
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "${REPO_ROOT}"
 
-# Locate best_codes directory automatically
+# Auto-detect best_codes directory name if not provided
 if [[ -z "${BEST_DIR}" ]]; then
   if [[ -d "best_codes" ]]; then
     BEST_DIR="best_codes"
-  elif [[ -d "best codes" ]]; then
-    BEST_DIR="best codes"
+  elif [[ -d "best-codes" ]]; then
+    BEST_DIR="best-codes"
   else
-    echo "ERROR: Could not find a 'best_codes/' or 'best codes/' directory."
+    echo "ERROR: Could not find best_codes/ or best-codes/."
     echo "Use: --best-dir PATH"
     exit 1
   fi
@@ -60,25 +80,33 @@ fi
 COLLECTED_DIR="${BEST_DIR}/collected"
 if [[ ! -d "${COLLECTED_DIR}" ]]; then
   echo "ERROR: expected codes under: ${COLLECTED_DIR}"
-  echo "But that directory does not exist."
   exit 1
 fi
 
-# If requested: list available groups (prefix before first underscore)
+# List groups mode
 if [[ "${LIST_GROUPS}" -eq 1 ]]; then
   echo "Groups found under ${COLLECTED_DIR}:"
-  ls -1 "${COLLECTED_DIR}" \
-    | sed 's/_.*$//' \
-    | sort -u
+  shopt -s nullglob
+  for d in "${COLLECTED_DIR}"/*; do
+    [[ -d "${d}" ]] || continue
+    name="$(basename "${d}")"
+    echo "${name%%_*}"
+  done | sort -u
+  shopt -u nullglob
   exit 0
 fi
 
-if [[ -z "${GROUP}" || -z "${TRIALS}" ]]; then
+if [[ -z "${GROUP}" || -z "${STEPS}" ]]; then
   usage
   exit 2
 fi
 
-# Safety: avoid committing unrelated changes
+# Clean macOS junk that sometimes breaks parsing (e.g. .DS_Store)
+find "${BEST_DIR}" -name '.DS_Store' -print -delete || true
+find "${BEST_DIR}" -name '._*' -print -delete || true
+find "${BEST_DIR}" -type d -name '__MACOSX' -print -prune -exec rm -rf {} + || true
+
+# Refuse to run if there are unrelated pending changes (keeps commits clean)
 if [[ -n "$(git status --porcelain)" ]]; then
   echo "ERROR: Your working tree is not clean."
   echo "Please commit or stash current changes first, then rerun."
@@ -87,24 +115,19 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-# Clean macOS junk that can break filename parsing
-find "${BEST_DIR}" -name '.DS_Store' -print -delete || true
-find "${BEST_DIR}" -name '._*' -print -delete || true
-find "${BEST_DIR}" -type d -name '__MACOSX' -print -prune -exec rm -rf {} + || true
-
-# Find codes for this group (directories starting with GROUP_)
+# Confirm the group actually exists, and show how many codes will be processed
 shopt -s nullglob
 CANDIDATES=( "${COLLECTED_DIR}/${GROUP}_"* )
 shopt -u nullglob
 
-MATCHED=()
+COUNT=0
 for p in "${CANDIDATES[@]}"; do
   if [[ -d "${p}" ]]; then
-    MATCHED+=( "${p}" )
+    COUNT=$((COUNT + 1))
   fi
 done
 
-if (( ${#MATCHED[@]} == 0 )); then
+if [[ "${COUNT}" -eq 0 ]]; then
   echo "ERROR: no code directories found for group '${GROUP}' under:"
   echo "  ${COLLECTED_DIR}"
   echo ""
@@ -113,74 +136,26 @@ if (( ${#MATCHED[@]} == 0 )); then
   exit 1
 fi
 
-echo "Found ${#MATCHED[@]} codes for group '${GROUP}' in ${COLLECTED_DIR}"
-echo "Temporarily hiding other groups so refine_best_codes.py only sees this group..."
+echo "Found ${COUNT} codes for group '${GROUP}' in ${COLLECTED_DIR}"
 
-STAMP="$(date +%s)"
-STASH_DIR="${BEST_DIR}/.tmp_stash_other_groups_${GROUP}_${STAMP}"
-RESTORED=0
-
-restore_other_groups() {
-  if [[ "${RESTORED}" -eq 1 ]]; then
-    return
-  fi
-  RESTORED=1
-
-  if [[ -d "${STASH_DIR}/collected" ]]; then
-    shopt -s nullglob
-    for d in "${STASH_DIR}/collected/"*; do
-      mv "${d}" "${COLLECTED_DIR}/"
-    done
-    shopt -u nullglob
-  fi
-
-  rm -rf "${STASH_DIR}" || true
-}
-
-trap restore_other_groups EXIT
-
-mkdir -p "${STASH_DIR}/collected"
-
-# Move non-matching directories out of collected/
-shopt -s nullglob
-for d in "${COLLECTED_DIR}/"*; do
-  name="$(basename "${d}")"
-  if [[ -d "${d}" && "${name}" != "${GROUP}_"* ]]; then
-    mv "${d}" "${STASH_DIR}/collected/"
-  fi
-done
-shopt -u nullglob
-
-# Detect the trials flag supported by refine_best_codes.py
-HELP="$(python3 scripts/refine_best_codes.py --help 2>&1 || true)"
-
-TRIALS_FLAG=""
-for f in --trials --qdistrnd-trials --distance-trials --num-trials --n-trials --ntrials; do
-  if echo "${HELP}" | grep -q -- "${f}"; then
-    TRIALS_FLAG="${f}"
-    break
-  fi
-done
-
-if [[ -z "${TRIALS_FLAG}" ]]; then
-  echo "ERROR: Could not detect a trials flag in refine_best_codes.py --help"
-  echo "Please run and paste the output:"
-  echo "  python3 scripts/refine_best_codes.py --help"
-  exit 1
+# Pattern: use GROUP_ by default to avoid matching longer groups (e.g. C2xC2 inside C2xC2xC2)
+if [[ -z "${PATTERN}" ]]; then
+  PATTERN="${GROUP}_"
 fi
 
-CMD=(python3 scripts/refine_best_codes.py "${TRIALS_FLAG}" "${TRIALS}")
-if echo "${HELP}" | grep -q -- "--dry-run" && [[ "${DRYRUN}" -eq 1 ]]; then
-  CMD+=(--dry-run)
-fi
+CMD=(python3 scripts/refine_best_codes.py --best-dir "${BEST_DIR}" --pattern "${PATTERN}" --steps "${STEPS}")
+
+# Optional pass-through flags
+if [[ -n "${MINDIST}" ]]; then CMD+=(--mindist "${MINDIST}"); fi
+if [[ -n "${TIMEOUT}" ]]; then CMD+=(--timeout "${TIMEOUT}"); fi
+if [[ -n "${LIMIT}" ]]; then CMD+=(--limit "${LIMIT}"); fi
+if [[ -n "${GAP}" ]]; then CMD+=(--gap "${GAP}"); fi
+if [[ "${FORCE}" -eq 1 ]]; then CMD+=(--force); fi
+if [[ "${DRYRUN}" -eq 1 ]]; then CMD+=(--dry-run); fi
 
 echo "Running refine:"
 echo "  ${CMD[*]}"
 "${CMD[@]}"
-
-# Restore other groups before updating website
-restore_other_groups
-trap - EXIT
 
 if [[ "${DRYRUN}" -eq 1 ]]; then
   echo "Dry-run complete (no update/commit/push)."
@@ -190,7 +165,6 @@ fi
 echo "Updating best-codes webpage:"
 bash scripts/update_best_codes_repo.sh
 
-# Commit and push (supports best_codes being a separate git repo or part of this repo)
 commit_push_if_needed() {
   local repo_path="$1"
   local msg="$2"
@@ -211,15 +185,15 @@ commit_push_if_needed() {
   fi
 }
 
-# If best_codes is its own git repo (e.g., a submodule), commit there first
+# If BEST_DIR is its own git repo (submodule), commit there first
 if [[ -e "${BEST_DIR}/.git" ]]; then
-  commit_push_if_needed "${BEST_DIR}" "Update best_codes after refining ${GROUP} (${TRIALS} trials)" "${PUSH}"
+  commit_push_if_needed "${BEST_DIR}" "Update best_codes after refining ${GROUP} (${STEPS} steps)" "${PUSH}"
 fi
 
-# Then commit at repo root if needed (e.g., submodule pointer changed or other files updated)
+# Then commit at repo root if needed (e.g. submodule pointer changed or other files updated)
 if [[ -n "$(git status --porcelain)" ]]; then
   git add -A
-  git commit -m "Refine distances for ${GROUP} (${TRIALS} trials) and update best-codes page"
+  git commit -m "Refine distances for ${GROUP} (${STEPS} steps) and update best-codes page"
   if [[ "${PUSH}" -eq 1 ]]; then
     git push
   fi
