@@ -26,7 +26,7 @@
       "d_recorded_kind": "from_code_id",
       "distance_method": "dist-m4ri",
       "distance_seed": 271041745,
-      "distance_trials": 400,
+      "distance_trials": 100,
       "extra_files": [
         {
           "path": "best_codes/collected/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6/meta.json",
@@ -59,7 +59,7 @@
       "meta_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/best_codes/meta/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6.json",
       "meta_url_raw": "https://raw.githubusercontent.com/aleverrier/qtanner-search/progressive-speedups-20260122/best_codes/meta/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6.json",
       "n": 72,
-      "run_dir": "results/smoke_progressive_20260122_133121",
+      "run_dir": "results/smoke_histogram_table_20260122_153440",
       "settings_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/best_codes/collected/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6/settings.json",
       "source_meta": {
         "A": {
@@ -253,24 +253,24 @@
               "early_stop": false,
               "seed": 271041745,
               "signed": 6,
-              "steps": 200
+              "steps": 50
             },
             "dz": {
               "d_ub": 6,
               "early_stop": false,
               "seed": 577090037,
               "signed": 6,
-              "steps": 200
+              "steps": 50
             }
           },
           "method": "dist_m4ri_rw_progressive",
-          "refine_chunk": 200,
+          "refine_chunk": 50,
           "refine_chunks": [],
-          "steps_fast": 200,
-          "steps_slow": 200,
-          "steps_used_total": 400,
-          "steps_used_x": 200,
-          "steps_used_z": 200,
+          "steps_fast": 50,
+          "steps_slow": 50,
+          "steps_used_total": 100,
+          "steps_used_x": 50,
+          "steps_used_z": 50,
           "wmin": 1
         },
         "group": {
@@ -290,8 +290,8 @@
         "seed": 1,
         "target_distance": 2
       },
-      "src_dir": "results/smoke_progressive_20260122_133121/best_codes/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6",
-      "src_dir_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/results/smoke_progressive_20260122_133121/best_codes/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6"
+      "src_dir": "results/smoke_histogram_table_20260122_153440/best_codes/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6",
+      "src_dir_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/results/smoke_histogram_table_20260122_153440/best_codes/C2_AAp11_0_0_0_0_0_1_BBp11_0_0_0_0_0_1_k2_d6"
     },
     {
       "A_elems": [
@@ -13095,8 +13095,8 @@
       "d_recorded": 10,
       "d_recorded_kind": "from_code_id",
       "distance_method": "dist-m4ri",
-      "distance_seed": 1746329094,
-      "distance_trials": 200000,
+      "distance_seed": 425310703,
+      "distance_trials": 8000,
       "extra_files": [
         {
           "path": "best_codes/collected/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10/meta.json",
@@ -13129,7 +13129,7 @@
       "meta_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/best_codes/meta/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10.json",
       "meta_url_raw": "https://raw.githubusercontent.com/aleverrier/qtanner-search/progressive-speedups-20260122/best_codes/meta/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10.json",
       "n": 144,
-      "run_dir": "results/progressive_C2xC2_20260122T132425Z",
+      "run_dir": "results/progressive_C2xC2_20260122T142251Z",
       "settings_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/best_codes/collected/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10/settings.json",
       "source_meta": {
         "A": {
@@ -13321,14 +13321,14 @@
             "dx": {
               "d_ub": 10,
               "early_stop": false,
-              "seed": 1746329094,
+              "seed": 425310703,
               "signed": 10,
               "steps": 1000
             },
             "dz": {
               "d_ub": 10,
               "early_stop": false,
-              "seed": 168095560,
+              "seed": 1490056820,
               "signed": 10,
               "steps": 1000
             }
@@ -13343,106 +13343,26 @@
               "dx": {
                 "d_ub": 10,
                 "early_stop": false,
-                "seed": 314363339,
+                "seed": 883740024,
                 "signed": 10,
-                "steps": 20000
+                "steps": 3000
               },
               "dz": {
                 "d_ub": 10,
                 "early_stop": false,
-                "seed": 1633076447,
+                "seed": 1859506623,
                 "signed": 10,
-                "steps": 20000
+                "steps": 3000
               },
-              "steps": 20000
-            },
-            {
-              "chunk": 2,
-              "d_x_best": 10,
-              "d_z_best": 10,
-              "dx": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 632770586,
-                "signed": 10,
-                "steps": 20000
-              },
-              "dz": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 536945008,
-                "signed": 10,
-                "steps": 20000
-              },
-              "steps": 20000
-            },
-            {
-              "chunk": 3,
-              "d_x_best": 10,
-              "d_z_best": 10,
-              "dx": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 1464143461,
-                "signed": 10,
-                "steps": 20000
-              },
-              "dz": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 492587045,
-                "signed": 10,
-                "steps": 20000
-              },
-              "steps": 20000
-            },
-            {
-              "chunk": 4,
-              "d_x_best": 10,
-              "d_z_best": 10,
-              "dx": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 1623667860,
-                "signed": 10,
-                "steps": 20000
-              },
-              "dz": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 329216272,
-                "signed": 10,
-                "steps": 20000
-              },
-              "steps": 20000
-            },
-            {
-              "chunk": 5,
-              "d_x_best": 10,
-              "d_z_best": 10,
-              "dx": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 960844627,
-                "signed": 10,
-                "steps": 19000
-              },
-              "dz": {
-                "d_ub": 10,
-                "early_stop": false,
-                "seed": 351084617,
-                "signed": 10,
-                "steps": 19000
-              },
-              "steps": 19000
+              "steps": 3000
             }
           ],
           "steps_fast": 1000,
-          "steps_slow": 100000,
-          "steps_used_total": 200000,
-          "steps_used_x": 100000,
-          "steps_used_z": 100000,
-          "wmin": 9
+          "steps_slow": 4000,
+          "steps_used_total": 8000,
+          "steps_used_x": 4000,
+          "steps_used_z": 4000,
+          "wmin": 6
         },
         "group": {
           "order": 4,
@@ -13459,10 +13379,10 @@
         },
         "n": 144,
         "seed": 1,
-        "target_distance": 10
+        "target_distance": 7
       },
-      "src_dir": "results/progressive_C2xC2_20260122T132425Z/best_codes/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10",
-      "src_dir_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/results/progressive_C2xC2_20260122T132425Z/best_codes/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10"
+      "src_dir": "results/progressive_C2xC2_20260122T142251Z/best_codes/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10",
+      "src_dir_url_blob": "https://github.com/aleverrier/qtanner-search/blob/progressive-speedups-20260122/results/progressive_C2xC2_20260122T142251Z/best_codes/C2xC2_AAp6_0_0_1_1_2_3_BBp6_0_0_1_2_2_3_k10_d10"
     },
     {
       "A_elems": [
@@ -22567,7 +22487,7 @@
     }
   ],
   "dropped_codes_missing_n_or_k": 0,
-  "generated_at_utc": "2026-01-22T14:27:28Z",
+  "generated_at_utc": "2026-01-22T14:38:18Z",
   "repo": {
     "branch": "progressive-speedups-20260122",
     "owner": "aleverrier",
