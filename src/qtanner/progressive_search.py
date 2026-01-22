@@ -11,6 +11,7 @@ import os
 import random
 import sys
 import time
+from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import dataclass
 from itertools import combinations_with_replacement
@@ -802,6 +803,16 @@ def _histogram_payload(hist: Dict[Tuple[int, int], int]) -> List[Dict[str, int]]
     return entries
 
 
+def _histogram_by_k(
+    hist: Dict[Tuple[int, int], int]
+) -> Dict[int, Counter[int]]:
+    by_k: Dict[int, Counter[int]] = defaultdict(Counter)
+    for (k_val, d_val), count in hist.items():
+        by_k[int(k_val)][int(d_val)] += int(count)
+    return dict(by_k)
+
+
+
 def _print_histogram_top(
     *,
     side: str,
@@ -809,7 +820,10 @@ def _print_histogram_top(
     top_n: int = 10,
 ) -> None:
     entries = _histogram_payload(hist)
-    print(f"[progressive] {side} histogram top {min(top_n, len(entries))}:")
+    print(
+        f"[progressive] {side} histogram top {min(top_n, len(entries))} "
+        "by frequency (k, d_est):"
+    )
     if not entries:
         print("  (none)")
         return
@@ -817,6 +831,41 @@ def _print_histogram_top(
         print(
             f"  k={entry['k_classical']} d_est={entry['d_est']} count={entry['count']}"
         )
+
+
+def _print_histogram_distribution(
+    *,
+    side: str,
+    hist: Dict[Tuple[int, int], int],
+) -> None:
+    print(f"[progressive] {side} distribution of d_est per k (counts):")
+    if not hist:
+        print("  (none)")
+        return
+    by_k = _histogram_by_k(hist)
+    for k_val in sorted(by_k):
+        counter = by_k[k_val]
+        if not counter:
+            continue
+        total = sum(counter.values())
+        best_d = max(counter)
+        d_items = sorted(counter.items(), key=lambda item: item[0], reverse=True)
+        d_parts = " ".join(
+            f"d={d_val}:{count}" for d_val, count in d_items
+        )
+        print(
+            f"  k={k_val} total={total} best_d_est={best_d} | {d_parts}"
+        )
+
+
+def _print_histogram_report(
+    *,
+    side: str,
+    hist: Dict[Tuple[int, int], int],
+    top_n: int = 10,
+) -> None:
+    _print_histogram_top(side=side, hist=hist, top_n=top_n)
+    _print_histogram_distribution(side=side, hist=hist)
 
 
 def _print_classical_summary(
@@ -1774,7 +1823,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         canonicalize=canonicalize,
         timings=classical_timings,
     )
-    _print_histogram_top(side="A", hist=a_hist)
+    _print_histogram_report(side="A", hist=a_hist)
     _write_histogram(
         path=outdir / "classical_A_histogram.json",
         side="A",
@@ -1829,7 +1878,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             classical_jobs=args.classical_jobs,
             timings=classical_timings,
         )
-    _print_histogram_top(side="B", hist=b_hist)
+    _print_histogram_report(side="B", hist=b_hist)
     _write_histogram(
         path=outdir / "classical_B_histogram.json",
         side="B",
