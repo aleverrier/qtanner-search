@@ -11,7 +11,7 @@
         "exact": true,
         "k": 2,
         "rank": 22,
-        "seed": 657585543
+        "seed": 332549764
       },
       "H": {
         "backend": "fast",
@@ -23,7 +23,7 @@
         "exact": true,
         "k": 2,
         "rank": 22,
-        "seed": 1957912754
+        "seed": 1317233316
       }
     },
     "d_est": 16,
@@ -84,7 +84,7 @@
         "exact": true,
         "k": 4,
         "rank": 20,
-        "seed": 1587017076
+        "seed": 654988598
       },
       "Hp": {
         "backend": "fast",
@@ -96,7 +96,7 @@
         "exact": true,
         "k": 4,
         "rank": 20,
-        "seed": 266099440
+        "seed": 1793403741
       }
     },
     "d_est": 12,
@@ -181,38 +181,135 @@
   },
   "code_id": "C2xC2_AAp12_0_0_0_1_2_2_BBp6_0_0_1_1_2_3_k6_d12",
   "distance": {
-    "d_fast_ub": 12,
-    "d_slow_ub": 12,
+    "dX_best": 12,
+    "dZ_best": 12,
     "d_ub": 12,
     "fast": {
-      "d_ub": 12,
-      "dx_signed": 12,
-      "dx_ub": 12,
-      "dz_signed": 12,
-      "dz_ub": 12,
-      "early_stop_x": false,
-      "early_stop_z": false,
-      "seed_x": 1445698770,
-      "seed_z": 2076486808,
-      "steps": 2000
+      "dx": {
+        "d_ub": 12,
+        "early_stop": false,
+        "seed": 1973981844,
+        "signed": 12,
+        "steps": 1000
+      },
+      "dz": {
+        "d_ub": 12,
+        "early_stop": false,
+        "seed": 939657385,
+        "signed": 12,
+        "steps": 1000
+      }
     },
-    "method": "dist_m4ri_rw",
-    "slow": {
-      "d_ub": 12,
-      "dx_signed": 12,
-      "dx_ub": 12,
-      "dz_signed": 12,
-      "dz_ub": 12,
-      "early_stop_x": false,
-      "early_stop_z": false,
-      "seed_x": 1109284309,
-      "seed_z": 1358305316,
-      "steps": 50000
-    },
-    "sqrt_n": 12,
-    "steps_fast": 2000,
-    "steps_slow": 50000,
-    "wmin": 11
+    "method": "dist_m4ri_rw_progressive",
+    "refine_chunk": 20000,
+    "refine_chunks": [
+      {
+        "chunk": 1,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 1244602538,
+          "signed": 12,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 92297589,
+          "signed": 12,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 2,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 1787479226,
+          "signed": 12,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 429497919,
+          "signed": 12,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 3,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 798461319,
+          "signed": 12,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 1272987056,
+          "signed": 12,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 4,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 519218416,
+          "signed": 12,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 1428914934,
+          "signed": 12,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 5,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 1812935769,
+          "signed": 12,
+          "steps": 19000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 815398389,
+          "signed": 12,
+          "steps": 19000
+        },
+        "steps": 19000
+      }
+    ],
+    "steps_fast": 1000,
+    "steps_slow": 100000,
+    "steps_used_total": 200000,
+    "steps_used_x": 100000,
+    "steps_used_z": 100000,
+    "wmin": 10
   },
   "group": {
     "order": 4,
@@ -228,6 +325,6 @@
     "permB_idx": 6
   },
   "n": 144,
-  "seed": 147664422,
-  "target_distance": 12
+  "seed": 1,
+  "target_distance": 11
 }
