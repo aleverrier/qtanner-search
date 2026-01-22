@@ -101,6 +101,9 @@ def find_code_pairs(best_dir: Path) -> list[CodePair]:
 
         rel = x_path.relative_to(best_dir)
         # code_id is a stable relative identifier (folder + base name)
+        # Skip entries that lead to an empty base name (e.g. hidden files like .git)
+        if not base:
+            continue
         code_id = rel.with_name(base).as_posix()
 
         pairs[code_id] = CodePair(code_id=code_id, hx=x_path, hz=hz_path)
