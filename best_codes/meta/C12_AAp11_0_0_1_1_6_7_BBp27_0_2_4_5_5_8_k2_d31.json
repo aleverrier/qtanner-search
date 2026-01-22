@@ -1,0 +1,507 @@
+{
+  "A_elems": [
+    0,
+    0,
+    1,
+    1,
+    6,
+    7
+  ],
+  "A_id": "p11_0_0_1_1_6_7",
+  "B_elems": [
+    0,
+    2,
+    4,
+    5,
+    5,
+    8
+  ],
+  "B_id": "p27_0_2_4_5_5_8",
+  "also_seen_in": [],
+  "code_id": "C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31",
+  "collected_at_utc": "2026-01-22T16:39:51Z",
+  "collected_dir": "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31",
+  "collected_files": [
+    "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/Hz.mtx",
+    "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/Hx.mtx",
+    "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/meta.json",
+    "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/settings.json"
+  ],
+  "d_in_id": 31,
+  "d_recorded": 31,
+  "d_recorded_kind": "from_code_id",
+  "distance_method": "dist-m4ri",
+  "distance_seed": 663798776,
+  "distance_trials": 400000,
+  "distance_trials_path": "distance/steps_used_total",
+  "group": "C12",
+  "k": 2,
+  "matrices_flat": [
+    "best_codes/matrices/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31__Hz.mtx",
+    "best_codes/matrices/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31__Hx.mtx"
+  ],
+  "n": 432,
+  "permutation_candidates": [],
+  "run_dir": "results/progressive_C12_20260122T153931Z",
+  "run_meta": {
+    "classical_distance_backend": "fast",
+    "classical_exhaustive_k_max": 8,
+    "classical_jobs": 1,
+    "classical_sample_count": 256,
+    "classical_steps": 100,
+    "classical_target": 9,
+    "classical_workers": 1,
+    "dedup_cayley": false,
+    "dist_m4ri_cmd": "dist_m4ri",
+    "group": {
+      "order": 12,
+      "spec": "C12"
+    },
+    "max_quantum_evals": 0,
+    "min_distinct": null,
+    "mode": "progressive",
+    "quantum_refine_chunk": 20000,
+    "quantum_steps_fast": 5000,
+    "quantum_steps_slow": 200000,
+    "report_every": 50,
+    "seed": 1,
+    "target_distance": 20,
+    "timings": false
+  },
+  "run_meta_path_in_src": "results/progressive_C12_20260122T153931Z/run_meta.json",
+  "schema": "explicitqt_best_code_meta_v1",
+  "settings_path": "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/settings.json",
+  "source_meta": {
+    "A": {
+      "checks": {
+        "G": {
+          "backend": "fast",
+          "codewords_checked": 7,
+          "d_est": 40,
+          "d_signed": null,
+          "d_witness": 40,
+          "early_stop": false,
+          "exact": true,
+          "k": 3,
+          "rank": 69,
+          "seed": 335274414
+        },
+        "H": {
+          "backend": "fast",
+          "codewords_checked": 7,
+          "d_est": 40,
+          "d_signed": null,
+          "d_witness": 40,
+          "early_stop": false,
+          "exact": true,
+          "k": 3,
+          "rank": 69,
+          "seed": 1923431632
+        }
+      },
+      "d_est": 40,
+      "elements": [
+        0,
+        0,
+        1,
+        1,
+        6,
+        7
+      ],
+      "elements_repr": [
+        "0",
+        "0",
+        "1",
+        "1",
+        "6",
+        "7"
+      ],
+      "group": {
+        "order": 12,
+        "spec": "C12"
+      },
+      "id": "Ap11_0-0-1-1-6-7",
+      "k_classical": 3,
+      "passes": true,
+      "perm_idx": 11,
+      "side": "A",
+      "slice_codes": {
+        "A_G": {
+          "backend": "fast",
+          "d_ub": 40,
+          "d_witness": 40,
+          "exact": true,
+          "k": 3,
+          "n": 72
+        },
+        "A_H": {
+          "backend": "fast",
+          "d_ub": 40,
+          "d_witness": 40,
+          "exact": true,
+          "k": 3,
+          "n": 72
+        }
+      },
+      "slice_n": 72
+    },
+    "B": {
+      "checks": {
+        "Gp": {
+          "backend": "fast",
+          "codewords_checked": 256,
+          "d_est": 24,
+          "d_signed": null,
+          "d_witness": 24,
+          "early_stop": false,
+          "exact": false,
+          "k": 10,
+          "rank": 62,
+          "seed": 1595843645
+        },
+        "Hp": {
+          "backend": "fast",
+          "codewords_checked": 256,
+          "d_est": 24,
+          "d_signed": null,
+          "d_witness": 24,
+          "early_stop": false,
+          "exact": false,
+          "k": 10,
+          "rank": 62,
+          "seed": 1521256132
+        }
+      },
+      "d_est": 24,
+      "elements": [
+        0,
+        2,
+        4,
+        5,
+        5,
+        8
+      ],
+      "elements_repr": [
+        "0",
+        "2",
+        "4",
+        "5",
+        "5",
+        "8"
+      ],
+      "group": {
+        "order": 12,
+        "spec": "C12"
+      },
+      "id": "Bp27_0-2-4-5-5-8",
+      "k_classical": 10,
+      "passes": true,
+      "perm_idx": 27,
+      "side": "B",
+      "slice_codes": {
+        "B_G": {
+          "backend": "fast",
+          "d_ub": 24,
+          "d_witness": 24,
+          "exact": false,
+          "k": 10,
+          "n": 72
+        },
+        "B_H": {
+          "backend": "fast",
+          "d_ub": 24,
+          "d_witness": 24,
+          "exact": false,
+          "k": 10,
+          "n": 72
+        }
+      },
+      "slice_n": 72
+    },
+    "classical_slices": {
+      "A_G": {
+        "backend": "fast",
+        "d_ub": 40,
+        "d_witness": 40,
+        "exact": true,
+        "k": 3,
+        "n": 72
+      },
+      "A_H": {
+        "backend": "fast",
+        "d_ub": 40,
+        "d_witness": 40,
+        "exact": true,
+        "k": 3,
+        "n": 72
+      },
+      "B_G": {
+        "backend": "fast",
+        "d_ub": 24,
+        "d_witness": 24,
+        "exact": false,
+        "k": 10,
+        "n": 72
+      },
+      "B_H": {
+        "backend": "fast",
+        "d_ub": 24,
+        "d_witness": 24,
+        "exact": false,
+        "k": 10,
+        "n": 72
+      }
+    },
+    "code_id": "C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31",
+    "distance": {
+      "dX_best": 34,
+      "dZ_best": 31,
+      "d_ub": 31,
+      "fast": {
+        "dx": {
+          "d_ub": 37,
+          "early_stop": false,
+          "seed": 663798776,
+          "signed": 37,
+          "steps": 5000
+        },
+        "dz": {
+          "d_ub": 31,
+          "early_stop": false,
+          "seed": 961781360,
+          "signed": 31,
+          "steps": 5000
+        }
+      },
+      "method": "dist_m4ri_rw_progressive",
+      "refine_chunk": 20000,
+      "refine_chunks": [
+        {
+          "chunk": 1,
+          "d_x_best": 35,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 35,
+            "early_stop": false,
+            "seed": 2089688124,
+            "signed": 35,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 37,
+            "early_stop": false,
+            "seed": 527134375,
+            "signed": 37,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 2,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 34,
+            "early_stop": false,
+            "seed": 1494189346,
+            "signed": 34,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 38,
+            "early_stop": false,
+            "seed": 2107737153,
+            "signed": 38,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 3,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 35,
+            "early_stop": false,
+            "seed": 442318805,
+            "signed": 35,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 34,
+            "early_stop": false,
+            "seed": 759427296,
+            "signed": 34,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 4,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 1326459603,
+            "signed": 36,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 417935542,
+            "signed": 36,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 5,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 1288324811,
+            "signed": 36,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 37,
+            "early_stop": false,
+            "seed": 379434002,
+            "signed": 37,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 6,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 500431680,
+            "signed": 36,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 32,
+            "early_stop": false,
+            "seed": 1384089915,
+            "signed": 32,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 7,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 1895615521,
+            "signed": 36,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 40,
+            "early_stop": false,
+            "seed": 1238718920,
+            "signed": 40,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 8,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 40,
+            "early_stop": false,
+            "seed": 1888738839,
+            "signed": 40,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 35,
+            "early_stop": false,
+            "seed": 1239446146,
+            "signed": 35,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 9,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 37,
+            "early_stop": false,
+            "seed": 1886381818,
+            "signed": 37,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 41,
+            "early_stop": false,
+            "seed": 1982751264,
+            "signed": 41,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 10,
+          "d_x_best": 34,
+          "d_z_best": 31,
+          "dx": {
+            "d_ub": 35,
+            "early_stop": false,
+            "seed": 641976347,
+            "signed": 35,
+            "steps": 15000
+          },
+          "dz": {
+            "d_ub": 36,
+            "early_stop": false,
+            "seed": 1305380460,
+            "signed": 36,
+            "steps": 15000
+          },
+          "steps": 15000
+        }
+      ],
+      "steps_fast": 5000,
+      "steps_slow": 200000,
+      "steps_used_total": 400000,
+      "steps_used_x": 200000,
+      "steps_used_z": 200000,
+      "wmin": 30
+    },
+    "group": {
+      "order": 12,
+      "spec": "C12"
+    },
+    "k": 2,
+    "local_codes": {
+      "C0": "hamming_6_3_3_shortened",
+      "C0p": "hamming_6_3_3_shortened",
+      "C1": "hamming_6_3_3_shortened_var11",
+      "C1p": "hamming_6_3_3_shortened_var27",
+      "permA_idx": 11,
+      "permB_idx": 27
+    },
+    "n": 432,
+    "seed": 1,
+    "target_distance": 20
+  },
+  "source_meta_path_in_collected": "best_codes/collected/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/meta.json",
+  "source_meta_path_in_src": "results/progressive_C12_20260122T153931Z/best_codes/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31/meta.json",
+  "src_dir": "results/progressive_C12_20260122T153931Z/best_codes/C12_AAp11_0_0_1_1_6_7_BBp27_0_2_4_5_5_8_k2_d31"
+}
