@@ -121,9 +121,9 @@ pick_flag () {
   return 1
 }
 
-GROUP_FLAG="$(pick_flag --group -g)"
-TRIAL_FLAG="$(pick_flag --qdist-trials --distance-trials --trials --qdist_trials --distance_trials)"
-LIMIT_FLAG="$(pick_flag --qdist-limit --qdist-max --max-qdist --qdist_limit --qdist_max)"
+GROUP_FLAG="$(pick_flag --group -g || true)"
+TRIAL_FLAG="$(pick_flag --qdist-trials --distance-trials --trials --qdist_trials --distance_trials || true)"
+LIMIT_FLAG="$(pick_flag --qdist-limit --qdist-max --max-qdist --qdist_limit --qdist_max || true)"
 OUT_FLAG="$(pick_flag --out --output --output-file --results --save --save-path || true)"
 
 if [ -z "$GROUP_FLAG" ] || [ -z "$TRIAL_FLAG" ] || [ -z "$LIMIT_FLAG" ]; then
