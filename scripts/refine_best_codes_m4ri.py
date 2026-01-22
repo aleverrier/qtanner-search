@@ -99,22 +99,57 @@ class MatPair:
     hz: Path
 
 def find_matrix_pair(best_dir: Path, code_id: str) -> MatPair:
-    # We expect files like .../{code_id}*X.mtx and .../{code_id}*Z.mtx
+    """
+    Locate the CSS parity-check matrices for this code_id.
+
+    In this repo, matrices are named like:
+      <code_id>__Hx.mtx
+      <code_id>__Hz.mtx
+
+    We also accept legacy variants as fallbacks.
+    """
     matrices = best_dir / "matrices"
     if not matrices.exists():
         raise SystemExit(f"ERROR: matrices folder not found: {matrices}")
 
-    hx_candidates = sorted(matrices.glob(f"{code_id}*X.mtx"), key=lambda p: len(p.name))
-    hz_candidates = sorted(matrices.glob(f"{code_id}*Z.mtx"), key=lambda p: len(p.name))
+    def pick(kind: str) -> Path:
+        # kind is "x" or "z"
+        if kind not in ("x", "z"):
+            raise ValueError("kind must be 'x' or 'z'")
 
-    if not hx_candidates:
-        raise SystemExit(f"ERROR: no Hx matrix found for {code_id} under {matrices} (pattern {code_id}*X.mtx)")
-    if not hz_candidates:
-        raise SystemExit(f"ERROR: no Hz matrix found for {code_id} under {matrices} (pattern {code_id}*Z.mtx)")
+        # Primary (your actual naming)
+        pats = [
+            f"{code_id}__H{kind}.mtx",     # exact
+            f"{code_id}*__H{kind}.mtx",    # allow extra suffixes
+            # Sometimes people use uppercase X/Z in filenames
+            f"{code_id}__H{kind.upper()}.mtx",
+            f"{code_id}*__H{kind.upper()}.mtx",
+            # Legacy: ...*X.mtx / ...*Z.mtx
+            f"{code_id}*{kind.upper()}.mtx",
+        ]
 
-    hx = hx_candidates[0]
-    hz = hz_candidates[0]
+        cands = []
+        seen = set()
+        for pat in pats:
+            for q in matrices.glob(pat):
+                if q.is_file() and q.name not in seen:
+                    seen.add(q.name)
+                    cands.append(q)
+
+        if not cands:
+            raise SystemExit(
+                f"ERROR: no H{kind} matrix found for {code_id} under {matrices}.\n"
+                f"  Expected something like: {code_id}__H{kind}.mtx"
+            )
+
+        # Prefer the most specific filename: shortest, then lexicographic
+        cands.sort(key=lambda q: (len(q.name), q.name))
+        return cands[0]
+
+    hx = pick("x")
+    hz = pick("z")
     return MatPair(hx=hx, hz=hz)
+
 
 def parse_dist_m4ri_output(text: str) -> int:
     # Try to find dmin=NN or success ... d=NN
@@ -312,7 +347,11 @@ def main() -> int:
             skipped.append(code_id)
             continue
 
-        mat = find_matrix_pair(best_dir, code_id)
+        try:
+            mat = find_matrix_pair(best_dir, code_id)
+        except FileNotFoundError as ex:
+            print(f"[skip] ({i}/{len(code_ids)}) {code_id}: {ex}")
+            continue
 
         print(f"[run ] ({i}/{len(code_ids)}) {code_id} prev_steps={prev_steps} -> new_steps={args.trials}")
         print(f"       Hx={mat.hx.name}  Hz={mat.hz.name}")
