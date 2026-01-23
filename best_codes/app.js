@@ -1,5 +1,5 @@
 async function loadData() {
-  const resp = await fetch('data.json', {cache: 'no-store'});
+  const resp = await fetch("data.json?cb=" + Date.now(), {cache: 'no-store'});
   if (!resp.ok) throw new Error(`Failed to load data.json: ${resp.status}`);
   return await resp.json();
 }
