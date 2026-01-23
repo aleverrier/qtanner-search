@@ -24,41 +24,21 @@
     if (!raw) return "";
     const s0 = String(raw);
 
-    // Accept SmallGroup_3_1 / SmallGroup(3,1) / smallgroup(3,1)
     const m = s0.match(/smallgroup[_\(\s]*?(\d+)[, _]+(\d+)\)?/i);
     if (m) {
       const n = Number(m[1]), k = Number(m[2]);
       const key = `${n},${k}`;
-      // A small mapping of very common ones; extend anytime
       const map = {
-        "1,1": "Trivial",
-        "2,1": "C2",
-        "3,1": "C3",
-        "4,1": "C4",
-        "5,1": "C5",
-        "6,1": "C6",
-        "7,1": "C7",
-        "8,1": "C8",
-        "8,2": "C4 × C2",
-        "8,5": "C2 × C2 × C2",
-        "9,1": "C9",
-        "9,2": "C3 × C3",
-        "10,1": "C10",
-        "12,1": "C12",
-        "12,2": "C6 × C2",
-        "12,3": "D12",
-        "12,4": "A4",
-        "16,1": "C16",
-        "16,3": "C4 × C4",
-        "16,4": "C4 × C2 × C2",
-        "16,5": "C2 × C2 × C2 × C2",
+        "1,1":"Trivial","2,1":"C2","3,1":"C3","4,1":"C4","5,1":"C5","6,1":"C6",
+        "7,1":"C7","8,1":"C8","8,2":"C4 × C2","8,5":"C2 × C2 × C2",
+        "9,1":"C9","9,2":"C3 × C3","10,1":"C10",
+        "12,1":"C12","12,2":"C6 × C2","12,3":"D12","12,4":"A4",
+        "16,1":"C16","16,3":"C4 × C4","16,4":"C4 × C2 × C2","16,5":"C2 × C2 × C2 × C2",
       };
       return map[key] || `SmallGroup(${n},${k})`;
     }
 
-    // Pretty-print direct products like C2xC2xC2
     if (s0.includes("x")) return s0.split("x").join(" × ");
-
     return s0.replace("⋊", " ⋊ ");
   }
 
@@ -145,12 +125,14 @@
     const { ns, ks, best } = buildPivotNK(codes);
 
     const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-
-    const cellText = (c) => {
+    const cellHTML = (c) => {
       if (!c) return "";
       const d = (c.d === null || c.d === undefined) ? "" : c.d;
       const t = (c.trials === null || c.trials === undefined) ? "" : c.trials;
-      return `d=${d}<br><span style="opacity:.75;font-size:12px;">${t}</span>`;
+      const href = `details.html?code_id=${encodeURIComponent(c.codeId)}`;
+      return `<a href="${href}" style="text-decoration:none; color:inherit; display:block;">
+                d=${d}<br><span style="opacity:.75;font-size:12px;">${t}</span>
+              </a>`;
     };
 
     document.body.innerHTML = `
@@ -167,18 +149,18 @@
           <table style="border-collapse:collapse; width:100%; font-size: 13px;">
             <thead>
               <tr style="background:#f7f7f7; text-align:left;">
-                <th style="padding:8px; border-bottom:1px solid #ddd; position:sticky; left:0; background:#f7f7f7; z-index:2;">k \\ n</th>
-                ${ns.map(n=>`<th style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">n=${n}</th>`).join("")}
+                <th style="padding:8px; border-bottom:1px solid #ddd; position:sticky; left:0; background:#f7f7f7; z-index:2;">n \\ k</th>
+                ${ks.map(k=>`<th style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">k=${k}</th>`).join("")}
               </tr>
             </thead>
             <tbody>
-              ${ks.map(k=>{
+              ${ns.map(n=>{
                 return `<tr>
-                  <td style="padding:8px; border-bottom:1px solid #eee; position:sticky; left:0; background:white; z-index:1;"><b>${k}</b></td>
-                  ${ns.map(n=>{
+                  <td style="padding:8px; border-bottom:1px solid #eee; position:sticky; left:0; background:white; z-index:1;"><b>n=${n}</b></td>
+                  ${ks.map(k=>{
                     const c = best.get(n + "|" + k);
                     const title = c ? `code_id=${c.codeId}\\n(group=${c.group})\\n(n=${c.n}, k=${c.k}, d=${c.d}, trials=${c.trials}, dX=${c.dX ?? ""}, dZ=${c.dZ ?? ""})` : "";
-                    return `<td style="padding:8px; border-bottom:1px solid #eee; vertical-align:top;" title="${esc(title)}">${cellText(c)}</td>`;
+                    return `<td style="padding:8px; border-bottom:1px solid #eee; vertical-align:top;" title="${esc(title)}">${cellHTML(c)}</td>`;
                   }).join("")}
                 </tr>`;
               }).join("")}
@@ -187,7 +169,7 @@
         </div>
 
         <div style="opacity:.75; margin-top:10px;">
-          Cell shows <b>d</b> and <b>m4ri trials</b>. Hover for code_id + group name.
+          Cell shows <b>d</b> and <b>m4ri trials</b>. Click a cell for details.
         </div>
       </div>
     `;

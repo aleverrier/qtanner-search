@@ -1,0 +1,74 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Code details</title>
+</head>
+<body>
+  <div style="max-width:1100px;margin:18px auto;padding:0 12px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
+    <div style="margin-bottom:12px;"><a href="index.html">← Back to table</a></div>
+    <h2 style="margin:0 0 8px 0;">Code details</h2>
+    <div id="status" style="opacity:.75; margin-bottom:12px;"></div>
+    <pre id="out" style="white-space:pre-wrap;border:1px solid #ddd;border-radius:10px;padding:12px;"></pre>
+  </div>
+
+  <script>
+  (async function(){
+    const params = new URLSearchParams(location.search);
+    const codeId = params.get("code_id");
+    const status = document.getElementById("status");
+    const out = document.getElementById("out");
+
+    if (!codeId) {
+      status.textContent = "Missing ?code_id=...";
+      return;
+    }
+    status.textContent = "Loading " + codeId + " …";
+
+    async function fetchJSON(url) {
+      const r = await fetch(url, {cache:"no-store"});
+      if (!r.ok) throw new Error(url + " -> " + r.status);
+      return await r.json();
+    }
+
+    // Try meta/<code_id>.json first, fallback to collected/<code_id>/meta.json
+    const cb = Date.now();
+    const urls = [
+      `meta/${encodeURIComponent(codeId)}.json?cb=${cb}`,
+      `collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`
+    ];
+
+    let data = null;
+    let used = null;
+    for (const u of urls) {
+      try {
+        data = await fetchJSON(u);
+        used = u;
+        break;
+      } catch (e) {}
+    }
+
+    if (!data) {
+      status.textContent = "Could not load metadata JSON for: " + codeId;
+      out.textContent = "Tried:\n" + urls.join("\n");
+      return;
+    }
+
+    status.textContent = "Loaded from: " + used;
+
+    // Show important fields first if present
+    const keys = [
+      "code_id","group","n","k","d","d_ub","trials","m4ri_steps","dX_ub","dZ_ub",
+      "distance_backend","updated_at"
+    ];
+    const header = {};
+    for (const k of keys) if (k in data) header[k] = data[k];
+
+    out.textContent =
+      "Summary:\n" + JSON.stringify(header, null, 2) +
+      "\n\nFull JSON:\n" + JSON.stringify(data, null, 2);
+  })();
+  </script>
+</body>
+</html>
