@@ -38,7 +38,6 @@ def get_smallgroups(nmin: int, nmax: int) -> List[str]:
     return groups
 
 def parse_order(group_spec: str) -> int:
-    # SmallGroup(n,i)
     s = group_spec.replace(" ", "")
     n = s[len("SmallGroup("):].split(",", 1)[0]
     return int(n)
@@ -62,6 +61,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Run search_progressive.py on SmallGroup(n,i) for n in [nmin..nmax], in parallel.")
     ap.add_argument("--nmin", type=int, default=10, help="Minimum order n (default: 10)")
     ap.add_argument("--nmax", type=int, default=19, help="Maximum order n (default: 19)")
+    ap.add_argument("--reverse", action="store_true", help="Queue groups in decreasing order (by n then i)")
     ap.add_argument("--jobs", type=int, default=8, help="Parallel jobs (default: 8)")
     ap.add_argument("--seed", type=int, default=1, help="Seed passed to search_progressive.py (default: 1)")
     ap.add_argument("--run-dir", default=None, help="Output directory for logs")
@@ -73,10 +73,20 @@ def main() -> int:
         print("[info] no groups found (check nmin/nmax)")
         return 0
 
-    run_dir = Path(args.run_dir) if args.run_dir else Path("runs") / f"smallgroups_{args.nmin}to{args.nmax}_{utc_stamp()}"
+    # Sort explicitly: increasing (n,i) or decreasing (n,i)
+    parsed = []
+    for g in groups:
+        s = g.replace(" ", "")
+        inside = s[len("SmallGroup("):-1]
+        n_str, i_str = inside.split(",")
+        parsed.append((int(n_str), int(i_str), s))
+    parsed.sort(reverse=args.reverse)
+    groups = [g for _,_,g in parsed]
+
+    run_dir = Path(args.run_dir) if args.run_dir else Path("runs") / f"smallgroups_{args.nmin}to{args.nmax}_{'desc' if args.reverse else 'asc'}_{utc_stamp()}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"[info] orders={args.nmin}..{args.nmax} groups={len(groups)} jobs={args.jobs} seed={args.seed}")
+    print(f"[info] orders={args.nmin}..{args.nmax} groups={len(groups)} jobs={args.jobs} seed={args.seed} reverse={args.reverse}")
     print(f"[info] run_dir={run_dir.resolve()}")
 
     tasks: List[Tuple[str, List[str], Path]] = []
