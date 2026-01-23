@@ -17,9 +17,11 @@
     4
   ],
   "B_id": "p15_0_0_1_1_3_4",
-  "also_seen_in": [],
+  "also_seen_in": [
+    "results/progressive_SmallGroup_7_1_20260123T124935Z/best_codes/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17"
+  ],
   "code_id": "SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17",
-  "collected_at_utc": "2026-01-23T16:08:33Z",
+  "collected_at_utc": "2026-01-23T16:18:43Z",
   "collected_dir": "best_codes/collected/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17",
   "collected_files": [
     "best_codes/collected/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17/Hz.mtx",
@@ -31,8 +33,8 @@
   "d_recorded": 17,
   "d_recorded_kind": "from_code_id",
   "distance_method": "dist-m4ri",
-  "distance_seed": 39534911,
-  "distance_trials": 100000,
+  "distance_seed": 124729223,
+  "distance_trials": 200000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "SmallGroup_7_1_",
   "k": 2,
@@ -42,7 +44,7 @@
   ],
   "n": 252,
   "permutation_candidates": [],
-  "run_dir": "results/progressive_SmallGroup_7_1_20260123T124935Z",
+  "run_dir": "results/progressive_SmallGroup_7_1_20260123T160806Z",
   "run_meta": {
     "classical_distance_backend": "fast",
     "classical_exhaustive_k_max": 8,
@@ -61,14 +63,14 @@
     "min_distinct": null,
     "mode": "progressive",
     "quantum_refine_chunk": 20000,
-    "quantum_steps_fast": 3000,
-    "quantum_steps_slow": 50000,
+    "quantum_steps_fast": 4000,
+    "quantum_steps_slow": 100000,
     "report_every": 50,
     "seed": 1,
     "target_distance": 14,
     "timings": false
   },
-  "run_meta_path_in_src": "results/progressive_SmallGroup_7_1_20260123T124935Z/run_meta.json",
+  "run_meta_path_in_src": "results/progressive_SmallGroup_7_1_20260123T160806Z/run_meta.json",
   "schema": "explicitqt_best_code_meta_v1",
   "settings_path": "best_codes/collected/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17/settings.json",
   "source_meta": {
@@ -259,18 +261,18 @@
       "d_ub": 17,
       "fast": {
         "dx": {
-          "d_ub": 18,
+          "d_ub": 17,
           "early_stop": false,
-          "seed": 39534911,
-          "signed": 18,
-          "steps": 3000
+          "seed": 124729223,
+          "signed": 17,
+          "steps": 4000
         },
         "dz": {
           "d_ub": 21,
           "early_stop": false,
-          "seed": 109289145,
+          "seed": 1812976885,
           "signed": 21,
-          "steps": 3000
+          "steps": 4000
         }
       },
       "method": "dist_m4ri_rw_progressive",
@@ -279,19 +281,19 @@
         {
           "chunk": 1,
           "d_x_best": 17,
-          "d_z_best": 20,
+          "d_z_best": 21,
           "dx": {
             "d_ub": 17,
             "early_stop": false,
-            "seed": 1637259727,
+            "seed": 952158461,
             "signed": 17,
             "steps": 20000
           },
           "dz": {
-            "d_ub": 20,
+            "d_ub": 21,
             "early_stop": false,
-            "seed": 930287327,
-            "signed": 20,
+            "seed": 1880712864,
+            "signed": 21,
             "steps": 20000
           },
           "steps": 20000
@@ -303,14 +305,14 @@
           "dx": {
             "d_ub": 17,
             "early_stop": false,
-            "seed": 1812976885,
+            "seed": 2129497364,
             "signed": 17,
             "steps": 20000
           },
           "dz": {
             "d_ub": 20,
             "early_stop": false,
-            "seed": 124729223,
+            "seed": 1001090105,
             "signed": 20,
             "steps": 20000
           },
@@ -323,25 +325,65 @@
           "dx": {
             "d_ub": 17,
             "early_stop": false,
-            "seed": 952158461,
+            "seed": 1484771968,
             "signed": 17,
-            "steps": 7000
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 20,
+            "early_stop": false,
+            "seed": 991564255,
+            "signed": 20,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 4,
+          "d_x_best": 17,
+          "d_z_best": 20,
+          "dx": {
+            "d_ub": 17,
+            "early_stop": false,
+            "seed": 939657385,
+            "signed": 17,
+            "steps": 20000
+          },
+          "dz": {
+            "d_ub": 20,
+            "early_stop": false,
+            "seed": 1973981844,
+            "signed": 20,
+            "steps": 20000
+          },
+          "steps": 20000
+        },
+        {
+          "chunk": 5,
+          "d_x_best": 17,
+          "d_z_best": 20,
+          "dx": {
+            "d_ub": 17,
+            "early_stop": false,
+            "seed": 1244602538,
+            "signed": 17,
+            "steps": 16000
           },
           "dz": {
             "d_ub": 21,
             "early_stop": false,
-            "seed": 1880712864,
+            "seed": 92297589,
             "signed": 21,
-            "steps": 7000
+            "steps": 16000
           },
-          "steps": 7000
+          "steps": 16000
         }
       ],
-      "steps_fast": 3000,
-      "steps_slow": 50000,
-      "steps_used_total": 100000,
-      "steps_used_x": 50000,
-      "steps_used_z": 50000,
+      "steps_fast": 4000,
+      "steps_slow": 100000,
+      "steps_used_total": 200000,
+      "steps_used_x": 100000,
+      "steps_used_z": 100000,
       "wmin": 13
     },
     "group": {
@@ -362,6 +404,6 @@
     "target_distance": 14
   },
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17/meta.json",
-  "source_meta_path_in_src": "results/progressive_SmallGroup_7_1_20260123T124935Z/best_codes/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17/meta.json",
-  "src_dir": "results/progressive_SmallGroup_7_1_20260123T124935Z/best_codes/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17"
+  "source_meta_path_in_src": "results/progressive_SmallGroup_7_1_20260123T160806Z/best_codes/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17/meta.json",
+  "src_dir": "results/progressive_SmallGroup_7_1_20260123T160806Z/best_codes/SmallGroup_7_1__AAp15_0_0_3_4_6_6_BBp15_0_0_1_1_3_4_k2_d17"
 }

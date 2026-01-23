@@ -190,14 +190,14 @@
         "early_stop": false,
         "seed": 1930549411,
         "signed": 16,
-        "steps": 3000
+        "steps": 4000
       },
       "dz": {
-        "d_ub": 19,
+        "d_ub": 16,
         "early_stop": false,
         "seed": 2127877499,
-        "signed": 19,
-        "steps": 3000
+        "signed": 16,
+        "steps": 4000
       }
     },
     "method": "dist_m4ri_rw_progressive",
@@ -252,23 +252,63 @@
           "early_stop": false,
           "seed": 2095328386,
           "signed": 16,
-          "steps": 7000
+          "steps": 20000
         },
         "dz": {
           "d_ub": 16,
           "early_stop": false,
           "seed": 121751464,
           "signed": 16,
-          "steps": 7000
+          "steps": 20000
         },
-        "steps": 7000
+        "steps": 20000
+      },
+      {
+        "chunk": 4,
+        "d_x_best": 16,
+        "d_z_best": 16,
+        "dx": {
+          "d_ub": 16,
+          "early_stop": false,
+          "seed": 1674216077,
+          "signed": 16,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 16,
+          "early_stop": false,
+          "seed": 1858720390,
+          "signed": 16,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 5,
+        "d_x_best": 16,
+        "d_z_best": 16,
+        "dx": {
+          "d_ub": 16,
+          "early_stop": false,
+          "seed": 9045414,
+          "signed": 16,
+          "steps": 16000
+        },
+        "dz": {
+          "d_ub": 16,
+          "early_stop": false,
+          "seed": 1912923437,
+          "signed": 16,
+          "steps": 16000
+        },
+        "steps": 16000
       }
     ],
-    "steps_fast": 3000,
-    "steps_slow": 50000,
-    "steps_used_total": 100000,
-    "steps_used_x": 50000,
-    "steps_used_z": 50000,
+    "steps_fast": 4000,
+    "steps_slow": 100000,
+    "steps_used_total": 200000,
+    "steps_used_x": 100000,
+    "steps_used_z": 100000,
     "wmin": 15
   },
   "group": {
