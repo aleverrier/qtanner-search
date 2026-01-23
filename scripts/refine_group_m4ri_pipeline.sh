@@ -12,7 +12,7 @@ TRIALS="$2"
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# Enforce main branch so the website updates where GitHub Pages serves from.
+# Enforce main branch for GitHub Pages
 BRANCH="$(git branch --show-current)"
 if [[ "$BRANCH" != "main" ]]; then
   echo "ERROR: You are on branch '$BRANCH'. Switch to main first:"
@@ -20,11 +20,14 @@ if [[ "$BRANCH" != "main" ]]; then
   exit 1
 fi
 
-# Keep commits clean/reproducible
+AUTO_STASH=0
+STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# Auto-stash if dirty (tracked or untracked)
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "ERROR: Working tree is not clean. Please stash or commit your changes first:"
-  echo "  git stash push -u -m 'wip before refine'"
-  exit 1
+  echo "[auto] working tree not clean -> stashing (including untracked)"
+  git stash push -u -m "auto-stash before refine_group_m4ri_pipeline $STAMP"
+  AUTO_STASH=1
 fi
 
 echo "[1/4] m4ri refine for group=$GROUP trials=$TRIALS (only if trials increases)"
@@ -40,3 +43,13 @@ echo "[4/4] rebuild website artifacts from meta and publish to GitHub"
 bash scripts/publish_best_codes_from_meta.sh
 
 echo "[done] pipeline completed for $GROUP trials=$TRIALS"
+
+if [[ "$AUTO_STASH" -eq 1 ]]; then
+  echo ""
+  echo "[note] I stashed your previous local changes to keep commits clean."
+  echo "       They are still available via:"
+  echo "         git stash list"
+  echo "         git stash show -p stash@{0}"
+  echo "       If you really want them back later:"
+  echo "         git stash pop"
+fi
