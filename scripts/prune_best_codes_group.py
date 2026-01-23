@@ -21,21 +21,25 @@ def parse_d(code_id: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 def get_trials_anywhere(meta: Dict[str, Any]) -> int:
-    # Prefer m4ri fields; else fallback to common fields; else progressive distance block.
+    # Prefer refined m4ri fields
     for k in ("m4ri_steps","trials","steps","steps_used","distance_trials","distance_steps"):
         if k in meta:
             v = ensure_int(meta.get(k), 0)
             if v: return v
+
+    # Old progressive block
     dist = meta.get("distance")
     if isinstance(dist, dict):
         for k in ("steps","trials","steps_used_total","steps_used_x","steps_used_z"):
             if k in dist:
                 v = ensure_int(dist.get(k), 0)
                 if v: return v
+
     dm = meta.get("distance_m4ri")
     if isinstance(dm, dict):
         v = ensure_int(dm.get("steps_per_side", 0), 0)
         if v: return v
+
     return 0
 
 def get_d_ub(meta: Dict[str, Any], code_id: str) -> int:
@@ -94,7 +98,7 @@ def main() -> int:
     for cid, s in low[:25]:
         print(f"  below-threshold {cid} steps={s}")
 
-    # Best-per-k among ok codes (using embedded meta d_ub if available, else meta_dir, else name)
+    # Best-per-k among ok codes
     best_by_k: Dict[int, int] = {}
     d_by_code: Dict[str, Tuple[int,int]] = {}
 
