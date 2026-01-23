@@ -21,7 +21,7 @@
     "results/progressive_C2xC2_20260122T140241Z/best_codes/C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6"
   ],
   "code_id": "C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6",
-  "collected_at_utc": "2026-01-23T13:11:47Z",
+  "collected_at_utc": "2026-01-23T14:24:39Z",
   "collected_dir": "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6",
   "collected_files": [
     "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6/Hz.mtx",
@@ -36,7 +36,42 @@
   "d_recorded": 6,
   "d_recorded_kind": "from_code_id",
   "d_ub": 6,
+  "distance": {
+    "dX_best": 12,
+    "dZ_best": 6,
+    "d_ub": 6,
+    "fast": {
+      "dx": {
+        "d_ub": 12,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 12,
+        "steps": 200000
+      },
+      "dz": {
+        "d_ub": 6,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 6,
+        "steps": 200000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 400000,
+    "steps_used_x": 200000,
+    "steps_used_z": 200000
+  },
   "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 12,
+    "dZ_ub": 6,
+    "d_ub": 6,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 200000,
+    "updated_at": "2026-01-23T14:31:29Z"
+  },
   "distance_method": "RW",
   "distance_seed": 271041745,
   "distance_trials": 8000,
@@ -334,5 +369,5 @@
   "source_meta_path_in_src": "results/progressive_C2xC2_20260122T141802Z/best_codes/C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6/meta.json",
   "src_dir": "results/progressive_C2xC2_20260122T141802Z/best_codes/C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_0_1_2_2_k4_d6",
   "trials": 200000,
-  "updated_at": "2026-01-23T13:19:01+00:00"
+  "updated_at": "2026-01-23T14:31:29Z"
 }
