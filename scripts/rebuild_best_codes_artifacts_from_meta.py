@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse, json, re
 from pathlib import Path
-from typing import Any, Dict, Tuple, Set, Optional
+from typing import Any, Dict, Tuple, Set, Optional, List
 
 def read_json(p: Path) -> Any:
     return json.loads(p.read_text())
@@ -39,27 +39,63 @@ def extract_distance(meta: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]
     return ensure_int(d), ensure_int(trials), ensure_int(dX), ensure_int(dZ)
 
 def patch_record(rec: Any, cid: str, meta_map: Dict[str, Dict[str, Any]]) -> Any:
-    # Patch a record dict even if it doesn't contain code_id field (common in dict keyed by cid)
+    """Patch a record dict even if it doesn't contain code_id field (common in list-of-records)."""
     if cid not in meta_map:
         return rec
     meta = meta_map[cid]
     d, trials, dX, dZ = extract_distance(meta)
-    if isinstance(rec, dict):
-        if d is not None:
-            rec["d"] = d
-            rec["d_ub"] = d
-        if trials is not None:
-            rec["trials"] = trials
-            rec["steps"] = trials  # extra compatibility
-        if dX is not None:
-            rec["dX_ub"] = dX
-        if dZ is not None:
-            rec["dZ_ub"] = dZ
-        if meta.get("distance_backend") == "dist-m4ri":
-            rec["distance_backend"] = "dist-m4ri"
-        # keep cid available for frontends that prefer it
-        rec.setdefault("code_id", cid)
+
+    if not isinstance(rec, dict):
+        return rec
+
+    # Ensure id is present for frontends that want it
+    rec.setdefault("code_id", cid)
+
+    if d is not None:
+        rec["d"] = d
+        rec["d_ub"] = d
+
+    # Write trials into all common keys frontends might use
+    if trials is not None:
+        rec["m4ri_steps"] = trials
+        rec["trials"] = trials
+        rec["steps"] = trials
+        rec["steps_used"] = trials
+        rec["distance_trials"] = trials
+        rec["distance_steps"] = trials
+
+    if dX is not None:
+        rec["dX_ub"] = dX
+    if dZ is not None:
+        rec["dZ_ub"] = dZ
+
+    # Nested distance dict for compatibility
+    dist = rec.get("distance")
+    if not isinstance(dist, dict):
+        dist = {}
+        rec["distance"] = dist
+    if d is not None:
+        dist["d"] = d
+        dist["d_ub"] = d
+    if trials is not None:
+        dist["steps"] = trials
+        dist["trials"] = trials
+    if dX is not None:
+        dist["dX_ub"] = dX
+    if dZ is not None:
+        dist["dZ_ub"] = dZ
+
+    if meta.get("distance_backend") == "dist-m4ri":
+        rec["distance_backend"] = "dist-m4ri"
+        dist["backend"] = "dist-m4ri"
+
     return rec
+
+def get_code_id_from_record(rec: Any) -> Optional[str]:
+    if not isinstance(rec, dict):
+        return None
+    cid = rec.get("code_id") or rec.get("id") or rec.get("name")
+    return cid if isinstance(cid, str) else None
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild/patch website artifacts using best_codes/meta and best_codes/collected.")
@@ -74,8 +110,9 @@ def main() -> int:
     if not col.is_dir() or not meta_dir.is_dir() or not data_path.exists():
         raise SystemExit("ERROR: need best_codes/collected, best_codes/meta, best_codes/data.json")
 
-    codes: Set[str] = {p.name for p in col.iterdir() if p.is_dir()}
+    collected_codes: Set[str] = {p.name for p in col.iterdir() if p.is_dir()}
 
+    # Load meta
     meta_map: Dict[str, Dict[str, Any]] = {}
     rename_old_to_new: Dict[str, str] = {}
     for mp in meta_dir.glob("*.json"):
@@ -90,66 +127,65 @@ def main() -> int:
             rename_old_to_new[old] = cid
 
     data = read_json(data_path)
+    if not isinstance(data, dict) or "codes" not in data:
+        raise SystemExit("ERROR: best_codes/data.json is expected to be a dict with a 'codes' key.")
+
+    codes_obj = data["codes"]
     updated = 0
     dropped = 0
+    renamed = 0
 
-    def patch_obj(obj: Any, key_hint: Optional[str] = None) -> Any:
-        nonlocal updated, dropped
-
-        # If this object is a record keyed by code_id, patch it using key_hint
-        if key_hint and looks_like_code_id(key_hint):
-            cid = rename_old_to_new.get(key_hint, key_hint)
-            if cid in meta_map:
-                obj = patch_record(obj, cid, meta_map)
+    # --- Patch depending on schema of data["codes"] ---
+    if isinstance(codes_obj, dict):
+        new_codes: Dict[str, Any] = {}
+        for key, rec in codes_obj.items():
+            cid = rename_old_to_new.get(key, key)
+            if cid != key:
+                renamed += 1
+            if looks_like_code_id(cid) and cid not in collected_codes:
+                dropped += 1
+                continue
+            new_codes[cid] = patch_record(rec, cid, meta_map) if looks_like_code_id(cid) else rec
+            if looks_like_code_id(cid):
                 updated += 1
+        data["codes"] = new_codes
 
-        if isinstance(obj, dict):
-            # If dict has explicit code_id field, patch it
-            cid = obj.get("code_id") or obj.get("id") or obj.get("name")
+    elif isinstance(codes_obj, list):
+        new_list: List[Any] = []
+        for rec in codes_obj:
+            cid = get_code_id_from_record(rec)
             if isinstance(cid, str):
                 cid2 = rename_old_to_new.get(cid, cid)
                 if cid2 != cid:
-                    if "code_id" in obj: obj["code_id"] = cid2
-                    elif "id" in obj: obj["id"] = cid2
-                    elif "name" in obj: obj["name"] = cid2
+                    renamed += 1
+                    # update the field that existed
+                    if isinstance(rec, dict):
+                        if "code_id" in rec: rec["code_id"] = cid2
+                        elif "id" in rec: rec["id"] = cid2
+                        elif "name" in rec: rec["name"] = cid2
                     cid = cid2
-                if cid in meta_map:
-                    obj = patch_record(obj, cid, meta_map)
+
+                if looks_like_code_id(cid) and cid not in collected_codes:
+                    dropped += 1
+                    continue
+
+                if looks_like_code_id(cid):
+                    rec = patch_record(rec, cid, meta_map)
                     updated += 1
 
-            newd: Dict[str, Any] = {}
-            for k, v in obj.items():
-                k2 = rename_old_to_new.get(k, k) if isinstance(k, str) else k
+            new_list.append(rec)
+        data["codes"] = new_list
 
-                # If k2 is a code id entry, drop it if code no longer exists in collected
-                if isinstance(k2, str) and looks_like_code_id(k2):
-                    if k2 not in codes:
-                        dropped += 1
-                        continue
+    else:
+        raise SystemExit(f"ERROR: unsupported type for data['codes']: {type(codes_obj)}")
 
-                pv = patch_obj(v, key_hint=k2 if isinstance(k2, str) else None)
-                newd[k2] = pv
-            return newd
+    write_json(data_path, data)
+    print(f"[ok] patched {data_path} from meta; updated={updated} dropped={dropped} renamed={renamed} collected={len(collected_codes)}")
 
-        if isinstance(obj, list):
-            out = []
-            for it in obj:
-                out.append(patch_obj(it, key_hint=None))
-            return out
-
-        if isinstance(obj, str):
-            return rename_old_to_new.get(obj, obj)
-
-        return obj
-
-    data2 = patch_obj(data)
-    write_json(data_path, data2)
-    print(f"[ok] patched {data_path} from meta; updated={updated} dropped_keys={dropped} codes={len(codes)} renames={len(rename_old_to_new)}")
-
-    # Rebuild index.tsv (stable)
+    # Rebuild index.tsv and best_by_group_k.tsv from collected+meta
     index_tsv = best / "index.tsv"
     rows = []
-    for cid in sorted(codes):
+    for cid in sorted(collected_codes):
         m = meta_map.get(cid, {})
         d, trials, dX, dZ = extract_distance(m)
         rows.append({
@@ -172,8 +208,7 @@ def main() -> int:
     index_tsv.write_text("\n".join(lines) + "\n")
     print(f"[ok] wrote {index_tsv}")
 
-    # Rebuild best_by_group_k.tsv
-    best_by = {}
+    best_by: Dict[Tuple[str,int], int] = {}
     for r in rows:
         if r["k"] is None or r["d"] is None:
             continue
