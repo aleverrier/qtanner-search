@@ -10,7 +10,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, Tuple
 
 
 def utc_now_iso() -> str:
@@ -37,33 +37,23 @@ def find_dist_m4ri(explicit: Optional[str] = None) -> Path:
         if p.exists() and p.is_file():
             return p
         raise SystemExit(f"ERROR: --dist-m4ri '{explicit}' not found.")
-
     for env in ("DIST_M4RI", "QTANNER_DIST_M4RI"):
         v = os.environ.get(env)
         if v:
             p = Path(v).expanduser()
             if p.exists() and p.is_file():
                 return p
-
     w = shutil.which("dist_m4ri")
     if w:
         return Path(w)
-
-    candidates = [
+    for p in [
         Path.home() / ".local/bin/dist_m4ri",
         Path.home() / "research/qtanner-tools/dist-m4ri/src/dist_m4ri",
-        Path("../qtanner-tools/dist-m4ri/src/dist_m4ri"),
-        Path("../dist-m4ri/src/dist_m4ri"),
-    ]
-    for p in candidates:
+    ]:
         p = p.expanduser().resolve()
         if p.exists() and p.is_file():
             return p
-
-    raise SystemExit(
-        "ERROR: dist_m4ri not found.\n"
-        "Put it on PATH as dist_m4ri, or pass --dist-m4ri /full/path/to/dist_m4ri, or set DIST_M4RI."
-    )
+    raise SystemExit("ERROR: dist_m4ri not found on PATH and no known fallback paths exist.")
 
 @dataclass
 class MatPair:
@@ -76,43 +66,49 @@ def find_matrix_pair(best_dir: Path, code_id: str) -> MatPair:
         raise SystemExit(f"ERROR: matrices folder not found: {mats}")
 
     def pick(kind: str) -> Path:
-        # kind is 'x' or 'z'
         if kind not in ("x", "z"):
             raise ValueError("kind must be x or z")
         K = kind.upper()
         patterns = [
             f"{code_id}__H{kind}.mtx", f"{code_id}*__H{kind}.mtx",
             f"{code_id}__H{K}.mtx",    f"{code_id}*__H{K}.mtx",
-            f"{code_id}*{K}.mtx",  # legacy
+            f"{code_id}*{K}.mtx",
         ]
-        seen = {}
+        cands = []
+        seen = set()
         for pat in patterns:
             for q in mats.glob(pat):
-                if q.is_file():
-                    seen[q.name] = q
-        cands = list(seen.values())
+                if q.is_file() and q.name not in seen:
+                    seen.add(q.name)
+                    cands.append(q)
         if not cands:
             raise FileNotFoundError(f"no H{kind} matrix for {code_id} under {mats}")
         cands.sort(key=lambda q: (len(q.name), q.name))
         return cands[0]
 
-    hx = pick("x")
-    hz = pick("z")
-    return MatPair(hx=hx, hz=hz)
+    return MatPair(hx=pick("x"), hz=pick("z"))
 
 def parse_dist_m4ri_output(text: str) -> int:
-    # robust parse: prefer dmin=NN else last d=NN
-    dmin = None
-    for m in re.finditer(r"\bdmin=(\d+)\b", text):
-        dmin = int(m.group(1))
-    if dmin is not None:
-        return dmin
-    last = None
-    for m in re.finditer(r"\bd=(-?\d+)\b", text):
-        last = abs(int(m.group(1)))
-    if last is not None:
-        return last
+    # Try a few patterns, but if none match we will log the raw output.
+    for pat in [r"\bdmin=(\d+)\b", r"\bd_ub=(\d+)\b", r"\bd=(\d+)\b"]:
+        m = re.search(pat, text)
+        if m:
+            return int(m.group(1))
+    # Fallback: last integer on last non-empty line
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if lines:
+        m = re.search(r"(\d+)\s*$", lines[-1])
+        if m:
+            return int(m.group(1))
     raise ValueError("Could not parse distance from dist_m4ri output.")
+
+def _write_fail_log(code_id: str, side: str, steps: int, seed: int, out: str) -> Path:
+    logs = Path("logs") / "m4ri_refine_failures"
+    logs.mkdir(parents=True, exist_ok=True)
+    ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    path = logs / f"{code_id}__{side}__steps{steps}__seed{seed}__{ts}.log"
+    path.write_text(out)
+    return path
 
 def run_dist_m4ri(
     exe: Path,
@@ -121,8 +117,9 @@ def run_dist_m4ri(
     steps: int,
     seed: int,
     timeout_s: Optional[int],
-) -> Tuple[int, str]:
-    # RW method: method=1 with finH/finG for CSS
+    code_id: str,
+    side: str,
+) -> Optional[int]:
     cmd = [
         str(exe),
         "debug=0",
@@ -135,23 +132,20 @@ def run_dist_m4ri(
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
     out = (proc.stdout or "") + "\n" + (proc.stderr or "")
-    if proc.returncode != 0:
-        # still try parsing; if not, raise with context
-        try:
-            return parse_dist_m4ri_output(out), out
-        except Exception:
-            raise RuntimeError(
-                f"dist_m4ri failed rc={proc.returncode}\ncmd={' '.join(cmd)}\n"
-                + "\n".join(out.splitlines()[-80:])
-            )
-    return parse_dist_m4ri_output(out), out
+
+    try:
+        d = parse_dist_m4ri_output(out)
+        return d
+    except Exception as ex:
+        # Log the FULL output for diagnosis and skip this side
+        log = _write_fail_log(code_id, side, steps, seed, out)
+        print(f"[fail] {code_id} side={side}: parse failed ({ex}); logged: {log}")
+        return None
 
 def get_prev_steps(meta: Dict[str, Any]) -> int:
-    # prefer our own fields
     for k in ("m4ri_steps", "trials", "steps"):
         if k in meta:
             return ensure_int(meta.get(k), 0)
-    # or nested distance_m4ri
     dm = meta.get("distance_m4ri")
     if isinstance(dm, dict):
         return ensure_int(dm.get("steps_per_side", 0), 0)
@@ -161,11 +155,9 @@ def inject_m4ri_results(meta: Dict[str, Any], *, steps: int, seed: int, dX: int,
     ts = utc_now_iso()
     d = min(dX, dZ)
 
-    # Preserve previous distance block if present and not already preserved
     if "distance" in meta and "distance_prev" not in meta:
         meta["distance_prev"] = meta["distance"]
 
-    # Canonical top-level fields used by the table/pipeline
     meta["distance_backend"] = "dist-m4ri"
     meta["distance_method"] = "RW"
     meta["m4ri_steps"] = steps
@@ -177,7 +169,6 @@ def inject_m4ri_results(meta: Dict[str, Any], *, steps: int, seed: int, dX: int,
     meta["trials"] = steps
     meta["updated_at"] = ts
 
-    # A canonical nested block (for future-proofing)
     meta["distance_m4ri"] = {
         "backend": "dist-m4ri",
         "method": "RW",
@@ -189,7 +180,7 @@ def inject_m4ri_results(meta: Dict[str, Any], *, steps: int, seed: int, dX: int,
         "updated_at": ts,
     }
 
-    # Overwrite the "distance" block that the website currently displays
+    # This is what your website currently displays
     meta["distance"] = {
         "method": "dist-m4ri",
         "dX_best": dX,
@@ -202,14 +193,11 @@ def inject_m4ri_results(meta: Dict[str, Any], *, steps: int, seed: int, dX: int,
             "dx": {"d_ub": dX, "steps": steps, "seed": seed + 1, "signed": dX, "early_stop": False},
             "dz": {"d_ub": dZ, "steps": steps, "seed": seed,     "signed": dZ, "early_stop": False},
         },
-        "steps_fast": steps,
-        "steps_slow": steps,
     }
-
     return meta
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Refine best_codes distances using dist_m4ri, and update collected meta.json too.")
+    ap = argparse.ArgumentParser(description="Refine best_codes distances using dist_m4ri (no GAP). Updates collected/*/meta.json too.")
     ap.add_argument("--group", required=True)
     ap.add_argument("--trials", type=int, required=True, help="RW steps per side (X and Z).")
     ap.add_argument("--best-dir", default="best_codes")
@@ -222,7 +210,6 @@ def main() -> int:
     best_dir = Path(args.best_dir).resolve()
     collected_dir = best_dir / "collected"
     meta_dir = best_dir / "meta"
-
     if not collected_dir.is_dir():
         raise SystemExit(f"ERROR: {collected_dir} not found.")
     meta_dir.mkdir(parents=True, exist_ok=True)
@@ -239,10 +226,8 @@ def main() -> int:
     skipped = 0
 
     for i, code_id in enumerate(code_ids, start=1):
-        # Two meta locations:
         meta_summary_path = meta_dir / f"{code_id}.json"
         meta_collected_path = collected_dir / code_id / "meta.json"
-
         meta_summary = read_json(meta_summary_path)
         meta_collected = read_json(meta_collected_path)
 
@@ -261,13 +246,17 @@ def main() -> int:
         print(f"[run ] ({i}/{len(code_ids)}) {code_id} prev_steps={prev} -> new_steps={args.trials}")
         print(f"       Hx={mat.hx.name}  Hz={mat.hz.name}")
 
-        dZ, _ = run_dist_m4ri(exe, finH=mat.hx, finG=mat.hz, steps=args.trials, seed=args.seed, timeout_s=args.timeout)
-        dX, _ = run_dist_m4ri(exe, finH=mat.hz, finG=mat.hx, steps=args.trials, seed=args.seed + 1, timeout_s=args.timeout)
+        dZ = run_dist_m4ri(exe, finH=mat.hx, finG=mat.hz, steps=args.trials, seed=args.seed,
+                           timeout_s=args.timeout, code_id=code_id, side="Z")
+        dX = run_dist_m4ri(exe, finH=mat.hz, finG=mat.hx, steps=args.trials, seed=args.seed + 1,
+                           timeout_s=args.timeout, code_id=code_id, side="X")
+
+        if dX is None or dZ is None:
+            skipped += 1
+            continue
 
         meta_summary = inject_m4ri_results(meta_summary, steps=args.trials, seed=args.seed, dX=dX, dZ=dZ)
         meta_collected = inject_m4ri_results(meta_collected, steps=args.trials, seed=args.seed, dX=dX, dZ=dZ)
-
-        # Keep code_id stable inside collected meta
         meta_collected["code_id"] = code_id
 
         write_json(meta_summary_path, meta_summary)
