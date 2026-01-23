@@ -1,6 +1,5 @@
 (async function () {
   function toInt(x) {
-    // Important: do NOT convert null/undefined/"" to 0
     if (x === null || x === undefined) return null;
     if (typeof x === "string" && x.trim() === "") return null;
     const n = Number(x);
@@ -15,10 +14,8 @@
 
   function groupRawFromCodeId(codeId) {
     const s = String(codeId);
-    // Preserve SmallGroup_n_k prefix if present
-    const m = s.match(/^(SmallGroup_\d+_\d+)(?:__|_)/i);
+    const m = s.match(/^(SmallGroup[_\(\s]*\d+[, _]+\d+\)?)(?:__|_)/i);
     if (m) return m[1];
-    // else take prefix before first underscore
     const i = s.indexOf("_");
     return i >= 0 ? s.slice(0, i) : s;
   }
@@ -27,38 +24,39 @@
     if (!raw) return "";
     const s0 = String(raw);
 
-    // Accept many formats: SmallGroup_3_1, SmallGroup(3,1), smallgroup(3,1)
+    // Accept SmallGroup_3_1 / SmallGroup(3,1) / smallgroup(3,1)
     const m = s0.match(/smallgroup[_\(\s]*?(\d+)[, _]+(\d+)\)?/i);
     if (m) {
       const n = Number(m[1]), k = Number(m[2]);
       const key = `${n},${k}`;
+      // A small mapping of very common ones; extend anytime
       const map = {
         "1,1": "Trivial",
         "2,1": "C2",
         "3,1": "C3",
         "4,1": "C4",
+        "5,1": "C5",
         "6,1": "C6",
+        "7,1": "C7",
         "8,1": "C8",
         "8,2": "C4 × C2",
-        "8,3": "D8",
-        "8,4": "Q8",
         "8,5": "C2 × C2 × C2",
+        "9,1": "C9",
+        "9,2": "C3 × C3",
+        "10,1": "C10",
         "12,1": "C12",
         "12,2": "C6 × C2",
         "12,3": "D12",
         "12,4": "A4",
         "16,1": "C16",
-        "16,2": "C8 × C2",
         "16,3": "C4 × C4",
         "16,4": "C4 × C2 × C2",
         "16,5": "C2 × C2 × C2 × C2",
-        "16,6": "D16",
-        "16,9": "Q16",
       };
       return map[key] || `SmallGroup(${n},${k})`;
     }
 
-    // Pretty-print direct products "C2xC2xC2" -> "C2 × C2 × C2"
+    // Pretty-print direct products like C2xC2xC2
     if (s0.includes("x")) return s0.split("x").join(" × ");
 
     return s0.replace("⋊", " ⋊ ");
@@ -122,15 +120,15 @@
     return { data, codes: norm };
   }
 
-  function buildPivot(codes) {
-    const groups = Array.from(new Set(codes.map(c => c.group))).sort((a,b)=>a.localeCompare(b));
+  function buildPivotNK(codes) {
+    const ns = Array.from(new Set(codes.map(c => c.n).filter(n => n !== null))).sort((a,b)=>a-b);
     const ks = Array.from(new Set(codes.map(c => c.k).filter(k => k !== null))).sort((a,b)=>a-b);
 
-    // Best per (group,k): max d, then max trials
+    // best per (n,k): max d, tie-break by max trials
     const best = new Map();
     for (const c of codes) {
-      if (c.k === null) continue;
-      const key = c.group + "|" + c.k;
+      if (c.n === null || c.k === null) continue;
+      const key = c.n + "|" + c.k;
       const cur = best.get(key);
       if (!cur) { best.set(key, c); continue; }
       const cd = c.d ?? -1, rd = cur.d ?? -1;
@@ -140,13 +138,14 @@
         if (ct > rt) best.set(key, c);
       }
     }
-    return { groups, ks, best };
+    return { ns, ks, best };
   }
 
   function render({ data, codes }) {
-    const { groups, ks, best } = buildPivot(codes);
+    const { ns, ks, best } = buildPivotNK(codes);
 
     const esc = (s) => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
     const cellText = (c) => {
       if (!c) return "";
       const d = (c.d === null || c.d === undefined) ? "" : c.d;
@@ -155,7 +154,7 @@
     };
 
     document.body.innerHTML = `
-      <div style="max-width: 1400px; margin: 18px auto; padding: 0 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">
+      <div style="max-width: 1500px; margin: 18px auto; padding: 0 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;">
           <h2 style="margin:0;">Best qTanner codes</h2>
           <div><a href="simple.html">List view</a></div>
@@ -168,17 +167,17 @@
           <table style="border-collapse:collapse; width:100%; font-size: 13px;">
             <thead>
               <tr style="background:#f7f7f7; text-align:left;">
-                <th style="padding:8px; border-bottom:1px solid #ddd; position:sticky; left:0; background:#f7f7f7; z-index:2;">k \\ group</th>
-                ${groups.map(g=>`<th style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">${esc(g)}</th>`).join("")}
+                <th style="padding:8px; border-bottom:1px solid #ddd; position:sticky; left:0; background:#f7f7f7; z-index:2;">k \\ n</th>
+                ${ns.map(n=>`<th style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">n=${n}</th>`).join("")}
               </tr>
             </thead>
             <tbody>
               ${ks.map(k=>{
                 return `<tr>
                   <td style="padding:8px; border-bottom:1px solid #eee; position:sticky; left:0; background:white; z-index:1;"><b>${k}</b></td>
-                  ${groups.map(g=>{
-                    const c = best.get(g + "|" + k);
-                    const title = c ? `code_id=${c.codeId}\\n(n=${c.n}, k=${c.k}, d=${c.d}, trials=${c.trials}, dX=${c.dX ?? ""}, dZ=${c.dZ ?? ""})` : "";
+                  ${ns.map(n=>{
+                    const c = best.get(n + "|" + k);
+                    const title = c ? `code_id=${c.codeId}\\n(group=${c.group})\\n(n=${c.n}, k=${c.k}, d=${c.d}, trials=${c.trials}, dX=${c.dX ?? ""}, dZ=${c.dZ ?? ""})` : "";
                     return `<td style="padding:8px; border-bottom:1px solid #eee; vertical-align:top;" title="${esc(title)}">${cellText(c)}</td>`;
                   }).join("")}
                 </tr>`;
@@ -188,7 +187,7 @@
         </div>
 
         <div style="opacity:.75; margin-top:10px;">
-          Cell shows <b>d</b> and <b>m4ri trials</b>. Hover for code_id and dX/dZ when available.
+          Cell shows <b>d</b> and <b>m4ri trials</b>. Hover for code_id + group name.
         </div>
       </div>
     `;
