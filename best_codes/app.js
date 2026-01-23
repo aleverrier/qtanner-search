@@ -39,12 +39,10 @@
     if (!raw) return "";
     const s0 = String(raw);
 
-    // Accept SmallGroup_3_1 / SmallGroup(3,1) / smallgroup(3,1)
     const m = s0.match(/smallgroup[_\(\s]*?(\d+)[, _]+(\d+)\)?/i);
     if (m) {
       const n = Number(m[1]), k = Number(m[2]);
       const key = `${n},${k}`;
-      // Common ones mapped to standard names; others keep SmallGroup(n,k) (GAP standard).
       const map = {
         "1,1":"Trivial","2,1":"C2","3,1":"C3","4,1":"C4","5,1":"C5","6,1":"C6",
         "7,1":"C7","8,1":"C8","8,2":"C4 × C2","8,5":"C2 × C2 × C2",
@@ -106,25 +104,51 @@
     return { data, codes: norm };
   }
 
-  // ---------- pivot: rows=n, cols=k ----------
-  function buildPivotNK(codes) {
+  // ---------- pivot: rows=n, cols=k; store ALL ties ----------
+  function buildPivotNKAllTies(codes) {
     const ns = Array.from(new Set(codes.map(c => c.n).filter(v => v !== null))).sort((a,b)=>a-b);
     const ks = Array.from(new Set(codes.map(c => c.k).filter(v => v !== null))).sort((a,b)=>a-b);
 
-    // best per (n,k): max d, then max trials
+    // For each (n,k): keep list of best codes under ordering:
+    // primary: max d ; secondary: max trials ; ties: keep all (different groups)
     const best = new Map();
+
+    function keyOf(c) { return c.n + "|" + c.k; }
+    function score(c) {
+      return { d: (c.d ?? -1), t: (c.trials ?? -1) };
+    }
+
     for (const c of codes) {
       if (c.n === null || c.k === null) continue;
-      const key = c.n + "|" + c.k;
-      const cur = best.get(key);
-      if (!cur) { best.set(key, c); continue; }
-      const cd = c.d ?? -1, rd = cur.d ?? -1;
-      if (cd > rd) best.set(key, c);
-      else if (cd === rd) {
-        const ct = c.trials ?? -1, rt = cur.trials ?? -1;
-        if (ct > rt) best.set(key, c);
+      const key = keyOf(c);
+      const curList = best.get(key);
+
+      if (!curList) {
+        best.set(key, [c]);
+        continue;
+      }
+
+      const curScore = score(curList[0]);
+      const candScore = score(c);
+
+      if (candScore.d > curScore.d) {
+        best.set(key, [c]);
+      } else if (candScore.d === curScore.d) {
+        if (candScore.t > curScore.t) {
+          best.set(key, [c]);
+        } else if (candScore.t === curScore.t) {
+          // Keep all ties, avoid duplicates by codeId
+          if (!curList.some(x => x.codeId === c.codeId)) curList.push(c);
+        }
       }
     }
+
+    // Sort tie-lists by group name (stable display)
+    for (const [k, arr] of best.entries()) {
+      arr.sort((a,b) => a.group.localeCompare(b.group));
+      best.set(k, arr);
+    }
+
     return { ns, ks, best };
   }
 
@@ -139,7 +163,7 @@
       display:none; align-items:center; justify-content:center; z-index:9999;
     `;
     modal.innerHTML = `
-      <div id="qt-modal-card" style="
+      <div style="
         width:min(980px, calc(100vw - 24px));
         max-height: calc(100vh - 24px);
         overflow:auto;
@@ -193,28 +217,21 @@
   }
 
   function matrixLinks(codeId) {
-    // Most common names in your repo
     const candidates = [
       {label:"Hx", url:`matrices/${encodeURIComponent(codeId)}__Hx.mtx`},
       {label:"Hz", url:`matrices/${encodeURIComponent(codeId)}__Hz.mtx`},
       {label:"Hx", url:`matrices/${encodeURIComponent(codeId)}__HX.mtx`},
       {label:"Hz", url:`matrices/${encodeURIComponent(codeId)}__HZ.mtx`},
     ];
-    // Show all; GitHub Pages will 404 if absent.
     return candidates.map(c => `<a href="${c.url}" target="_blank" rel="noopener">${c.label}</a>`).join(" • ");
   }
 
   function pickConstruction(meta) {
-    // Try to extract A/B/perms from known keys (robust to schema changes)
     const A = meta.A_elems ?? meta.A ?? meta.Aset ?? meta.A_elements ?? null;
     const B = meta.B_elems ?? meta.B ?? meta.Bset ?? meta.B_elements ?? null;
-
-    // permutations may be stored in different ways
     const pA = meta.A_perm ?? meta.permA ?? meta.perm_A ?? meta.permutation_A ?? null;
     const pB = meta.B_perm ?? meta.permB ?? meta.perm_B ?? meta.permutation_B ?? null;
-
     const perm = meta.permutation ?? meta.perm ?? null;
-
     return { A, B, pA, pB, perm };
   }
 
@@ -222,7 +239,6 @@
     const codeId = code.codeId;
     const cb = Date.now();
 
-    // Prefer best_codes/meta/<code_id>.json, fallback to collected/<code_id>/meta.json
     const urls = [
       `meta/${encodeURIComponent(codeId)}.json?cb=${cb}`,
       `collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`,
@@ -234,7 +250,9 @@
       try { meta = await fetchJSON(u); source = u; break; } catch (_) {}
     }
     if (!meta) {
-      showModal("Code details", codeId, `<div style="color:#b00;">Could not load metadata for this code.</div><div style="opacity:.75;">Tried:<br>${urls.map(esc).join("<br>")}</div>`);
+      showModal("Code details", codeId,
+        `<div style="color:#b00;">Could not load metadata for this code.</div>
+         <div style="opacity:.75;">Tried:<br>${urls.map(esc).join("<br>")}</div>`);
       return;
     }
 
@@ -248,15 +266,11 @@
 
     const {A,B,pA,pB,perm} = pickConstruction(meta);
 
-    // Classical codes info if present (your meta often has slice/local codes)
-    const slice = meta.slice_codes ?? meta.slice ?? null;
-    const local = meta.local_codes ?? meta.local ?? null;
-
     const body = `
       <div style="margin:10px 0 14px 0;">
         <div><b>code_id:</b> <code>${esc(codeId)}</code></div>
         <div><b>Group:</b> ${esc(group)}</div>
-        <div><b>Parameters:</b> n=${esc(n)} , k=${esc(k)} , d_ub=${esc(d)} ${dX!=null||dZ!=null ? `(dX_ub=${esc(dX??"")}, dZ_ub=${esc(dZ??"")})` : ""}</div>
+        <div><b>Parameters:</b> n=${esc(n)} , k=${esc(k)} , d_ub=${esc(d)} ${(dX!=null||dZ!=null) ? `(dX_ub=${esc(dX??"")}, dZ_ub=${esc(dZ??"")})` : ""}</div>
         <div><b>m4ri trials:</b> ${esc(trials ?? "")}</div>
         <div><b>Parity-check matrices:</b> ${matrixLinks(codeId)}</div>
         <div style="opacity:.6; font-size:12px; margin-top:6px;">meta source: ${esc(source)}</div>
@@ -272,15 +286,6 @@
         ${pB ? `<div><b>perm(B):</b> ${esc(fmtList(pB))}</div>` : ``}
         ${perm ? `<div><b>perm:</b> ${esc(fmtList(perm))}</div>` : ``}
       </div>
-
-      ${(slice || local) ? `
-        <hr style="border:none;border-top:1px solid #eee; margin:14px 0;" />
-        <div>
-          <h4 style="margin:0 0 8px 0;">Local / slice codes</h4>
-          ${slice ? `<div><b>slice_codes:</b><pre style="white-space:pre-wrap;border:1px solid #eee;border-radius:10px;padding:10px;">${esc(JSON.stringify(slice, null, 2))}</pre></div>` : ``}
-          ${local ? `<div><b>local_codes:</b><pre style="white-space:pre-wrap;border:1px solid #eee;border-radius:10px;padding:10px;">${esc(JSON.stringify(local, null, 2))}</pre></div>` : ``}
-        </div>
-      ` : ``}
     `;
 
     showModal("Code details", "", body);
@@ -288,36 +293,30 @@
 
   // ---------- main render ----------
   function render({ data, codes }) {
-    const { ns, ks, best } = buildPivotNK(codes);
+    const { ns, ks, best } = buildPivotNKAllTies(codes);
 
-    // Controls: cell mode toggle
-    const controls = `
-      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px;">
-        <h2 style="margin:0;">Best qTanner codes</h2>
-        <div style="display:flex; gap:14px; align-items:center;">
-          <label style="cursor:pointer;"><input type="radio" name="cellmode" value="d" checked> d only</label>
-          <label style="cursor:pointer;"><input type="radio" name="cellmode" value="dg"> d + G</label>
-          <a href="simple.html">List view</a>
-        </div>
-      </div>
-      <div style="opacity:.75; margin: 6px 0 14px 0;">
-        generated_at_utc: <code>${esc(data.generated_at_utc || "")}</code> • codes: ${codes.length}
-      </div>
-    `;
-
-    const cellHTML = (c, mode) => {
-      if (!c) return "";
-      const d = (c.d === null || c.d === undefined) ? "" : c.d;
-      const g = c.group || "";
-      if (mode === "dg") {
-        return `<div><b>${esc(d)}</b> <span style="opacity:.75">${esc(g)}</span></div>`;
-      }
-      return `<div><b>${esc(d)}</b></div>`;
+    const cellHTML = (arr) => {
+      if (!arr || arr.length === 0) return "";
+      // show all ties (same d and same trials)
+      const d = (arr[0].d ?? "");
+      const t = (arr[0].trials ?? "");
+      const groups = arr.map(c => c.group).join(" • ");
+      return `
+        <div><b>d=${esc(d)}</b> <span style="opacity:.75;font-size:12px;">${esc(t)}</span></div>
+        <div style="opacity:.75; font-size:12px; margin-top:2px;">${esc(groups)}</div>
+      `;
     };
 
     document.body.innerHTML = `
       <div style="max-width: 1500px; margin: 18px auto; padding: 0 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">
-        ${controls}
+        <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;">
+          <h2 style="margin:0;">Best qTanner codes</h2>
+          <div><a href="simple.html">List view</a></div>
+        </div>
+        <div style="opacity:.75; margin: 6px 0 14px 0;">
+          generated_at_utc: <code>${esc(data.generated_at_utc || "")}</code> • codes: ${codes.length}
+        </div>
+
         <div style="overflow:auto; border:1px solid #ddd; border-radius: 10px;">
           <table style="border-collapse:collapse; width:100%; font-size: 13px;">
             <thead>
@@ -326,15 +325,17 @@
                 ${ks.map(k=>`<th style="padding:8px; border-bottom:1px solid #ddd; white-space:nowrap;">k=${k}</th>`).join("")}
               </tr>
             </thead>
-            <tbody id="tbody">
+            <tbody>
               ${ns.map(n=>{
                 return `<tr>
                   <td style="padding:8px; border-bottom:1px solid #eee; position:sticky; left:0; background:white; z-index:1;"><b>n=${n}</b></td>
                   ${ks.map(k=>{
-                    const c = best.get(n + "|" + k);
-                    const title = c ? `code_id=${c.codeId}\\n(group=${c.group})\\n(n=${c.n}, k=${c.k}, d=${c.d}, trials=${c.trials ?? ""})` : "";
-                    return `<td class="cell" data-codeid="${c ? esc(c.codeId) : ""}" style="padding:8px; border-bottom:1px solid #eee; vertical-align:top; cursor:${c ? "pointer" : "default"};" title="${esc(title)}">
-                              ${cellHTML(c, "d")}
+                    const arr = best.get(n + "|" + k);
+                    const clickable = arr && arr.length;
+                    return `<td class="cell"
+                              data-n="${n}" data-k="${k}"
+                              style="padding:8px; border-bottom:1px solid #eee; vertical-align:top; cursor:${clickable ? "pointer" : "default"};">
+                              ${cellHTML(arr)}
                             </td>`;
                   }).join("")}
                 </tr>`;
@@ -342,43 +343,45 @@
             </tbody>
           </table>
         </div>
+
         <div style="opacity:.75; margin-top:10px;">
-          Click a non-empty cell for details (parameters, construction, trials, matrices).
+          Click a non-empty cell for details (shows all tied codes for that (n,k)).
         </div>
       </div>
     `;
 
     ensureModal();
 
-    function applyMode(mode) {
-      // Re-render only cell contents without rebuilding table structure
-      const tds = document.querySelectorAll("td.cell");
-      for (const td of tds) {
-        const cid = td.getAttribute("data-codeid");
-        if (!cid) continue;
-        // Find code object
-        const c = codes.find(x => x.codeId === cid);
-        if (!c) continue;
-        td.innerHTML = cellHTML(c, mode);
-      }
-    }
-
-    // Toggle handler
-    document.querySelectorAll('input[name="cellmode"]').forEach(r => {
-      r.addEventListener("change", () => {
-        const mode = document.querySelector('input[name="cellmode"]:checked').value;
-        applyMode(mode);
-      });
-    });
-
-    // Click handler
     document.querySelectorAll("td.cell").forEach(td => {
       td.addEventListener("click", async () => {
-        const cid = td.getAttribute("data-codeid");
-        if (!cid) return;
-        const c = codes.find(x => x.codeId === cid);
-        if (!c) return;
-        await openDetails(c);
+        const n = Number(td.getAttribute("data-n"));
+        const k = Number(td.getAttribute("data-k"));
+        const arr = best.get(n + "|" + k);
+        if (!arr || arr.length === 0) return;
+
+        // If only one, open directly. If multiple, show chooser in modal.
+        if (arr.length === 1) {
+          await openDetails(arr[0]);
+          return;
+        }
+
+        const list = arr.map((c, idx) => `
+          <div style="padding:10px;border:1px solid #eee;border-radius:10px;margin:8px 0;">
+            <div><b>${esc(c.group)}</b> — <code style="font-size:12px;">${esc(c.codeId)}</code></div>
+            <div style="opacity:.75;margin-top:4px;">n=${esc(c.n)} k=${esc(c.k)} d=${esc(c.d)} trials=${esc(c.trials ?? "")}</div>
+            <button data-idx="${idx}" style="margin-top:8px;border:1px solid #ccc;border-radius:10px;padding:6px 10px;background:#f7f7f7;cursor:pointer;">Open details</button>
+          </div>
+        `).join("");
+
+        showModal(`Codes for (n=${n}, k=${k})`, "", list);
+
+        document.querySelectorAll("#qt-modal-body button[data-idx]").forEach(btn => {
+          btn.addEventListener("click", async () => {
+            const i = Number(btn.getAttribute("data-idx"));
+            hideModal();
+            await openDetails(arr[i]);
+          });
+        });
       });
     });
   }

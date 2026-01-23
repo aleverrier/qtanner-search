@@ -99,7 +99,7 @@
               </tr>
             </thead>
             <tbody>
-              ${codes.sort((a,b)=> (a.group.localeCompare(b.group)) || ((a.k??1e9)-(b.k??1e9)) || ((b.d??-1)-(a.d??-1))).map(c=>`
+              ${codes.sort((a,b)=> ((a.n??1e9)-(b.n??1e9)) || ((a.k??1e9)-(b.k??1e9)) || ((b.d??-1)-(a.d??-1)) || ((b.trials??-1)-(a.trials??-1)) ).map(c=>`
                 <tr>
                   <td style="padding:8px; border-bottom:1px solid #eee;">${c.group}</td>
                   <td style="padding:8px; border-bottom:1px solid #eee;">${c.n ?? ""}</td>
