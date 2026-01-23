@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse, json, re
+import datetime as dt
 from pathlib import Path
 from typing import Any, Dict, Tuple, Set, Optional, List
 
@@ -179,7 +180,8 @@ def main() -> int:
     else:
         raise SystemExit(f"ERROR: unsupported type for data['codes']: {type(codes_obj)}")
 
-    write_json(data_path, data)
+    data["generated_at_utc"] = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+write_json(data_path, data)
     print(f"[ok] patched {data_path} from meta; updated={updated} dropped={dropped} renamed={renamed} collected={len(collected_codes)}")
 
     # Rebuild index.tsv and best_by_group_k.tsv from collected+meta
