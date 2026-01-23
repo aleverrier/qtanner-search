@@ -1,25 +1,7 @@
 (async function () {
-  function groupDisplay(raw) {
-    if (!raw) return "";
-    const s = String(raw);
-    if (s.startsWith("SmallGroup_")) {
-      const m = s.match(/^SmallGroup_(\d+)_(\d+)/);
-      if (m) {
-        const n = Number(m[1]), k = Number(m[2]);
-        const key = `${n},${k}`;
-        const map = {
-          "1,1":"Trivial","2,1":"C2","3,1":"C3","4,1":"C4","6,1":"C6",
-          "8,1":"C8","8,2":"C4 × C2","8,3":"D8","8,4":"Q8","8,5":"C2 × C2 × C2",
-          "12,1":"C12","12,2":"C6 × C2","12,3":"D12","12,4":"A4",
-        };
-        return map[key] || `SmallGroup(${n},${k})`;
-      }
-    }
-    if (s.includes("x")) return s.split("x").join(" × ");
-    return s.replace("⋊"," ⋊ ");
-  }
-
   function toInt(x) {
+    if (x === null || x === undefined) return null;
+    if (typeof x === "string" && x.trim() === "") return null;
     const n = Number(x);
     return Number.isFinite(n) ? Math.trunc(n) : null;
   }
@@ -28,6 +10,30 @@
     const re = new RegExp(`${key}(\\d+)(?:_|$)`);
     const m = String(codeId).match(re);
     return m ? parseInt(m[1], 10) : null;
+  }
+
+  function groupRawFromCodeId(codeId) {
+    const s = String(codeId);
+    const m = s.match(/^(SmallGroup_\d+_\d+)(?:__|_)/i);
+    if (m) return m[1];
+    const i = s.indexOf("_");
+    return i >= 0 ? s.slice(0, i) : s;
+  }
+
+  function groupDisplay(raw) {
+    if (!raw) return "";
+    const s0 = String(raw);
+    const m = s0.match(/smallgroup[_\(\s]*?(\d+)[, _]+(\d+)\)?/i);
+    if (m) {
+      const n = Number(m[1]), k = Number(m[2]);
+      const key = `${n},${k}`;
+      const map = {
+        "2,1":"C2","3,1":"C3","4,1":"C4","6,1":"C6","8,5":"C2 × C2 × C2","12,2":"C6 × C2","16,5":"C2 × C2 × C2 × C2",
+      };
+      return map[key] || `SmallGroup(${n},${k})`;
+    }
+    if (s0.includes("x")) return s0.split("x").join(" × ");
+    return s0;
   }
 
   function getFirst(obj, paths) {
@@ -46,7 +52,7 @@
 
   function normalize(rec) {
     const codeId = rec.code_id || rec.id || rec.name || "";
-    const groupRaw = rec.group || rec.G || codeId.split("_", 1)[0];
+    const groupRaw = rec.group || rec.G || groupRawFromCodeId(codeId);
     const group = groupDisplay(groupRaw);
 
     const n = toInt(getFirst(rec, ["n"])) ?? null;
@@ -75,7 +81,7 @@
       <div style="max-width: 1200px; margin: 18px auto; padding: 0 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;">
           <h2 style="margin:0;">Best qTanner codes (list view)</h2>
-          <div><a href="index.html">Back to table view</a></div>
+          <div><a href="index.html">Back to table</a></div>
         </div>
         <div style="opacity:.75; margin: 6px 0 14px 0;">
           generated_at_utc: <code>${String(data.generated_at_utc || "")}</code> • codes: ${codes.length}
@@ -89,8 +95,6 @@
                 <th style="padding:8px; border-bottom:1px solid #ddd;">k</th>
                 <th style="padding:8px; border-bottom:1px solid #ddd;">d_ub</th>
                 <th style="padding:8px; border-bottom:1px solid #ddd;">m4ri_trials</th>
-                <th style="padding:8px; border-bottom:1px solid #ddd;">dX_ub</th>
-                <th style="padding:8px; border-bottom:1px solid #ddd;">dZ_ub</th>
                 <th style="padding:8px; border-bottom:1px solid #ddd;">code_id</th>
               </tr>
             </thead>
@@ -102,8 +106,6 @@
                   <td style="padding:8px; border-bottom:1px solid #eee;">${c.k ?? ""}</td>
                   <td style="padding:8px; border-bottom:1px solid #eee;">${c.d ?? ""}</td>
                   <td style="padding:8px; border-bottom:1px solid #eee;">${c.trials ?? ""}</td>
-                  <td style="padding:8px; border-bottom:1px solid #eee;">${c.dX ?? ""}</td>
-                  <td style="padding:8px; border-bottom:1px solid #eee;">${c.dZ ?? ""}</td>
                   <td style="padding:8px; border-bottom:1px solid #eee;"><code style="font-size:12px;">${c.codeId}</code></td>
                 </tr>
               `).join("")}
