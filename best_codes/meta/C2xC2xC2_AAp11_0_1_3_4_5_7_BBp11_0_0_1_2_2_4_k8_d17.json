@@ -18,13 +18,10 @@
   ],
   "B_id": "p11_0_0_1_2_2_4",
   "also_seen_in": [
-    "results/progressive_c2xc2xc2_d16_20260120_153538/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
-    "results/progressive_c2xc2xc2_d16_20260120_153515/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
-    "results/progressive_C2xC2xC2_20260123T121342Z/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
-    "results/progressive_C2xC2xC2_20260122T093526Z/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17"
+    "results/progressive_c2xc2xc2_d16_20260120_153515/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17"
   ],
   "code_id": "C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
-  "collected_at_utc": "2026-01-23T20:15:30Z",
+  "collected_at_utc": "2026-01-23T21:27:35Z",
   "collected_dir": "best_codes/collected/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
   "collected_files": [
     "best_codes/collected/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17/Hz.mtx",
@@ -36,9 +33,9 @@
   "d_recorded": 17,
   "d_recorded_kind": "from_code_id",
   "distance_method": "dist-m4ri",
-  "distance_seed": 155153384,
-  "distance_trials": 50000,
-  "distance_trials_path": "distance/slow/steps",
+  "distance_seed": 1609379350,
+  "distance_trials": 20000,
+  "distance_trials_path": "distance/steps",
   "group": "C2xC2xC2",
   "k": 8,
   "matrices_flat": [
@@ -47,9 +44,9 @@
   ],
   "n": 288,
   "permutation_candidates": [],
-  "run_dir": "results/progressive_c2xc2xc2_d16_20260121_133928",
+  "run_dir": "results/progressive_c2xc2xc2_d16_20260120_153538",
   "run_meta": {
-    "classical_steps": 100,
+    "classical_steps": 5000,
     "classical_target": 7,
     "dedup_cayley": false,
     "dist_m4ri_cmd": "dist_m4ri",
@@ -60,13 +57,12 @@
     "max_quantum_evals": 0,
     "min_distinct": null,
     "mode": "progressive",
-    "quantum_steps_fast": 2000,
-    "quantum_steps_slow": 50000,
+    "quantum_steps": 20000,
     "report_every": 50,
     "seed": 1,
     "target_distance": 16
   },
-  "run_meta_path_in_src": "results/progressive_c2xc2xc2_d16_20260121_133928/run_meta.json",
+  "run_meta_path_in_src": "results/progressive_c2xc2xc2_d16_20260120_153538/run_meta.json",
   "schema": "explicitqt_best_code_meta_v1",
   "settings_path": "best_codes/collected/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17/settings.json",
   "source_meta": {
@@ -115,18 +111,6 @@
       "passes": true,
       "perm_idx": 11,
       "side": "A",
-      "slice_codes": {
-        "A_G": {
-          "d_ub": 16,
-          "k": 8,
-          "n": 48
-        },
-        "A_H": {
-          "d_ub": 16,
-          "k": 8,
-          "n": 48
-        }
-      },
       "slice_n": 48
     },
     "B": {
@@ -137,7 +121,7 @@
           "early_stop": false,
           "k": 4,
           "rank": 44,
-          "seed": 1290980414
+          "seed": 365826647
         },
         "Hp": {
           "d_est": 20,
@@ -145,7 +129,7 @@
           "early_stop": false,
           "k": 4,
           "rank": 44,
-          "seed": 1550794024
+          "seed": 1884713216
         }
       },
       "d_est": 20,
@@ -174,75 +158,21 @@
       "passes": true,
       "perm_idx": 11,
       "side": "B",
-      "slice_codes": {
-        "B_G": {
-          "d_ub": 20,
-          "k": 4,
-          "n": 48
-        },
-        "B_H": {
-          "d_ub": 20,
-          "k": 4,
-          "n": 48
-        }
-      },
       "slice_n": 48
-    },
-    "classical_slices": {
-      "A_G": {
-        "d_ub": 16,
-        "k": 8,
-        "n": 48
-      },
-      "A_H": {
-        "d_ub": 16,
-        "k": 8,
-        "n": 48
-      },
-      "B_G": {
-        "d_ub": 20,
-        "k": 4,
-        "n": 48
-      },
-      "B_H": {
-        "d_ub": 20,
-        "k": 4,
-        "n": 48
-      }
     },
     "code_id": "C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17",
     "distance": {
-      "d_fast_ub": 17,
-      "d_slow_ub": 17,
       "d_ub": 17,
-      "fast": {
-        "d_ub": 17,
-        "dx_signed": 17,
-        "dx_ub": 17,
-        "dz_signed": 17,
-        "dz_ub": 17,
-        "early_stop_x": false,
-        "early_stop_z": false,
-        "seed_x": 155153384,
-        "seed_z": 579559654,
-        "steps": 2000
-      },
+      "dx_signed": 17,
+      "dx_ub": 17,
+      "dz_signed": 17,
+      "dz_ub": 17,
+      "early_stop_x": false,
+      "early_stop_z": false,
       "method": "dist_m4ri_rw",
-      "slow": {
-        "d_ub": 17,
-        "dx_signed": 17,
-        "dx_ub": 17,
-        "dz_signed": 17,
-        "dz_ub": 17,
-        "early_stop_x": false,
-        "early_stop_z": false,
-        "seed_x": 303321424,
-        "seed_z": 2141517180,
-        "steps": 50000
-      },
-      "sqrt_n": 17,
-      "steps_fast": 2000,
-      "steps_slow": 50000,
+      "seed_x": 1609379350,
+      "seed_z": 201931030,
+      "steps": 20000,
       "wmin": 15
     },
     "group": {
@@ -263,6 +193,6 @@
     "target_distance": 16
   },
   "source_meta_path_in_collected": "best_codes/collected/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17/meta.json",
-  "source_meta_path_in_src": "results/progressive_c2xc2xc2_d16_20260121_133928/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17/meta.json",
-  "src_dir": "results/progressive_c2xc2xc2_d16_20260121_133928/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17"
+  "source_meta_path_in_src": "results/progressive_c2xc2xc2_d16_20260120_153538/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17/meta.json",
+  "src_dir": "results/progressive_c2xc2xc2_d16_20260120_153538/best_codes/C2xC2xC2_AAp11_0_1_3_4_5_7_BBp11_0_0_1_2_2_4_k8_d17"
 }
