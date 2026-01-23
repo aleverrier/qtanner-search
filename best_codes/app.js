@@ -1,5 +1,5 @@
 (async function () {
-  // ---------- tiny utilities ----------
+  // ---------- utils ----------
   const esc = (s) => String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   const toInt = (x) => {
     if (x === null || x === undefined) return null;
@@ -26,7 +26,7 @@
     return null;
   };
 
-  // ---------- group pretty printing ----------
+  // ---------- group display ----------
   function groupRawFromCodeId(codeId) {
     const s = String(codeId);
     const m = s.match(/^(SmallGroup[_\(\s]*\d+[, _]+\d+\)?)(?:__|_)/i);
@@ -57,7 +57,7 @@
     return s0.replace("⋊", " ⋊ ");
   }
 
-  // ---------- normalize code record from data.json ----------
+  // ---------- normalize ----------
   function normalize(rec) {
     const codeId = rec.code_id || rec.id || rec.name || "";
     const groupRaw = rec.group || rec.G || groupRawFromCodeId(codeId);
@@ -88,45 +88,29 @@
     const data = await resp.json();
 
     let codes = data.codes;
-    if (Array.isArray(codes)) {
-      // ok
-    } else if (codes && typeof codes === "object") {
-      codes = Object.values(codes);
-    } else {
-      codes = [];
-    }
+    if (Array.isArray(codes)) {}
+    else if (codes && typeof codes === "object") codes = Object.values(codes);
+    else codes = [];
 
-    const norm = codes
-      .filter(x => x && typeof x === "object")
-      .map(normalize)
-      .filter(x => x.codeId);
-
+    const norm = codes.filter(x => x && typeof x === "object").map(normalize).filter(x => x.codeId);
     return { data, codes: norm };
   }
 
-  // ---------- pivot: rows=n, cols=k; store ALL ties ----------
+  // ---------- pivot: rows n, cols k; keep ALL ties across different groups ----------
   function buildPivotNKAllTies(codes) {
     const ns = Array.from(new Set(codes.map(c => c.n).filter(v => v !== null))).sort((a,b)=>a-b);
     const ks = Array.from(new Set(codes.map(c => c.k).filter(v => v !== null))).sort((a,b)=>a-b);
 
-    // For each (n,k): keep list of best codes under ordering:
-    // primary: max d ; secondary: max trials ; ties: keep all (different groups)
     const best = new Map();
 
-    function keyOf(c) { return c.n + "|" + c.k; }
-    function score(c) {
-      return { d: (c.d ?? -1), t: (c.trials ?? -1) };
-    }
+    function score(c) { return { d: (c.d ?? -1), t: (c.trials ?? -1) }; }
 
     for (const c of codes) {
       if (c.n === null || c.k === null) continue;
-      const key = keyOf(c);
+      const key = c.n + "|" + c.k;
       const curList = best.get(key);
 
-      if (!curList) {
-        best.set(key, [c]);
-        continue;
-      }
+      if (!curList) { best.set(key, [c]); continue; }
 
       const curScore = score(curList[0]);
       const candScore = score(c);
@@ -137,22 +121,20 @@
         if (candScore.t > curScore.t) {
           best.set(key, [c]);
         } else if (candScore.t === curScore.t) {
-          // Keep all ties, avoid duplicates by codeId
+          // keep all ties (different groups). avoid duplicates.
           if (!curList.some(x => x.codeId === c.codeId)) curList.push(c);
         }
       }
     }
 
-    // Sort tie-lists by group name (stable display)
     for (const [k, arr] of best.entries()) {
-      arr.sort((a,b) => a.group.localeCompare(b.group));
+      arr.sort((a,b)=>a.group.localeCompare(b.group));
       best.set(k, arr);
     }
-
     return { ns, ks, best };
   }
 
-  // ---------- modal overlay ----------
+  // ---------- modal ----------
   function ensureModal() {
     if (document.getElementById("qt-modal")) return;
 
@@ -182,13 +164,9 @@
     `;
     document.body.appendChild(modal);
 
-    modal.addEventListener("click", (e) => {
-      if (e.target === modal) hideModal();
-    });
+    modal.addEventListener("click", (e) => { if (e.target === modal) hideModal(); });
     document.getElementById("qt-modal-close").addEventListener("click", hideModal);
-    window.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") hideModal();
-    });
+    window.addEventListener("keydown", (e) => { if (e.key === "Escape") hideModal(); });
   }
 
   function showModal(title, subtitle, bodyHTML) {
@@ -238,7 +216,6 @@
   async function openDetails(code) {
     const codeId = code.codeId;
     const cb = Date.now();
-
     const urls = [
       `meta/${encodeURIComponent(codeId)}.json?cb=${cb}`,
       `collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`,
@@ -287,31 +264,36 @@
         ${perm ? `<div><b>perm:</b> ${esc(fmtList(perm))}</div>` : ``}
       </div>
     `;
-
     showModal("Code details", "", body);
   }
 
-  // ---------- main render ----------
+  // ---------- render ----------
   function render({ data, codes }) {
     const { ns, ks, best } = buildPivotNKAllTies(codes);
 
-    const cellHTML = (arr) => {
+    const cellHTML = (arr, mode) => {
       if (!arr || arr.length === 0) return "";
-      // show all ties (same d and same trials)
-      const d = (arr[0].d ?? "");
-      const t = (arr[0].trials ?? "");
-      const groups = arr.map(c => c.group).join(" • ");
-      return `
-        <div><b>d=${esc(d)}</b> <span style="opacity:.75;font-size:12px;">${esc(t)}</span></div>
-        <div style="opacity:.75; font-size:12px; margin-top:2px;">${esc(groups)}</div>
-      `;
+      const d = arr[0].d ?? "";
+      const t = arr[0].trials ?? "";
+      if (mode === "dg") {
+        const groups = arr.map(c => c.group).join(" • ");
+        return `
+          <div><b>d=${esc(d)}</b> <span style="opacity:.75;font-size:12px;">${esc(t)}</span></div>
+          <div style="opacity:.75;font-size:12px;margin-top:2px;">${esc(groups)}</div>
+        `;
+      }
+      return `<div><b>d=${esc(d)}</b> <span style="opacity:.75;font-size:12px;">${esc(t)}</span></div>`;
     };
 
     document.body.innerHTML = `
       <div style="max-width: 1500px; margin: 18px auto; padding: 0 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;">
         <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;">
           <h2 style="margin:0;">Best qTanner codes</h2>
-          <div><a href="simple.html">List view</a></div>
+          <div style="display:flex; gap:14px; align-items:center;">
+            <label style="cursor:pointer;"><input type="radio" name="cellmode" value="d" checked> d only</label>
+            <label style="cursor:pointer;"><input type="radio" name="cellmode" value="dg"> d + G</label>
+            <a href="simple.html">List view</a>
+          </div>
         </div>
         <div style="opacity:.75; margin: 6px 0 14px 0;">
           generated_at_utc: <code>${esc(data.generated_at_utc || "")}</code> • codes: ${codes.length}
@@ -335,7 +317,7 @@
                     return `<td class="cell"
                               data-n="${n}" data-k="${k}"
                               style="padding:8px; border-bottom:1px solid #eee; vertical-align:top; cursor:${clickable ? "pointer" : "default"};">
-                              ${cellHTML(arr)}
+                              ${cellHTML(arr, "d")}
                             </td>`;
                   }).join("")}
                 </tr>`;
@@ -345,13 +327,30 @@
         </div>
 
         <div style="opacity:.75; margin-top:10px;">
-          Click a non-empty cell for details (shows all tied codes for that (n,k)).
+          Click a non-empty cell for details. If several groups tie for the same (n,k), you can choose which one.
         </div>
       </div>
     `;
 
     ensureModal();
 
+    // toggle mode
+    function applyMode(mode) {
+      document.querySelectorAll("td.cell").forEach(td => {
+        const n = Number(td.getAttribute("data-n"));
+        const k = Number(td.getAttribute("data-k"));
+        const arr = best.get(n + "|" + k);
+        td.innerHTML = cellHTML(arr, mode);
+      });
+    }
+    document.querySelectorAll('input[name="cellmode"]').forEach(r => {
+      r.addEventListener("change", () => {
+        const mode = document.querySelector('input[name="cellmode"]:checked').value;
+        applyMode(mode);
+      });
+    });
+
+    // click handler
     document.querySelectorAll("td.cell").forEach(td => {
       td.addEventListener("click", async () => {
         const n = Number(td.getAttribute("data-n"));
@@ -359,7 +358,6 @@
         const arr = best.get(n + "|" + k);
         if (!arr || arr.length === 0) return;
 
-        // If only one, open directly. If multiple, show chooser in modal.
         if (arr.length === 1) {
           await openDetails(arr[0]);
           return;
@@ -374,7 +372,6 @@
         `).join("");
 
         showModal(`Codes for (n=${n}, k=${k})`, "", list);
-
         document.querySelectorAll("#qt-modal-body button[data-idx]").forEach(btn => {
           btn.addEventListener("click", async () => {
             const i = Number(btn.getAttribute("data-idx"));
