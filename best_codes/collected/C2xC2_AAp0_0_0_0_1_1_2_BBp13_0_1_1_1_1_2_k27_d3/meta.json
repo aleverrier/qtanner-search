@@ -180,7 +180,48 @@
     }
   },
   "code_id": "C2xC2_AAp0_0_0_0_1_1_2_BBp13_0_1_1_1_1_2_k27_d3",
+  "d": 3,
+  "dX_ub": 4,
+  "dZ_ub": 3,
+  "d_ub": 3,
   "distance": {
+    "dX_best": 4,
+    "dZ_best": 3,
+    "d_ub": 3,
+    "fast": {
+      "dx": {
+        "d_ub": 4,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 4,
+        "steps": 200000
+      },
+      "dz": {
+        "d_ub": 3,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 3,
+        "steps": 200000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 400000,
+    "steps_used_x": 200000,
+    "steps_used_z": 200000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 4,
+    "dZ_ub": 3,
+    "d_ub": 3,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 200000,
+    "updated_at": "2026-01-23T14:40:15Z"
+  },
+  "distance_method": "RW",
+  "distance_prev": {
     "dX_best": 4,
     "dZ_best": 3,
     "d_ub": 3,
@@ -223,7 +264,11 @@
     "permA_idx": 0,
     "permB_idx": 13
   },
+  "m4ri_seed": 1,
+  "m4ri_steps": 200000,
   "n": 144,
   "seed": 1,
-  "target_distance": 1
+  "target_distance": 1,
+  "trials": 200000,
+  "updated_at": "2026-01-23T14:40:15Z"
 }
