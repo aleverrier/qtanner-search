@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse, json, re, shutil
+import datetime as dt
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Tuple
 
@@ -21,25 +22,20 @@ def parse_d(code_id: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 def get_trials_anywhere(meta: Dict[str, Any]) -> int:
-    # Prefer refined m4ri fields
     for k in ("m4ri_steps","trials","steps","steps_used","distance_trials","distance_steps"):
         if k in meta:
             v = ensure_int(meta.get(k), 0)
             if v: return v
-
-    # Old progressive block
     dist = meta.get("distance")
     if isinstance(dist, dict):
         for k in ("steps","trials","steps_used_total","steps_used_x","steps_used_z"):
             if k in dist:
                 v = ensure_int(dist.get(k), 0)
                 if v: return v
-
     dm = meta.get("distance_m4ri")
     if isinstance(dm, dict):
         v = ensure_int(dm.get("steps_per_side", 0), 0)
         if v: return v
-
     return 0
 
 def get_d_ub(meta: Dict[str, Any], code_id: str) -> int:
@@ -55,17 +51,29 @@ def archive_code(best_dir: Path, code_id: str, archive_root: Path) -> None:
     src_meta = best_dir / "meta" / f"{code_id}.json"
     mats = best_dir / "matrices"
 
+    # Destination folders are unique per run (timestamped), but still be safe
+    dst_col = archive_root / "collected" / code_id
+    if dst_col.exists():
+        shutil.rmtree(dst_col)
     if src_col.exists():
-        shutil.move(str(src_col), str(archive_root / "collected" / code_id))
+        shutil.move(str(src_col), str(dst_col))
+
+    dst_meta = archive_root / "meta" / f"{code_id}.json"
+    if dst_meta.exists():
+        dst_meta.unlink()
     if src_meta.exists():
-        shutil.move(str(src_meta), str(archive_root / "meta" / f"{code_id}.json"))
+        shutil.move(str(src_meta), str(dst_meta))
+
     if mats.exists():
         for f in mats.glob(f"{code_id}*"):
             if f.is_file():
-                shutil.move(str(f), str(archive_root / "matrices" / f.name))
+                dst = archive_root / "matrices" / f.name
+                if dst.exists():
+                    dst.unlink()
+                shutil.move(str(f), str(dst))
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Prune best_codes: enforce min trials (from embedded collected meta.json) + keep best per k.")
+    ap = argparse.ArgumentParser(description="Prune best_codes: enforce min trials + keep best per k. Uses timestamped archive.")
     ap.add_argument("--best-dir", default="best_codes")
     ap.add_argument("--group", required=True)
     ap.add_argument("--min-trials", type=int, required=True)
@@ -126,8 +134,10 @@ def main() -> int:
     if args.dry_run:
         return 0
 
-    arch = best / "archived" / f"pruned_{args.group}"
+    ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    arch = best / "archived" / f"pruned_{args.group}_{ts}"
     archived = 0
+
     for cid,_ in low:
         if (col / cid).exists():
             archive_code(best, cid, arch / "below_min_trials")
