@@ -15,6 +15,9 @@ def ensure_int(x: Any) -> Optional[int]:
     try: return int(x)
     except: return None
 
+def looks_like_code_id(s: str) -> bool:
+    return isinstance(s, str) and ("_k" in s and "_d" in s)
+
 def parse_group(code_id: str) -> str:
     return code_id.split("_", 1)[0] if "_" in code_id else code_id
 
@@ -35,8 +38,28 @@ def extract_distance(meta: Dict[str, Any]) -> Tuple[Optional[int], Optional[int]
         dZ = dZ if dZ is not None else dist.get("dZ_ub", dist.get("dZ"))
     return ensure_int(d), ensure_int(trials), ensure_int(dX), ensure_int(dZ)
 
-def looks_like_code_id(s: str) -> bool:
-    return ("_k" in s and "_d" in s)
+def patch_record(rec: Any, cid: str, meta_map: Dict[str, Dict[str, Any]]) -> Any:
+    # Patch a record dict even if it doesn't contain code_id field (common in dict keyed by cid)
+    if cid not in meta_map:
+        return rec
+    meta = meta_map[cid]
+    d, trials, dX, dZ = extract_distance(meta)
+    if isinstance(rec, dict):
+        if d is not None:
+            rec["d"] = d
+            rec["d_ub"] = d
+        if trials is not None:
+            rec["trials"] = trials
+            rec["steps"] = trials  # extra compatibility
+        if dX is not None:
+            rec["dX_ub"] = dX
+        if dZ is not None:
+            rec["dZ_ub"] = dZ
+        if meta.get("distance_backend") == "dist-m4ri":
+            rec["distance_backend"] = "dist-m4ri"
+        # keep cid available for frontends that prefer it
+        rec.setdefault("code_id", cid)
+    return rec
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild/patch website artifacts using best_codes/meta and best_codes/collected.")
@@ -52,9 +75,9 @@ def main() -> int:
         raise SystemExit("ERROR: need best_codes/collected, best_codes/meta, best_codes/data.json")
 
     codes: Set[str] = {p.name for p in col.iterdir() if p.is_dir()}
+
     meta_map: Dict[str, Dict[str, Any]] = {}
     rename_old_to_new: Dict[str, str] = {}
-
     for mp in meta_dir.glob("*.json"):
         try:
             m = json.loads(mp.read_text())
@@ -67,60 +90,51 @@ def main() -> int:
             rename_old_to_new[old] = cid
 
     data = read_json(data_path)
+    updated = 0
+    dropped = 0
 
-    def patch_obj(obj: Any) -> Any:
-        # returns patched obj; may return None to indicate "drop this element"
+    def patch_obj(obj: Any, key_hint: Optional[str] = None) -> Any:
+        nonlocal updated, dropped
+
+        # If this object is a record keyed by code_id, patch it using key_hint
+        if key_hint and looks_like_code_id(key_hint):
+            cid = rename_old_to_new.get(key_hint, key_hint)
+            if cid in meta_map:
+                obj = patch_record(obj, cid, meta_map)
+                updated += 1
+
         if isinstance(obj, dict):
-            # If dict has code_id-ish key/value, patch it
+            # If dict has explicit code_id field, patch it
             cid = obj.get("code_id") or obj.get("id") or obj.get("name")
             if isinstance(cid, str):
                 cid2 = rename_old_to_new.get(cid, cid)
                 if cid2 != cid:
-                    # update id field (keep key name stable)
                     if "code_id" in obj: obj["code_id"] = cid2
                     elif "id" in obj: obj["id"] = cid2
                     elif "name" in obj: obj["name"] = cid2
                     cid = cid2
-
-                # If this is a code entry, drop if code no longer exists
-                if cid in meta_map and looks_like_code_id(cid) and cid not in codes:
-                    return None
-
-                # Patch distances if we have meta
                 if cid in meta_map:
-                    d, trials, dX, dZ = extract_distance(meta_map[cid])
-                    if d is not None:
-                        obj["d"] = d
-                        obj["d_ub"] = d
-                    if trials is not None:
-                        obj["trials"] = trials
-                    if dX is not None:
-                        obj["dX_ub"] = dX
-                    if dZ is not None:
-                        obj["dZ_ub"] = dZ
-                    if meta_map[cid].get("distance_backend") == "dist-m4ri":
-                        obj["distance_backend"] = "dist-m4ri"
+                    obj = patch_record(obj, cid, meta_map)
+                    updated += 1
 
-            # Also handle dicts keyed by code_id
             newd: Dict[str, Any] = {}
             for k, v in obj.items():
                 k2 = rename_old_to_new.get(k, k) if isinstance(k, str) else k
-                pv = patch_obj(v)
-                if pv is None:
-                    continue
-                # if key looks like a code id, filter it
-                if isinstance(k2, str) and looks_like_code_id(k2) and k2 not in codes:
-                    continue
+
+                # If k2 is a code id entry, drop it if code no longer exists in collected
+                if isinstance(k2, str) and looks_like_code_id(k2):
+                    if k2 not in codes:
+                        dropped += 1
+                        continue
+
+                pv = patch_obj(v, key_hint=k2 if isinstance(k2, str) else None)
                 newd[k2] = pv
             return newd
 
         if isinstance(obj, list):
             out = []
             for it in obj:
-                pit = patch_obj(it)
-                if pit is None:
-                    continue
-                out.append(pit)
+                out.append(patch_obj(it, key_hint=None))
             return out
 
         if isinstance(obj, str):
@@ -130,9 +144,9 @@ def main() -> int:
 
     data2 = patch_obj(data)
     write_json(data_path, data2)
-    print(f"[ok] patched {data_path} from meta; codes={len(codes)} renames={len(rename_old_to_new)}")
+    print(f"[ok] patched {data_path} from meta; updated={updated} dropped_keys={dropped} codes={len(codes)} renames={len(rename_old_to_new)}")
 
-    # Rebuild index.tsv (simple stable format)
+    # Rebuild index.tsv (stable)
     index_tsv = best / "index.tsv"
     rows = []
     for cid in sorted(codes):
