@@ -27,15 +27,57 @@
     "best_codes/collected/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35/meta.json",
     "best_codes/collected/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35/settings.json"
   ],
+  "d": 29,
+  "dX_ub": 29,
+  "dZ_ub": 35,
   "d_in_id": 35,
   "d_recorded": 35,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 29,
+  "distance": {
+    "dX_best": 29,
+    "dZ_best": 35,
+    "d_ub": 29,
+    "fast": {
+      "dx": {
+        "d_ub": 29,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 29,
+        "steps": 500000
+      },
+      "dz": {
+        "d_ub": 35,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 35,
+        "steps": 500000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 1000000,
+    "steps_used_x": 500000,
+    "steps_used_z": 500000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 29,
+    "dZ_ub": 35,
+    "d_ub": 29,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 500000,
+    "updated_at": "2026-01-24T21:00:02Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 1711023045,
   "distance_trials": 400000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "C12",
   "k": 4,
+  "m4ri_seed": 1,
+  "m4ri_steps": 500000,
   "matrices_flat": [
     "best_codes/matrices/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35__Hz.mtx",
     "best_codes/matrices/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35__Hx.mtx"
@@ -503,5 +545,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35/meta.json",
   "source_meta_path_in_src": "results/progressive_C12_20260122T153931Z/best_codes/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35/meta.json",
-  "src_dir": "results/progressive_C12_20260122T153931Z/best_codes/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35"
+  "src_dir": "results/progressive_C12_20260122T153931Z/best_codes/C12_AAp6_0_2_4_7_8_9_BBp12_0_1_3_7_10_11_k4_d35",
+  "trials": 500000,
+  "updated_at": "2026-01-24T21:00:02Z"
 }
