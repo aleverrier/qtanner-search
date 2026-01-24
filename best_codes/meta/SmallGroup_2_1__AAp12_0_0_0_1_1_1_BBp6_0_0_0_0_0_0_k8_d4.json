@@ -27,15 +27,57 @@
     "best_codes/collected/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4/meta.json",
     "best_codes/collected/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4/settings.json"
   ],
+  "d": 4,
+  "dX_ub": 4,
+  "dZ_ub": 4,
   "d_in_id": 4,
   "d_recorded": 4,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 4,
+  "distance": {
+    "dX_best": 4,
+    "dZ_best": 4,
+    "d_ub": 4,
+    "fast": {
+      "dx": {
+        "d_ub": 4,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 4,
+        "steps": 50000
+      },
+      "dz": {
+        "d_ub": 4,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 4,
+        "steps": 50000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 100000,
+    "steps_used_x": 50000,
+    "steps_used_z": 50000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 4,
+    "dZ_ub": 4,
+    "d_ub": 4,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 50000,
+    "updated_at": "2026-01-24T13:48:16Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 1363349907,
   "distance_trials": 20000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "SmallGroup_2_1_",
   "k": 8,
+  "m4ri_seed": 1,
+  "m4ri_steps": 50000,
   "matrices_flat": [
     "best_codes/matrices/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4__Hz.mtx",
     "best_codes/matrices/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4__Hx.mtx"
@@ -323,5 +365,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4/meta.json",
   "source_meta_path_in_src": "results/progressive_SmallGroup_2_1_20260123T124903Z/best_codes/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4/meta.json",
-  "src_dir": "results/progressive_SmallGroup_2_1_20260123T124903Z/best_codes/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4"
+  "src_dir": "results/progressive_SmallGroup_2_1_20260123T124903Z/best_codes/SmallGroup_2_1__AAp12_0_0_0_1_1_1_BBp6_0_0_0_0_0_0_k8_d4",
+  "trials": 50000,
+  "updated_at": "2026-01-24T13:48:16Z"
 }
