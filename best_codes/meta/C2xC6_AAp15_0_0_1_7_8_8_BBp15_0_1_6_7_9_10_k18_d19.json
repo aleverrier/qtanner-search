@@ -27,15 +27,57 @@
     "best_codes/collected/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19/meta.json",
     "best_codes/collected/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19/settings.json"
   ],
+  "d": 19,
+  "dX_ub": 20,
+  "dZ_ub": 19,
   "d_in_id": 19,
   "d_recorded": 19,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 19,
+  "distance": {
+    "dX_best": 20,
+    "dZ_best": 19,
+    "d_ub": 19,
+    "fast": {
+      "dx": {
+        "d_ub": 20,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 20,
+        "steps": 500000
+      },
+      "dz": {
+        "d_ub": 19,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 19,
+        "steps": 500000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 1000000,
+    "steps_used_x": 500000,
+    "steps_used_z": 500000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 20,
+    "dZ_ub": 19,
+    "d_ub": 19,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 500000,
+    "updated_at": "2026-01-24T22:22:04Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 355938417,
   "distance_trials": 200000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "C2xC6",
   "k": 18,
+  "m4ri_seed": 1,
+  "m4ri_steps": 500000,
   "matrices_flat": [
     "best_codes/matrices/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19__Hz.mtx",
     "best_codes/matrices/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19__Hx.mtx"
@@ -403,5 +445,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19/meta.json",
   "source_meta_path_in_src": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19/meta.json",
-  "src_dir": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19"
+  "src_dir": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_7_8_8_BBp15_0_1_6_7_9_10_k18_d19",
+  "trials": 500000,
+  "updated_at": "2026-01-24T22:22:04Z"
 }

@@ -29,15 +29,57 @@
     "best_codes/collected/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20/meta.json",
     "best_codes/collected/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20/settings.json"
   ],
+  "d": 20,
+  "dX_ub": 22,
+  "dZ_ub": 20,
   "d_in_id": 20,
   "d_recorded": 20,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 20,
+  "distance": {
+    "dX_best": 22,
+    "dZ_best": 20,
+    "d_ub": 20,
+    "fast": {
+      "dx": {
+        "d_ub": 22,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 22,
+        "steps": 500000
+      },
+      "dz": {
+        "d_ub": 20,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 20,
+        "steps": 500000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 1000000,
+    "steps_used_x": 500000,
+    "steps_used_z": 500000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 22,
+    "dZ_ub": 20,
+    "d_ub": 20,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 500000,
+    "updated_at": "2026-01-24T22:12:14Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 1623667860,
   "distance_trials": 200000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "C2xC6",
   "k": 6,
+  "m4ri_seed": 1,
+  "m4ri_steps": 500000,
   "matrices_flat": [
     "best_codes/matrices/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20__Hz.mtx",
     "best_codes/matrices/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20__Hx.mtx"
@@ -405,5 +447,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20/meta.json",
   "source_meta_path_in_src": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20/meta.json",
-  "src_dir": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20"
+  "src_dir": "results/progressive_C2xC6_20260123T121832Z/best_codes/C2xC6_AAp15_0_0_1_10_11_11_BBp23_0_2_6_7_10_11_k6_d20",
+  "trials": 500000,
+  "updated_at": "2026-01-24T22:12:14Z"
 }

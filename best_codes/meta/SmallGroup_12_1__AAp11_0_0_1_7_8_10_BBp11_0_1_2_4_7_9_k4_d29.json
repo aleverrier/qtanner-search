@@ -27,15 +27,57 @@
     "best_codes/collected/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29/meta.json",
     "best_codes/collected/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29/settings.json"
   ],
+  "d": 31,
+  "dX_ub": 32,
+  "dZ_ub": 31,
   "d_in_id": 29,
   "d_recorded": 29,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 31,
+  "distance": {
+    "dX_best": 32,
+    "dZ_best": 31,
+    "d_ub": 31,
+    "fast": {
+      "dx": {
+        "d_ub": 32,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 32,
+        "steps": 500000
+      },
+      "dz": {
+        "d_ub": 31,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 31,
+        "steps": 500000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 1000000,
+    "steps_used_x": 500000,
+    "steps_used_z": 500000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 32,
+    "dZ_ub": 31,
+    "d_ub": 31,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 500000,
+    "updated_at": "2026-01-24T23:06:12Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 1830045531,
   "distance_trials": 200000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "SmallGroup_12_1_",
   "k": 4,
+  "m4ri_seed": 1,
+  "m4ri_steps": 500000,
   "matrices_flat": [
     "best_codes/matrices/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29__Hz.mtx",
     "best_codes/matrices/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29__Hx.mtx"
@@ -403,5 +445,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29/meta.json",
   "source_meta_path_in_src": "results/progressive_SmallGroup_12_1_20260123T155140Z/best_codes/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29/meta.json",
-  "src_dir": "results/progressive_SmallGroup_12_1_20260123T155140Z/best_codes/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29"
+  "src_dir": "results/progressive_SmallGroup_12_1_20260123T155140Z/best_codes/SmallGroup_12_1__AAp11_0_0_1_7_8_10_BBp11_0_1_2_4_7_9_k4_d29",
+  "trials": 500000,
+  "updated_at": "2026-01-24T23:06:12Z"
 }

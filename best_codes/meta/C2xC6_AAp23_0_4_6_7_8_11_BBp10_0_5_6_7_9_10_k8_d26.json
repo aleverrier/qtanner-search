@@ -27,15 +27,57 @@
     "best_codes/collected/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26/meta.json",
     "best_codes/collected/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26/settings.json"
   ],
+  "d": 26,
+  "dX_ub": 26,
+  "dZ_ub": 26,
   "d_in_id": 26,
   "d_recorded": 26,
   "d_recorded_kind": "from_code_id",
-  "distance_method": "dist-m4ri",
+  "d_ub": 26,
+  "distance": {
+    "dX_best": 26,
+    "dZ_best": 26,
+    "d_ub": 26,
+    "fast": {
+      "dx": {
+        "d_ub": 26,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 26,
+        "steps": 500000
+      },
+      "dz": {
+        "d_ub": 26,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 26,
+        "steps": 500000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 1000000,
+    "steps_used_x": 500000,
+    "steps_used_z": 500000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 26,
+    "dZ_ub": 26,
+    "d_ub": 26,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 500000,
+    "updated_at": "2026-01-24T22:34:42Z"
+  },
+  "distance_method": "RW",
   "distance_seed": 744069209,
   "distance_trials": 400000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "C2xC6",
   "k": 8,
+  "m4ri_seed": 1,
+  "m4ri_steps": 500000,
   "matrices_flat": [
     "best_codes/matrices/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26__Hz.mtx",
     "best_codes/matrices/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26__Hx.mtx"
@@ -503,5 +545,7 @@
   },
   "source_meta_path_in_collected": "best_codes/collected/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26/meta.json",
   "source_meta_path_in_src": "results/progressive_C2xC6_20260122T163700Z/best_codes/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26/meta.json",
-  "src_dir": "results/progressive_C2xC6_20260122T163700Z/best_codes/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26"
+  "src_dir": "results/progressive_C2xC6_20260122T163700Z/best_codes/C2xC6_AAp23_0_4_6_7_8_11_BBp10_0_5_6_7_9_10_k8_d26",
+  "trials": 500000,
+  "updated_at": "2026-01-24T22:34:42Z"
 }
