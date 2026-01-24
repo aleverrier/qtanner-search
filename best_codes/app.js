@@ -92,9 +92,11 @@
 
     const n = toInt(getFirst(rec, ["n"])) ?? null;
     const k = toInt(getFirst(rec, ["k"])) ?? parseSuffix(codeId, "_k");
+
+    // distance ub: prefer distance.d_ub; fallback to suffix only if missing everywhere
     const d = toInt(getFirst(rec, ["d_ub","d","distance.d_ub","distance.d"])) ?? parseSuffix(codeId, "_d");
 
-    // IMPORTANT: include dist-m4ri progressive fields (distance.steps_used_total)
+    // trials: include dist-m4ri progressive fields (distance.steps_used_total)
     const trials = toInt(getFirst(rec, [
       "m4ri_steps",
       "m4ri_trials",
@@ -113,7 +115,6 @@
       "distance.steps_slow",
     ])) ?? null;
 
-    // dX / dZ appear under different spellings depending on generator
     const dX = toInt(getFirst(rec, ["dX_ub","dx_ub","distance.dX_ub","distance.dx_ub","distance.dX_best","distance.dX"])) ?? null;
     const dZ = toInt(getFirst(rec, ["dZ_ub","dz_ub","distance.dZ_ub","distance.dz_ub","distance.dZ_best","distance.dZ"])) ?? null;
 
@@ -143,6 +144,37 @@
     return { data, codes: norm };
   }
 
+  async function loadMinTrialsByGroup() {
+    try {
+      const url = "min_trials_by_group.json?cb=" + Date.now();
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) return {};
+      const j = await r.json();
+      return (j && typeof j === "object") ? j : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  function computeGroupObservedMaxTrials(codes) {
+    const m = {};
+    for (const c of codes) {
+      const g = c.groupRaw || "";
+      const t = (c.trials ?? 0);
+      if (!(g in m) || t > m[g]) m[g] = t;
+    }
+    return m;
+  }
+
+  function parseMinTrialsMap(raw) {
+    const out = {};
+    for (const [k,v] of Object.entries(raw || {})) {
+      const n = toInt(v);
+      out[String(k)] = n ?? 0;
+    }
+    return out;
+  }
+
   // ---------------- best-per-(group,n,k) ----------------
   function better(a, b) {
     const da = (a.d ?? -1), db = (b.d ?? -1);
@@ -157,7 +189,7 @@
   function dedupeBestPerGroupNK(codes) {
     const best = new Map();
     for (const c of codes) {
-      if (c.groupRaw === null || c.n === null || c.k === null) continue;
+      if (!c.groupRaw || c.n === null || c.k === null) continue;
       const key = `${c.groupRaw}|${c.n}|${c.k}`;
       const cur = best.get(key);
       if (!cur || better(c, cur)) best.set(key, c);
@@ -165,7 +197,7 @@
     return Array.from(best.values());
   }
 
-  // ---------------- pivot (rows=n, cols=k) ----------------
+  // ---------------- pivot (rows=n, cols=k) across (filtered) groups ----------------
   function buildPivotNKAllTies(codes) {
     const ns = Array.from(new Set(codes.map(c => c.n).filter(v => v !== null))).sort((a,b)=>a-b);
     const ks = Array.from(new Set(codes.map(c => c.k).filter(v => v !== null))).sort((a,b)=>a-b);
@@ -191,7 +223,6 @@
       }
     }
 
-    // stable sort ties by group name for readability
     for (const [k, arr] of best.entries()) {
       arr.sort((a,b)=>String(a.group).localeCompare(String(b.group)));
       best.set(k, arr);
@@ -243,7 +274,6 @@
     const g = Math.round(lerp(cMin.g, cMax.g, tt));
     const b = Math.round(lerp(cMin.b, cMax.b, tt));
 
-    // perceived luminance for text color
     const lum = 0.2126*r + 0.7152*g + 0.0722*b;
     const fg = lum > 150 ? "#111827" : "#ffffff";
     return { bg: `rgb(${r},${g},${b})`, fg };
@@ -298,6 +328,24 @@
     return candidates.map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`).join(" • ");
   }
 
+  function parseABFromCodeId(codeId) {
+    const m = String(codeId).match(/_AA([^_]+)_BB([^_]+)_k/i);
+    if (!m) return { A: null, B: null };
+    return { A: m[1], B: m[2] };
+  }
+
+  function fmtArray(arr) {
+    if (!Array.isArray(arr)) return "";
+    return "[" + arr.map(x => String(x)).join(", ") + "]";
+  }
+
+  function fmtArrayCompact(arr, maxLen=180) {
+    const s = fmtArray(arr);
+    if (!s) return "";
+    if (s.length <= maxLen) return s;
+    return s.slice(0, maxLen) + " …]";
+  }
+
   function extractTrials(meta, fallback) {
     return (
       meta?.m4ri_steps ??
@@ -343,21 +391,55 @@
     );
   }
 
+  function extractDub(meta, fallback) {
+    return (
+      meta?.d_ub ??
+      meta?.d ??
+      meta?.distance?.d_ub ??
+      meta?.distance?.d ??
+      (meta?.distance?.dX_best != null && meta?.distance?.dZ_best != null
+        ? Math.min(meta.distance.dX_best, meta.distance.dZ_best)
+        : null) ??
+      fallback ??
+      null
+    );
+  }
+
+  function extractPermIdx(meta) {
+    const permA = meta?.A?.perm_idx ?? meta?.local_codes?.permA_idx ?? meta?.local_codes?.permA ?? null;
+    const permB = meta?.B?.perm_idx ?? meta?.local_codes?.permB_idx ?? meta?.local_codes?.permB ?? null;
+    return { permA, permB };
+  }
+
+  function extractMultiset(meta, which) {
+    // which is "A" or "B"
+    const node = meta?.[which] || {};
+    const elements = node?.elements ?? meta?.[`${which}_elems`] ?? null;
+    const repr = node?.elements_repr ?? meta?.[`${which}_elems_repr`] ?? null;
+    const id = node?.id ?? null;
+    const perm = node?.perm_idx ?? null;
+    return { elements, repr, id, perm };
+  }
+
   async function openDetails(code, backFn) {
     const codeId = code.codeId;
     const cb = Date.now();
+
+    // Try both sources; prefer the one with "more trials" if both succeed.
     const urls = [
       `meta/${encodeURIComponent(codeId)}.json?cb=${cb}`,
       `collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`,
     ];
 
-    let meta = null;
-    let source = null;
+    let metas = [];
     for (const u of urls) {
-      try { meta = await fetchJSON(u); source = u; break; } catch (_) {}
+      try {
+        const m = await fetchJSON(u);
+        metas.push({ url: u, meta: m, trials: toInt(extractTrials(m, null)) ?? 0 });
+      } catch (_) {}
     }
 
-    if (!meta) {
+    if (metas.length === 0) {
       showModal("Code details", codeId, `
         <p><b>Could not load metadata</b> for this code.</p>
         <p class="muted">Tried:</p>
@@ -366,16 +448,25 @@
       return;
     }
 
+    metas.sort((a,b) => (b.trials - a.trials) || String(a.url).localeCompare(String(b.url)));
+    const meta = metas[0].meta;
+    const source = metas[0].url;
+
     const n = meta.n ?? code.n;
     const k = meta.k ?? code.k;
-    const d = meta.d_ub ?? meta.d ?? meta.distance?.d_ub ?? meta.distance?.d ?? code.d;
-    const trials = extractTrials(meta, code.trials);
-    const dx = extractDx(meta, code.dX);
-    const dz = extractDz(meta, code.dZ);
+    const d = extractDub(meta, code.d);
+    const trials = toInt(extractTrials(meta, code.trials)) ?? null;
+    const dx = toInt(extractDx(meta, code.dX)) ?? null;
+    const dz = toInt(extractDz(meta, code.dZ)) ?? null;
     const method = meta.distance?.method ?? meta.distance_backend ?? meta.distance?.backend ?? meta.method ?? "";
-
     const group = groupDisplay(groupRawValue(meta.group ?? meta.G ?? code.groupRaw, codeId));
     const prov = meta.provenance ?? meta.run_dir ?? meta.source ?? meta.results_dir ?? "";
+
+    const { permA, permB } = extractPermIdx(meta);
+    const AB = parseABFromCodeId(codeId);
+
+    const A = extractMultiset(meta, "A");
+    const B = extractMultiset(meta, "B");
 
     const backBtn = backFn
       ? `<button id="qt-back" type="button" class="secondary" style="margin-bottom:10px">← Back</button>`
@@ -383,23 +474,53 @@
 
     const body = `
       ${backBtn}
+
       <p><code>${escHtml(codeId)}</code></p>
+
       <p>
         <span class="badge">${escHtml(group)}</span>
         ${method ? `<span class="badge">${escHtml(method)}</span>` : ``}
         ${prov ? `<span class="badge">prov: ${escHtml(prov)}</span>` : ``}
       </p>
 
-      <p>
-        Parameters: <b>n</b> ${escHtml(n ?? "")} · <b>k</b> ${escHtml(k ?? "")} · <b>d_ub</b> ${escHtml(d ?? "")}
-        ${dx!=null || dz!=null ? ` · <b>dX</b> ${escHtml(dx ?? "")} · <b>dZ</b> ${escHtml(dz ?? "")}` : ``}
-      </p>
+      <h3 style="margin:10px 0 6px 0">Parameters</h3>
+      <table class="list" style="margin:0 0 10px 0">
+        <tbody>
+          <tr><td><b>n</b></td><td>${escHtml(n ?? "")}</td><td><b>k</b></td><td>${escHtml(k ?? "")}</td></tr>
+          <tr><td><b>d_ub</b></td><td>${escHtml(d ?? "")}</td><td><b>m4ri trials</b></td><td>${escHtml(trials ?? "")}</td></tr>
+          <tr><td><b>dX_ub</b></td><td>${escHtml(dx ?? "")}</td><td><b>dZ_ub</b></td><td>${escHtml(dz ?? "")}</td></tr>
+          <tr><td><b>permA_idx</b></td><td>${escHtml(permA ?? "")}</td><td><b>permB_idx</b></td><td>${escHtml(permB ?? "")}</td></tr>
+        </tbody>
+      </table>
 
-      <p><b>m4ri trials</b>: ${escHtml(trials ?? "")}</p>
+      <h3 style="margin:10px 0 6px 0">Multisets</h3>
 
-      <p><b>Matrices</b>: ${matrixLinks(codeId)}</p>
+      <div style="display:grid;grid-template-columns:1fr;gap:10px">
+        <div>
+          <b>A</b>
+          <div class="muted" style="font-size:12px;margin-top:2px">
+            label: <code>${escHtml(AB.A ?? A.id ?? "")}</code>
+            ${A.perm != null ? ` · perm_idx: <code>${escHtml(A.perm)}</code>` : ``}
+          </div>
+          ${Array.isArray(A.elements) ? `<div><b>elements</b>: <code>${escHtml(fmtArrayCompact(A.elements))}</code></div>` : ``}
+          ${Array.isArray(A.repr) ? `<div><b>repr</b>: <code>${escHtml(A.repr.join(", "))}</code></div>` : ``}
+        </div>
 
-      <p class="muted">meta source: <code>${escHtml(source || "")}</code></p>
+        <div>
+          <b>B</b>
+          <div class="muted" style="font-size:12px;margin-top:2px">
+            label: <code>${escHtml(AB.B ?? B.id ?? "")}</code>
+            ${B.perm != null ? ` · perm_idx: <code>${escHtml(B.perm)}</code>` : ``}
+          </div>
+          ${Array.isArray(B.elements) ? `<div><b>elements</b>: <code>${escHtml(fmtArrayCompact(B.elements))}</code></div>` : ``}
+          ${Array.isArray(B.repr) ? `<div><b>repr</b>: <code>${escHtml(B.repr.join(", "))}</code></div>` : ``}
+        </div>
+      </div>
+
+      <h3 style="margin:12px 0 6px 0">Parity-check matrices</h3>
+      <p>${matrixLinks(codeId)}</p>
+
+      <p class="muted">meta source: <code>${escHtml(source)}</code></p>
 
       <details>
         <summary><b>Full embedded meta.json</b></summary>
@@ -544,14 +665,10 @@
 
     let html = `<table class="grid"><thead><tr>`;
     html += `<th class="corner">n \\ k</th>`;
-    for (const k of ks) {
-      // NOTE: no "k=" prefix (requested)
-      html += `<th class="colhead">${escHtml(k)}</th>`;
-    }
+    for (const k of ks) html += `<th class="colhead">${escHtml(k)}</th>`;
     html += `</tr></thead><tbody>`;
 
     for (const n of ns) {
-      // NOTE: no "n=" prefix (requested)
       html += `<tr><th class="rowhead">${escHtml(n)}</th>`;
 
       for (const k of ks) {
@@ -567,14 +684,12 @@
         const { bg, fg } = colorFor(d, minD, maxD);
 
         const groups = arr.map(x => x.group).join(" • ");
-        const title = `n=${n}, k=${k}, d_ub=${d}, ties=${arr.length}`;
 
         let inner = `<div class="cell-d">${escHtml(d ?? "")}</div>`;
         if (mode === "dg") inner += `<div class="cell-g">${escHtml(groups)}</div>`;
-        if (arr.length > 1) inner += `<div class="cell-ties">${escHtml(arr.length)} tie(s)</div>`;
 
-        // IMPORTANT: no trials displayed in the cell (requested)
-        html += `<td class="cell clickable" data-n="${escHtml(n)}" data-k="${escHtml(k)}" style="background:${bg};color:${fg}" title="${escHtml(title)}">${inner}</td>`;
+        // IMPORTANT: no tie indicator in the main table (requested)
+        html += `<td class="cell clickable" data-n="${escHtml(n)}" data-k="${escHtml(k)}" style="background:${bg};color:${fg}">${inner}</td>`;
       }
 
       html += `</tr>`;
@@ -583,14 +698,19 @@
     html += `</tbody></table>`;
     tableEl.innerHTML = html;
 
-    // attach click handlers
     tableEl.querySelectorAll("td.clickable").forEach(td => {
       td.addEventListener("click", () => {
         const n = td.getAttribute("data-n");
         const k = td.getAttribute("data-k");
         const key = `${n}|${k}`;
         const arr = LAST_PIVOT?.best?.get(key) || [];
-        openCellList(n, k, arr);
+
+        // If only one code, go directly to details (requested UX)
+        if (arr.length === 1) {
+          openDetails(arr[0], null);
+        } else if (arr.length > 1) {
+          openCellList(n, k, arr);
+        }
       });
     });
   }
@@ -611,7 +731,7 @@
     }).join("");
 
     const body = `
-      <p class="muted">Trials are shown here (not in the heatmap). Click a code_id for full details.</p>
+      <p class="muted">Multiple best entries share the same (n,k) after filters. Click a code_id for full details.</p>
       <table class="list">
         <thead>
           <tr>
@@ -639,7 +759,26 @@
     initModal();
 
     const { data, codes } = await loadData();
-    const bestCodes = dedupeBestPerGroupNK(codes);
+
+    const minTrialsRaw = await loadMinTrialsByGroup();
+    const minTrialsMap = parseMinTrialsMap(minTrialsRaw);
+    const observedMax = computeGroupObservedMaxTrials(codes);
+
+    // Curate by group:
+    // required trials per group = max( min_trials_by_group.json, observed max in data )
+    const requiredByGroup = {};
+    for (const g of new Set([...Object.keys(observedMax), ...Object.keys(minTrialsMap)])) {
+      requiredByGroup[g] = Math.max(observedMax[g] ?? 0, minTrialsMap[g] ?? 0);
+    }
+
+    // Keep only the max-trials layer (curated content)
+    const curated = codes.filter(c => {
+      const req = requiredByGroup[c.groupRaw] ?? 0;
+      const t = c.trials ?? 0;
+      return t >= req;
+    });
+
+    const bestCodes = dedupeBestPerGroupNK(curated);
 
     fillGroupSelect(bestCodes);
 
@@ -647,10 +786,9 @@
       const f = readFilters();
       const filtered = applyFilters(bestCodes, f);
 
-      // stats
       const groupLabel = f.groupRaw ? groupDisplay(f.groupRaw) : "All groups";
       els.stats().textContent =
-        `generated_at_utc: ${data.generated_at_utc || ""} · raw codes: ${codes.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}`;
+        `generated_at_utc: ${data.generated_at_utc || ""} · raw: ${codes.length} · curated: ${curated.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}`;
 
       renderTable(filtered, f.mode);
     };
@@ -668,7 +806,6 @@
       render();
     });
 
-    // auto-render on change (nice UX)
     for (const id of ["groupSel","searchBox","minTrials","nMin","nMax","kMin","kMax","modeSel"]) {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", () => render());
