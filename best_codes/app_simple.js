@@ -282,8 +282,8 @@
     const candidates = [
       {label:"Hx", url:`${base}__Hx.mtx`},
       {label:"Hz", url:`${base}__Hz.mtx`},
-      {label:"HX", url:`${base}__HX.mtx`},
-      {label:"HZ", url:`${base}__HZ.mtx`},
+      {label:"HX", url:`${base}__Hx.mtx`},
+      {label:"HZ", url:`${base}__Hz.mtx`},
     ];
     return candidates.map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`).join(" • ");
   }
