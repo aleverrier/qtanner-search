@@ -44,6 +44,43 @@
         "early_stop": false,
         "seed": 2,
         "signed": 10,
+        "steps": 200000
+      },
+      "dz": {
+        "d_ub": 10,
+        "early_stop": false,
+        "seed": 1,
+        "signed": 10,
+        "steps": 200000
+      }
+    },
+    "method": "dist-m4ri",
+    "steps_used_total": 400000,
+    "steps_used_x": 200000,
+    "steps_used_z": 200000
+  },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 10,
+    "dZ_ub": 10,
+    "d_ub": 10,
+    "method": "RW",
+    "seed_base": 1,
+    "steps_per_side": 200000,
+    "updated_at": "2026-01-24T13:54:26Z"
+  },
+  "distance_method": "RW",
+  "distance_prev": {
+    "dX_best": 10,
+    "dZ_best": 10,
+    "d_ub": 10,
+    "fast": {
+      "dx": {
+        "d_ub": 10,
+        "early_stop": false,
+        "seed": 2,
+        "signed": 10,
         "steps": 50000
       },
       "dz": {
@@ -59,25 +96,13 @@
     "steps_used_x": 50000,
     "steps_used_z": 50000
   },
-  "distance_backend": "dist-m4ri",
-  "distance_m4ri": {
-    "backend": "dist-m4ri",
-    "dX_ub": 10,
-    "dZ_ub": 10,
-    "d_ub": 10,
-    "method": "RW",
-    "seed_base": 1,
-    "steps_per_side": 50000,
-    "updated_at": "2026-01-24T13:46:17Z"
-  },
-  "distance_method": "RW",
   "distance_seed": 322680002,
   "distance_trials": 20000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "SmallGroup_4_1_",
   "k": 8,
   "m4ri_seed": 1,
-  "m4ri_steps": 50000,
+  "m4ri_steps": 200000,
   "matrices_flat": [
     "best_codes/matrices/SmallGroup_4_1__AAp15_0_0_2_2_3_3_BBp20_0_0_0_1_2_3_k8_d10__Hz.mtx",
     "best_codes/matrices/SmallGroup_4_1__AAp15_0_0_2_2_3_3_BBp20_0_0_0_1_2_3_k8_d10__Hx.mtx"
@@ -366,6 +391,6 @@
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_4_1__AAp15_0_0_2_2_3_3_BBp20_0_0_0_1_2_3_k8_d10/meta.json",
   "source_meta_path_in_src": "results/progressive_SmallGroup_4_1_20260123T124903Z/best_codes/SmallGroup_4_1__AAp15_0_0_2_2_3_3_BBp20_0_0_0_1_2_3_k8_d10/meta.json",
   "src_dir": "results/progressive_SmallGroup_4_1_20260123T124903Z/best_codes/SmallGroup_4_1__AAp15_0_0_2_2_3_3_BBp20_0_0_0_1_2_3_k8_d10",
-  "trials": 50000,
-  "updated_at": "2026-01-24T13:46:17Z"
+  "trials": 200000,
+  "updated_at": "2026-01-24T13:54:26Z"
 }
