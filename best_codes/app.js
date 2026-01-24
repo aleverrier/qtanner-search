@@ -317,18 +317,21 @@
     return await r.json();
   }
 
-  function matrixLinks(codeId) {
-    const base = `matrices/${encodeURIComponent(codeId)}`;
-    const candidates = [
-      {label:"Hx", url:`${base}__Hx.mtx`},
-      {label:"Hz", url:`${base}__Hz.mtx`},
-      {label:"HX", url:`${base}__Hx.mtx`},
-      {label:"HZ", url:`${base}__Hz.mtx`},
-    ];
-    return candidates.map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`).join(" • ");
-  }
+function matrixLinks(codeId) {
+  // We only expose lifted-code parity-check matrices.
+  // Canonical deployed names are:
+  //   matrices/<code_id>__Hx.mtx   and   matrices/<code_id>__Hz.mtx
+  const base = `matrices/${encodeURIComponent(codeId)}`;
+  const links = [
+    {label: "Hx", url: `${base}__Hx.mtx`},
+    {label: "Hz", url: `${base}__Hz.mtx`},
+  ];
+  return links
+    .map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`)
+    .join(" • ");
+}
 
-  function parseABFromCodeId(codeId) {
+function parseABFromCodeId(codeId) {
     const m = String(codeId).match(/_AA([^_]+)_BB([^_]+)_k/i);
     if (!m) return { A: null, B: null };
     return { A: m[1], B: m[2] };
