@@ -1,124 +1,90 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Explicit-qT Best Codes</title>
-  <link rel="stylesheet" href="style.css"/>
-<script>try{localStorage.clear();sessionStorage.clear();}catch(e){}</script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Best qTanner codes (table)</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- helps avoid any stale persisted state across redeploys -->
+  <script>try{localStorage.clear();sessionStorage.clear();}catch(e){}</script>
 </head>
 <body>
-<div style="margin:10px 0;"><a href="simple.html">Switch to simple view</a></div>
-
-  <header>
-    <h1>Explicit-qT Best Codes</h1>
-    <p>
-      Table of best recorded <code>d</code> values found so far.
-      Rows are <code>n</code>, columns are <code>k</code>.
-      Click a cell to see construction metadata and links (matrices, settings files, provenance).
-    </p>
-    <p class="note">
-      Note: “d” here is the recorded value from the search pipeline (often a QDistRnd upper bound),
-      not necessarily a proven minimum distance.
-    </p>
-
-    <details class="about">
-      <summary>About the construction (Quantum Tanner codes)</summary>
-      <div class="aboutBox">
-        <p>
-          The codes tracked here are <b>quantum Tanner codes</b> (CSS LDPC codes) introduced by
-          Leverrier–Zémor (FOCS 2022). Informally: you start from a small “base” CSS template built
-          from a few short classical codes (“local codes”), then you <b>lift</b> it using a finite group
-          <code>G</code> and two ordered multisets <code>A</code>, <code>B</code> in <code>G</code>. The lift acts by left and right
-          regular actions of <code>G</code>, producing the large check matrices <code>H_X</code> and <code>H_Z</code>.
-        </p>
-
-        <p>
-          This dashboard currently focuses on the <b>weight‑9</b> search regime where the local codes are the
-          shortened Hamming <b>[6,3,3]</b> code (and its dual), up to column permutations.
-        </p>
-
-        <p><b>References</b></p>
-        <ul>
-          <li>
-            A. Leverrier, G. Zémor, <i>Quantum Tanner codes</i> (FOCS 2022 / arXiv:2202.13641).
-            <a href="https://arxiv.org/abs/2202.13641" target="_blank" rel="noreferrer">arXiv</a>
-          </li>
-          <li>
-            A. Leverrier, W. Rozendaal, G. Zémor, <i>Small quantum Tanner codes from left–right Cayley complexes</i>
-            (arXiv:2512.20532).
-            <a href="https://arxiv.org/abs/2512.20532" target="_blank" rel="noreferrer">arXiv</a>
-          </li>
-        </ul>
-
-        <p class="small">
-          Practical note: distance values displayed in the table are “best recorded” from the run outputs
-          (often from QDistRnd trials). You can click a cell to open the exact code(s) and their stored matrices.
-        </p>
-      </div>
-    </details>
+  <header class="page-header">
+    <div class="header-row">
+      <h1>Best qTanner codes</h1>
+      <nav class="header-nav">
+        <a href="simple.html">List view</a>
+      </nav>
+    </div>
+    <div id="stats" class="muted">Loading…</div>
   </header>
 
-  <section id="controls">
-    <div class="control">
-      <label for="groupSelect">Group</label>
-      <select id="groupSelect"></select>
+  <section class="controls">
+    <div class="controls-row">
+      <label>Group
+        <select id="groupSel"></select>
+      </label>
+
+      <label>Search
+        <input id="searchBox" type="search" placeholder="code_id / group / n,k,d …" />
+      </label>
+
+      <label>Min m4ri trials
+        <input id="minTrials" type="number" min="0" step="1" value="0" />
+      </label>
+
+      <label>n range
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="nMin" type="number" step="1" placeholder="min" />
+          <span class="muted">–</span>
+          <input id="nMax" type="number" step="1" placeholder="max" />
+        </div>
+      </label>
+
+      <label>k range
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="kMin" type="number" step="1" placeholder="min" />
+          <span class="muted">–</span>
+          <input id="kMax" type="number" step="1" placeholder="max" />
+        </div>
+      </label>
+
+      <label>Cell label
+        <select id="modeSel">
+          <option value="d">d only</option>
+          <option value="dg">d + group</option>
+        </select>
+      </label>
+
+      <button id="btnRender" type="button">Render</button>
+      <button id="btnReset" type="button" class="secondary">Reset</button>
     </div>
 
-    <div class="control">
-      <label for="nMin">n min</label>
-      <input id="nMin" type="number" placeholder="e.g. 200"/>
-    </div>
-
-    <div class="control">
-      <label for="nMax">n max</label>
-      <input id="nMax" type="number" placeholder="e.g. 500"/>
-    </div>
-
-    <div class="control">
-      <label for="kMin">k min</label>
-      <input id="kMin" type="number" placeholder="e.g. 0"/>
-    </div>
-
-    <div class="control">
-      <label for="kMax">k max</label>
-      <input id="kMax" type="number" placeholder="e.g. 256"/>
-    </div>
-
-    <div class="control">
-      <label for="showGroupInCell">Cell annotation</label>
-      <select id="showGroupInCell">
-        <option value="none">d only</option>
-        <option value="group">d + group</option>
-        <option value="count">d + #codes</option>
-      </select>
-    </div>
-
-    <div class="control">
-      <button id="resetBtn">Reset filters</button>
+    <div class="legend-row">
+      <div id="legend" class="legend"></div>
     </div>
   </section>
 
-  <section id="summary"></section>
+  <main>
+    <div id="table" class="table-wrap"></div>
+    <p class="muted help">
+      Click a non-empty cell to see code_id + distance + (hidden here) m4ri trials.
+    </p>
+  </main>
 
-  <main id="tableContainer"></main>
-
-  <div id="modalBackdrop" class="hidden"></div>
-  <div id="modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modalHeader">
-      <h2 id="modalTitle">Cell details</h2>
-      <button id="closeModalBtn" title="Close">✕</button>
+  <div id="qt-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="qt-modal-title">
+      <div class="modal-header">
+        <div>
+          <div id="qt-modal-title" class="modal-title"></div>
+          <div id="qt-modal-sub" class="modal-sub muted"></div>
+        </div>
+        <button id="qt-modal-close" class="modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="qt-modal-body" class="modal-body"></div>
     </div>
-    <div id="modalBody"></div>
   </div>
 
-  <footer>
-    <p>
-      Data source: <code>best_codes/meta/*.json</code> generated by <code>scripts/collect_best_codes.py</code>.
-    </p>
-  </footer>
-
   <script src="app.js"></script>
-<!-- Cloudflare Web Analytics --><script defer src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "3b6d8fefd24c48e0b982e7eb44a2f56e"}'></script><!-- End Cloudflare Web Analytics -->  
 </body>
 </html>

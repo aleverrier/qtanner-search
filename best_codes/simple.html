@@ -1,16 +1,82 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Best qTanner codes (simple view)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Best qTanner codes (list)</title>
+  <link rel="stylesheet" href="style.css" />
+  <script>try{localStorage.clear();sessionStorage.clear();}catch(e){}</script>
 </head>
 <body>
-  <div style="max-width:1200px;margin:16px auto;padding:0 12px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;">
-    <div style="margin-bottom:12px;">
-      <a href="index.html">← Back to classic table</a>
+  <header class="page-header">
+    <div class="header-row">
+      <h1>Best qTanner codes</h1>
+      <nav class="header-nav">
+        <a href="index.html">Table view</a>
+      </nav>
+    </div>
+    <div id="stats" class="muted">Loading…</div>
+  </header>
+
+  <section class="controls">
+    <div class="controls-row">
+      <label>Group
+        <select id="groupSel"></select>
+      </label>
+
+      <label>Search
+        <input id="searchBox" type="search" placeholder="code_id / group / n,k,d …" />
+      </label>
+
+      <label>Min m4ri trials
+        <input id="minTrials" type="number" min="0" step="1" value="0" />
+      </label>
+
+      <label>n range
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="nMin" type="number" step="1" placeholder="min" />
+          <span class="muted">–</span>
+          <input id="nMax" type="number" step="1" placeholder="max" />
+        </div>
+      </label>
+
+      <label>k range
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="kMin" type="number" step="1" placeholder="min" />
+          <span class="muted">–</span>
+          <input id="kMax" type="number" step="1" placeholder="max" />
+        </div>
+      </label>
+
+      <button id="btnRender" type="button">Render</button>
+      <button id="btnReset" type="button" class="secondary">Reset</button>
+    </div>
+
+    <div class="legend-row">
+      <div id="legend" class="legend"></div>
+    </div>
+  </section>
+
+  <main>
+    <div id="list" class="list-wrap"></div>
+    <p class="muted help">
+      Trials are hidden in this list; click any code_id to see full details (including m4ri trials).
+    </p>
+  </main>
+
+  <div id="qt-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="qt-modal-title">
+      <div class="modal-header">
+        <div>
+          <div id="qt-modal-title" class="modal-title"></div>
+          <div id="qt-modal-sub" class="modal-sub muted"></div>
+        </div>
+        <button id="qt-modal-close" class="modal-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div id="qt-modal-body" class="modal-body"></div>
     </div>
   </div>
+
   <script src="app_simple.js"></script>
 </body>
 </html>
