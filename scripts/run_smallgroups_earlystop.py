@@ -80,12 +80,18 @@ def run_one_group(
 ) -> Tuple[str, str]:
     """
     Run search_progressive.py for one group, and stop early if:
-      (steps_since_progress >= no_progress_steps) AND (last_progress_eval <= current_eval/2)
+      (steps_since_progress >= eff_no_progress_steps) AND (last_progress_eval <= current_eval/2)
     Progress is defined as seeing a NEW_BEST line.
     """
     n, i = parse_smallgroup(group_spec)
     G = n
     target, q_fast, q_slow = params_for_order(G)
+
+    # Per-order early-stop override: larger groups need more patience.
+    # For order >=16, require at least 100000 steps without progress.
+    eff_no_progress_steps = no_progress_steps
+    if G >= 16:
+        eff_no_progress_steps = max(eff_no_progress_steps, 100000)
 
     log_path = run_dir / safe_log_name(group_spec, seed, target)
     cmd = [
@@ -110,7 +116,7 @@ def run_one_group(
 
     with log_path.open("w", encoding="utf-8") as f:
         f.write("[cmd] " + " ".join(cmd) + "\n")
-        f.write(f"[earlystop] no_progress_steps={no_progress_steps} eval_halving={eval_halving}\n\n")
+        f.write(f"[earlystop] no_progress_steps={eff_no_progress_steps} eval_halving={eval_halving}\n\n")
         f.flush()
 
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
@@ -145,7 +151,7 @@ def run_one_group(
                     last_seen_eval_for_count = current_eval
 
             # Early stop check (only meaningful once eval is nonzero)
-            if current_eval > 0 and steps_since_progress >= no_progress_steps:
+            if current_eval > 0 and steps_since_progress >= eff_no_progress_steps:
                 if (not eval_halving) or (last_progress_eval <= current_eval // 2):
                     f.write(
                         f"\n[earlystop-triggered] current_eval={current_eval} "
