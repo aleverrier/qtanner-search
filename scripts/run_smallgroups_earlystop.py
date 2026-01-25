@@ -93,6 +93,12 @@ def run_one_group(
     if G >= 16:
         eff_no_progress_steps = max(eff_no_progress_steps, 100000)
 
+    # Per-order early-stop override: larger groups need more patience.
+    # For order >=16, require at least 100000 steps without progress.
+    eff_no_progress_steps = no_progress_steps
+    if G >= 16:
+        eff_no_progress_steps = max(eff_no_progress_steps, 100000)
+
     log_path = run_dir / safe_log_name(group_spec, seed, target)
     cmd = [
         sys.executable, "-u", "scripts/search_progressive.py",
