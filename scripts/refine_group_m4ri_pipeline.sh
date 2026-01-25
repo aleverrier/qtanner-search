@@ -34,6 +34,7 @@ python3 scripts/prune_best_codes_group.py --group "$GROUP" --min-trials "$TRIALS
 
 echo "[4/6] rebuild website artifacts from meta"
 python3 scripts/rebuild_best_codes_artifacts_from_meta.py
+python3 scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
 
 echo "[5/6] ASSERT: no remaining $GROUP code has trials < $TRIALS in data.json"
 python3 - <<PY

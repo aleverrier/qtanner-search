@@ -109,6 +109,7 @@ PY
 
 echo "[3/5] rebuild website artifacts"
 python3 scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir best_codes
+python3 scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
 
 echo "[4/5] sync matrices (canonical __Hx/__Hz)"
 python3 scripts/sync_best_codes_matrices.py --best-dir best_codes || true
