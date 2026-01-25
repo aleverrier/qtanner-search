@@ -106,9 +106,9 @@ def main() -> int:
     for cid, s in low[:25]:
         print(f"  below-threshold {cid} steps={s}")
 
-    # Best-per-k among ok codes
-    best_by_k: Dict[int, int] = {}
-    d_by_code: Dict[str, Tuple[int,int]] = {}
+    # Best-per-k among ok codes (break ties by trials, then code_id)
+    best_by_k: Dict[int, Tuple[int, int, str]] = {}
+    d_by_code: Dict[str, Tuple[int,int,int]] = {}
 
     for cid in ok:
         k = parse_k(cid)
@@ -119,13 +119,27 @@ def main() -> int:
         if d == 0:
             m = read_json(meta_dir / f"{cid}.json")
             d = get_d_ub(m, cid)
-        d_by_code[cid] = (k, d)
-        best_by_k[k] = max(best_by_k.get(k, 0), d)
+        t = get_trials_anywhere(embedded)
+        if t == 0:
+            t = get_trials_anywhere(read_json(meta_dir / f"{cid}.json"))
+        d_by_code[cid] = (k, d, t)
+        cand = (d, t, cid)
+        cur = best_by_k.get(k)
+        if cur is None:
+            best_by_k[k] = cand
+        else:
+            # Higher d wins; break ties by higher trials, then lexicographic code_id
+            if d > cur[0] or (d == cur[0] and (t > cur[1] or (t == cur[1] and cid < cur[2]))):
+                best_by_k[k] = cand
 
     pruned: List[Tuple[str,int,int,int]] = []
-    for cid, (k, d) in d_by_code.items():
-        if d < best_by_k.get(k, d):
-            pruned.append((cid, k, d, best_by_k[k]))
+    for cid, (k, d, t) in d_by_code.items():
+        best = best_by_k.get(k)
+        if best is None:
+            continue
+        best_d, best_t, best_cid = best
+        if cid != best_cid:
+            pruned.append((cid, k, d, best_d))
 
     print(f"[info] prune-by-best-per-k: {len(pruned)}")
     for cid,k,d,b in pruned[:25]:

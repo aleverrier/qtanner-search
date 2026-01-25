@@ -43,7 +43,16 @@ def main() -> int:
         A = extract_A_elems(meta)
         B = extract_B_elems(meta)
         dX, dZ, d = extract_distance_bounds(meta)
-        t_total, _, _ = extract_trials(meta)
+        t_total, sx, sz = extract_trials(meta)
+        per_side = None
+        if isinstance(sx, int) or isinstance(sz, int):
+            per_side = max([v for v in (sx, sz) if isinstance(v, int)], default=None)
+        if per_side is None:
+            for kkey in ("m4ri_steps", "trials", "steps"):
+                v = meta.get(kkey)
+                if isinstance(v, int):
+                    per_side = v
+                    break
 
         codes.append({
             "code_id": code_id,
@@ -53,6 +62,12 @@ def main() -> int:
             "d_ub": int(d) if isinstance(d, int) else None,
             "dX_ub": int(dX) if isinstance(dX, int) else None,
             "dZ_ub": int(dZ) if isinstance(dZ, int) else None,
+            "trials": int(t_total) if isinstance(t_total, int) else None,
+            "steps_used_total": int(t_total) if isinstance(t_total, int) else None,
+            "steps_used_x": int(sx) if isinstance(sx, int) else None,
+            "steps_used_z": int(sz) if isinstance(sz, int) else None,
+            "steps": int(per_side) if isinstance(per_side, int) else None,
+            "m4ri_steps": int(per_side) if isinstance(per_side, int) else None,
             "m4ri_trials": int(t_total) if isinstance(t_total, int) else None,
             "A_elems": A,
             "B_elems": B,
