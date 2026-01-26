@@ -44,6 +44,18 @@
     "passes": true,
     "perm_idx": 11,
     "side": "A",
+    "slice_codes": {
+      "A_G": {
+        "d_ub": 20,
+        "k": 4,
+        "n": 48
+      },
+      "A_H": {
+        "d_ub": 20,
+        "k": 4,
+        "n": 48
+      }
+    },
     "slice_n": 48
   },
   "B": {
@@ -54,7 +66,7 @@
         "early_stop": false,
         "k": 4,
         "rank": 44,
-        "seed": 837006242
+        "seed": 1623890261
       },
       "Hp": {
         "d_est": 20,
@@ -62,7 +74,7 @@
         "early_stop": false,
         "k": 4,
         "rank": 44,
-        "seed": 2048010495
+        "seed": 99370910
       }
     },
     "d_est": 20,
@@ -91,21 +103,75 @@
     "passes": true,
     "perm_idx": 11,
     "side": "B",
+    "slice_codes": {
+      "B_G": {
+        "d_ub": 20,
+        "k": 4,
+        "n": 48
+      },
+      "B_H": {
+        "d_ub": 20,
+        "k": 4,
+        "n": 48
+      }
+    },
     "slice_n": 48
+  },
+  "classical_slices": {
+    "A_G": {
+      "d_ub": 20,
+      "k": 4,
+      "n": 48
+    },
+    "A_H": {
+      "d_ub": 20,
+      "k": 4,
+      "n": 48
+    },
+    "B_G": {
+      "d_ub": 20,
+      "k": 4,
+      "n": 48
+    },
+    "B_H": {
+      "d_ub": 20,
+      "k": 4,
+      "n": 48
+    }
   },
   "code_id": "C2xC2xC2_AAp11_0_0_1_2_2_4_BBp11_0_0_1_2_3_6_k4_d18",
   "distance": {
+    "d_fast_ub": 19,
+    "d_slow_ub": 18,
     "d_ub": 18,
-    "dx_signed": 18,
-    "dx_ub": 18,
-    "dz_signed": 19,
-    "dz_ub": 19,
-    "early_stop_x": false,
-    "early_stop_z": false,
+    "fast": {
+      "d_ub": 19,
+      "dx_signed": 20,
+      "dx_ub": 20,
+      "dz_signed": 19,
+      "dz_ub": 19,
+      "early_stop_x": false,
+      "early_stop_z": false,
+      "seed_x": 246604641,
+      "seed_z": 406283686,
+      "steps": 2000
+    },
     "method": "dist_m4ri_rw",
-    "seed_x": 73096831,
-    "seed_z": 1671026769,
-    "steps": 20000,
+    "slow": {
+      "d_ub": 18,
+      "dx_signed": 18,
+      "dx_ub": 18,
+      "dz_signed": 19,
+      "dz_ub": 19,
+      "early_stop_x": false,
+      "early_stop_z": false,
+      "seed_x": 331042808,
+      "seed_z": 615826186,
+      "steps": 50000
+    },
+    "sqrt_n": 17,
+    "steps_fast": 2000,
+    "steps_slow": 50000,
     "wmin": 15
   },
   "group": {
