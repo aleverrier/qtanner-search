@@ -150,7 +150,7 @@ def main() -> int:
 
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     best = best[0] if isinstance(best, tuple) else best
-    arch = best / "archived" / f"pruned_{args.group}_{ts}"
+    arch = Path(args.best_dir) / "archived" / f"pruned_{args.group}_{ts}"
     archived = 0
 
     for cid,_ in low:
