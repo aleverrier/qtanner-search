@@ -149,6 +149,7 @@ def main() -> int:
         return 0
 
     ts = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    best = best[0] if isinstance(best, tuple) else best
     arch = best / "archived" / f"pruned_{args.group}_{ts}"
     archived = 0
 
