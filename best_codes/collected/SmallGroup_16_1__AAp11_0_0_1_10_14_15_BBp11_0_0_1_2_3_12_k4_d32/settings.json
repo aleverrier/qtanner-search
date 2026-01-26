@@ -22,8 +22,8 @@
   "d_recorded_kind": "from_code_id",
   "distance_estimation": {
     "method": "dist-m4ri",
-    "seed": 1808239605,
-    "trials": 600000,
+    "seed": 1980032180,
+    "trials": 1000000,
     "trials_extracted_from": "distance/steps_used_total"
   },
   "group": "SmallGroup_16_1_",
@@ -36,9 +36,9 @@
   "permutation_candidates": [],
   "provenance": {
     "also_seen_in": [],
-    "collected_at_utc": "2026-01-26T07:19:42Z",
-    "run_dir": "results/progressive_order16_td16_EXT_20260125T202824Z/SmallGroup_16_1",
-    "src_dir": "results/progressive_order16_td16_EXT_20260125T202824Z/SmallGroup_16_1/best_codes/SmallGroup_16_1__AAp11_0_0_1_10_14_15_BBp11_0_0_1_2_3_12_k4_d32"
+    "collected_at_utc": "2026-01-26T16:54:57Z",
+    "run_dir": "results/progressive_SmallGroup_16_1_20260126T162940Z",
+    "src_dir": "results/progressive_SmallGroup_16_1_20260126T162940Z/best_codes/SmallGroup_16_1__AAp11_0_0_1_10_14_15_BBp11_0_0_1_2_3_12_k4_d32"
   },
   "run_meta": {
     "classical_distance_backend": "fast",
@@ -47,25 +47,25 @@
     "classical_sample_count": 256,
     "classical_steps": 100,
     "classical_target": 10,
-    "classical_workers": 6,
+    "classical_workers": 1,
     "dedup_cayley": false,
-    "dist_m4ri_cmd": "/Users/anthony/.local/bin/dist_m4ri",
+    "dist_m4ri_cmd": "dist_m4ri",
     "group": {
       "order": 16,
       "spec": "SmallGroup(16,1)"
     },
-    "max_quantum_evals": 2000000,
+    "max_quantum_evals": 0,
     "min_distinct": null,
     "mode": "progressive",
     "quantum_refine_chunk": 20000,
-    "quantum_steps_fast": 5000,
-    "quantum_steps_slow": 300000,
+    "quantum_steps_fast": 4000,
+    "quantum_steps_slow": 500000,
     "report_every": 50,
-    "seed": 1,
-    "target_distance": 16,
+    "seed": 4,
+    "target_distance": 24,
     "timings": false
   },
-  "run_meta_path_in_src": "results/progressive_order16_td16_EXT_20260125T202824Z/SmallGroup_16_1/run_meta.json",
+  "run_meta_path_in_src": "results/progressive_SmallGroup_16_1_20260126T162940Z/run_meta.json",
   "schema": "explicitqt_best_code_settings_v1",
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_16_1__AAp11_0_0_1_10_14_15_BBp11_0_0_1_2_3_12_k4_d32/meta.json"
 }
