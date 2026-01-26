@@ -17,9 +17,11 @@
     3
   ],
   "B_id": "p6_0_0_1_1_2_3",
-  "also_seen_in": [],
+  "also_seen_in": [
+    "results/exhaustive_C2xC2_td10_qfast1000_qslow10000_20260126T100927Z/best_codes/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12"
+  ],
   "code_id": "C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12",
-  "collected_at_utc": "2026-01-26T10:16:39Z",
+  "collected_at_utc": "2026-01-26T10:47:07Z",
   "collected_dir": "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12",
   "collected_files": [
     "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12/Hz.mtx",
@@ -31,7 +33,7 @@
   "d_recorded": 12,
   "d_recorded_kind": "from_code_id",
   "distance_method": "dist-m4ri",
-  "distance_seed": 1001090105,
+  "distance_seed": 124729223,
   "distance_trials": 20000,
   "distance_trials_path": "distance/steps_used_total",
   "group": "C2xC2",
@@ -42,14 +44,14 @@
   ],
   "n": 144,
   "permutation_candidates": [],
-  "run_dir": "results/exhaustive_C2xC2_td10_qfast1000_qslow10000_20260126T100927Z",
+  "run_dir": "results/exhaustive_C2xC2_td11_eval500000_20260126T103605Z",
   "run_meta": {
     "classical_distance_backend": "dist-m4ri",
-    "classical_exhaustive_k_max": 8,
+    "classical_exhaustive_k_max": 20,
     "classical_jobs": 4,
-    "classical_sample_count": 256,
+    "classical_sample_count": 5000,
     "classical_steps": 100,
-    "classical_target": 10,
+    "classical_target": 11,
     "classical_workers": 10,
     "dedup_cayley": true,
     "dist_m4ri_cmd": "/Users/leverrie/.local/bin/dist_m4ri",
@@ -57,18 +59,18 @@
       "order": 4,
       "spec": "C2xC2"
     },
-    "max_quantum_evals": 0,
+    "max_quantum_evals": 500000,
     "min_distinct": null,
     "mode": "progressive",
     "quantum_refine_chunk": 20000,
     "quantum_steps_fast": 1000,
     "quantum_steps_slow": 10000,
-    "report_every": 50,
+    "report_every": 200,
     "seed": 1,
-    "target_distance": 10,
-    "timings": true
+    "target_distance": 11,
+    "timings": false
   },
-  "run_meta_path_in_src": "results/exhaustive_C2xC2_td10_qfast1000_qslow10000_20260126T100927Z/run_meta.json",
+  "run_meta_path_in_src": "results/exhaustive_C2xC2_td11_eval500000_20260126T103605Z/run_meta.json",
   "schema": "explicitqt_best_code_meta_v1",
   "settings_path": "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12/settings.json",
   "source_meta": {
@@ -261,14 +263,14 @@
         "dx": {
           "d_ub": 12,
           "early_stop": false,
-          "seed": 1001090105,
+          "seed": 124729223,
           "signed": 12,
           "steps": 1000
         },
         "dz": {
           "d_ub": 12,
           "early_stop": false,
-          "seed": 2129497364,
+          "seed": 1812976885,
           "signed": 12,
           "steps": 1000
         }
@@ -283,14 +285,14 @@
           "dx": {
             "d_ub": 12,
             "early_stop": false,
-            "seed": 1484771968,
+            "seed": 952158461,
             "signed": 12,
             "steps": 9000
           },
           "dz": {
             "d_ub": 12,
             "early_stop": false,
-            "seed": 991564255,
+            "seed": 1880712864,
             "signed": 12,
             "steps": 9000
           },
@@ -302,7 +304,7 @@
       "steps_used_total": 20000,
       "steps_used_x": 10000,
       "steps_used_z": 10000,
-      "wmin": 9
+      "wmin": 10
     },
     "group": {
       "order": 4,
@@ -319,9 +321,9 @@
     },
     "n": 144,
     "seed": 1,
-    "target_distance": 10
+    "target_distance": 11
   },
   "source_meta_path_in_collected": "best_codes/collected/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12/meta.json",
-  "source_meta_path_in_src": "results/exhaustive_C2xC2_td10_qfast1000_qslow10000_20260126T100927Z/best_codes/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12/meta.json",
-  "src_dir": "results/exhaustive_C2xC2_td10_qfast1000_qslow10000_20260126T100927Z/best_codes/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12"
+  "source_meta_path_in_src": "results/exhaustive_C2xC2_td11_eval500000_20260126T103605Z/best_codes/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12/meta.json",
+  "src_dir": "results/exhaustive_C2xC2_td11_eval500000_20260126T103605Z/best_codes/C2xC2_AAp12_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k6_d12"
 }
