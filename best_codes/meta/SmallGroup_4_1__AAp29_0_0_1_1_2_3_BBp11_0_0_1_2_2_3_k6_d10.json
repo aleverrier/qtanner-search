@@ -19,30 +19,27 @@
   "B_id": "p11_0_0_1_2_2_3",
   "also_seen_in": [],
   "code_id": "SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10",
-  "collected_at_utc": "2026-01-26T16:54:57Z",
+  "collected_at_utc": "2026-01-26T18:28:55Z",
   "collected_dir": "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10",
   "collected_files": [
-    "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/Hz.mtx",
-    "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/Hx.mtx",
-    "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/meta.json",
     "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/settings.json"
   ],
   "d_in_id": 10,
   "d_recorded": 10,
   "d_recorded_kind": "from_code_id",
   "distance_method": "dist-m4ri",
-  "distance_seed": 560025634,
-  "distance_trials": 20000,
-  "distance_trials_path": "distance/steps_used_total",
+  "distance_seed": null,
+  "distance_trials": 10000,
+  "distance_trials_path": "run_meta.json/quantum_steps_slow",
   "group": "SmallGroup_4_1_",
   "k": 6,
   "matrices_flat": [
     "best_codes/matrices/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10__Hz.mtx",
     "best_codes/matrices/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10__Hx.mtx"
   ],
-  "n": 144,
+  "n": null,
   "permutation_candidates": [],
-  "run_dir": "results/progressive_SmallGroup_4_1_20260123T124903Z",
+  "run_dir": "results/progressive_SmallGroup_4_1_20260125T135805Z",
   "run_meta": {
     "classical_distance_backend": "fast",
     "classical_exhaustive_k_max": 8,
@@ -64,264 +61,15 @@
     "quantum_steps_fast": 1000,
     "quantum_steps_slow": 10000,
     "report_every": 50,
-    "seed": 1,
+    "seed": 4,
     "target_distance": 8,
     "timings": false
   },
-  "run_meta_path_in_src": "results/progressive_SmallGroup_4_1_20260123T124903Z/run_meta.json",
+  "run_meta_path_in_src": "results/progressive_SmallGroup_4_1_20260125T135805Z/run_meta.json",
   "schema": "explicitqt_best_code_meta_v1",
   "settings_path": "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/settings.json",
-  "source_meta": {
-    "A": {
-      "checks": {
-        "G": {
-          "backend": "fast",
-          "codewords_checked": 31,
-          "d_est": 10,
-          "d_signed": null,
-          "d_witness": 10,
-          "early_stop": false,
-          "exact": true,
-          "k": 5,
-          "rank": 19,
-          "seed": 1521834995
-        },
-        "H": {
-          "backend": "fast",
-          "codewords_checked": 31,
-          "d_est": 10,
-          "d_signed": null,
-          "d_witness": 10,
-          "early_stop": false,
-          "exact": true,
-          "k": 5,
-          "rank": 19,
-          "seed": 239593137
-        }
-      },
-      "d_est": 10,
-      "elements": [
-        0,
-        0,
-        1,
-        1,
-        2,
-        3
-      ],
-      "elements_repr": [
-        "0",
-        "0",
-        "1",
-        "1",
-        "2",
-        "3"
-      ],
-      "group": {
-        "order": 4,
-        "spec": "SmallGroup(4,1)"
-      },
-      "id": "Ap29_0-0-1-1-2-3",
-      "k_classical": 5,
-      "passes": true,
-      "perm_idx": 29,
-      "side": "A",
-      "slice_codes": {
-        "A_G": {
-          "backend": "fast",
-          "d_ub": 10,
-          "d_witness": 10,
-          "exact": true,
-          "k": 5,
-          "n": 24
-        },
-        "A_H": {
-          "backend": "fast",
-          "d_ub": 10,
-          "d_witness": 10,
-          "exact": true,
-          "k": 5,
-          "n": 24
-        }
-      },
-      "slice_n": 24
-    },
-    "B": {
-      "checks": {
-        "Gp": {
-          "backend": "fast",
-          "codewords_checked": 3,
-          "d_est": 16,
-          "d_signed": null,
-          "d_witness": 16,
-          "early_stop": false,
-          "exact": true,
-          "k": 2,
-          "rank": 22,
-          "seed": 1254848288
-        },
-        "Hp": {
-          "backend": "fast",
-          "codewords_checked": 3,
-          "d_est": 16,
-          "d_signed": null,
-          "d_witness": 16,
-          "early_stop": false,
-          "exact": true,
-          "k": 2,
-          "rank": 22,
-          "seed": 768156010
-        }
-      },
-      "d_est": 16,
-      "elements": [
-        0,
-        0,
-        1,
-        2,
-        2,
-        3
-      ],
-      "elements_repr": [
-        "0",
-        "0",
-        "1",
-        "2",
-        "2",
-        "3"
-      ],
-      "group": {
-        "order": 4,
-        "spec": "SmallGroup(4,1)"
-      },
-      "id": "Bp11_0-0-1-2-2-3",
-      "k_classical": 2,
-      "passes": true,
-      "perm_idx": 11,
-      "side": "B",
-      "slice_codes": {
-        "B_G": {
-          "backend": "fast",
-          "d_ub": 16,
-          "d_witness": 16,
-          "exact": true,
-          "k": 2,
-          "n": 24
-        },
-        "B_H": {
-          "backend": "fast",
-          "d_ub": 16,
-          "d_witness": 16,
-          "exact": true,
-          "k": 2,
-          "n": 24
-        }
-      },
-      "slice_n": 24
-    },
-    "classical_slices": {
-      "A_G": {
-        "backend": "fast",
-        "d_ub": 10,
-        "d_witness": 10,
-        "exact": true,
-        "k": 5,
-        "n": 24
-      },
-      "A_H": {
-        "backend": "fast",
-        "d_ub": 10,
-        "d_witness": 10,
-        "exact": true,
-        "k": 5,
-        "n": 24
-      },
-      "B_G": {
-        "backend": "fast",
-        "d_ub": 16,
-        "d_witness": 16,
-        "exact": true,
-        "k": 2,
-        "n": 24
-      },
-      "B_H": {
-        "backend": "fast",
-        "d_ub": 16,
-        "d_witness": 16,
-        "exact": true,
-        "k": 2,
-        "n": 24
-      }
-    },
-    "code_id": "SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10",
-    "distance": {
-      "dX_best": 10,
-      "dZ_best": 10,
-      "d_ub": 10,
-      "fast": {
-        "dx": {
-          "d_ub": 10,
-          "early_stop": false,
-          "seed": 560025634,
-          "signed": 10,
-          "steps": 1000
-        },
-        "dz": {
-          "d_ub": 10,
-          "early_stop": false,
-          "seed": 1083869816,
-          "signed": 10,
-          "steps": 1000
-        }
-      },
-      "method": "dist_m4ri_rw_progressive",
-      "refine_chunk": 20000,
-      "refine_chunks": [
-        {
-          "chunk": 1,
-          "d_x_best": 10,
-          "d_z_best": 10,
-          "dx": {
-            "d_ub": 10,
-            "early_stop": false,
-            "seed": 36422432,
-            "signed": 10,
-            "steps": 9000
-          },
-          "dz": {
-            "d_ub": 10,
-            "early_stop": false,
-            "seed": 162850258,
-            "signed": 10,
-            "steps": 9000
-          },
-          "steps": 9000
-        }
-      ],
-      "steps_fast": 1000,
-      "steps_slow": 10000,
-      "steps_used_total": 20000,
-      "steps_used_x": 10000,
-      "steps_used_z": 10000,
-      "wmin": 8
-    },
-    "group": {
-      "order": 4,
-      "spec": "SmallGroup(4,1)"
-    },
-    "k": 6,
-    "local_codes": {
-      "C0": "hamming_6_3_3_shortened",
-      "C0p": "hamming_6_3_3_shortened",
-      "C1": "hamming_6_3_3_shortened_var29",
-      "C1p": "hamming_6_3_3_shortened_var11",
-      "permA_idx": 29,
-      "permB_idx": 11
-    },
-    "n": 144,
-    "seed": 1,
-    "target_distance": 8
-  },
+  "source_meta": null,
   "source_meta_path_in_collected": "best_codes/collected/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/meta.json",
-  "source_meta_path_in_src": "results/progressive_SmallGroup_4_1_20260123T124903Z/best_codes/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10/meta.json",
-  "src_dir": "results/progressive_SmallGroup_4_1_20260123T124903Z/best_codes/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10"
+  "source_meta_path_in_src": null,
+  "src_dir": "results/progressive_SmallGroup_4_1_20260125T135805Z/best_codes/SmallGroup_4_1__AAp29_0_0_1_1_2_3_BBp11_0_0_1_2_2_3_k6_d10"
 }
