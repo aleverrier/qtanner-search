@@ -9,5 +9,8 @@ description = "Quantum Tanner code search utilities (LRZ)."
 readme = "README.md"
 requires-python = ">=3.10"
 
+[project.scripts]
+qtanner = "qtanner.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
