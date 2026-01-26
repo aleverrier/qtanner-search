@@ -1495,7 +1495,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         help="Backend for classical slice distance estimation.",
     )
     parser.add_argument(
+        "--classical-enum-kmax",
         "--classical-exhaustive-k-max",
+        dest="classical_exhaustive_k_max",
         type=int,
         default=8,
         help="Exact enumeration cutoff for the fast classical backend.",
@@ -1555,7 +1557,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         help="Report best-by-k every N quantum evals.",
     )
     parser.add_argument(
+        "--kmax",
         "--max-quantum-evals",
+        dest="max_quantum_evals",
         type=int,
         default=0,
         help="Stop after this many quantum distance evaluations (0 = no limit).",

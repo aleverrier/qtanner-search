@@ -38,8 +38,9 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   Choose how slice distances are estimated.
 - `--classical-steps STEPS`
   Steps for dist_m4ri classical distance estimation.
-- `--classical-exhaustive-k-max K`
+- `--classical-enum-kmax K`
   (fast backend) exact enumeration cutoff.
+  Alias: `--classical-exhaustive-k-max`.
 - `--classical-sample-count N`
   (fast backend) number of random samples.
 
@@ -54,8 +55,9 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
 ### Runtime / reproducibility
 - `--seed SEED`
   RNG seed.
-- `--max-quantum-evals N`
+- `--kmax N`
   Stop after N quantum evaluations (0 = no limit).
+  Alias: `--max-quantum-evals`.
 - `--report-every N`
   Print summary every N quantum evals.
 - `--results-dir PATH`
@@ -87,4 +89,3 @@ python3 -u scripts/search_progressive.py \\
   --quantum-steps-fast 1000 \\
   --quantum-steps-slow 100000 \\
   --seed 1
-

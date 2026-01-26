@@ -34,10 +34,12 @@ python -m qtanner.search progressive \
   --group C2xC2xC2 \
   --target-distance 16 \
   --classical-steps 100 \
+  --classical-enum-kmax 8 \
   --classical-workers 6 \
   --quantum-steps-fast 2000 \
   --quantum-steps-slow 50000 \
   --report-every 50 \
+  --kmax 0 \
   --timings \
   --seed 1 \
   --results-dir "$OUT" \

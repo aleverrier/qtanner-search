@@ -7,7 +7,9 @@ for seed in 1 2 3 4 5 6; do
     --target-distance 14 \
     --seed "$seed" \
     --classical-distance-backend fast \
+    --classical-enum-kmax 8 \
     --quantum-steps-fast 3000 \
     --quantum-steps-slow 300000 \
+    --kmax 0 \
     2>&1 | tee "$RUN_DIR/run.log"
 done
