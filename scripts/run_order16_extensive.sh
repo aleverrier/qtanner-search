@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Bash nounset + arrays can be tricky on macOS (bash 3.2).
+# Declare optional arrays up-front to avoid 'unbound variable' errors.
+declare -a EXTRA_CLASSICAL_ARGS=()
+
 # ===== user parameters =====
 MIN_DIST=24
 QFAST=4000
@@ -89,7 +93,7 @@ for seed in "${SEEDS[@]}"; do
         --classical-distance-backend fast \
         --quantum-steps-fast "$QFAST" \
         --quantum-steps-slow "$QSLOW" \
-        "${EXTRA_CLASSICAL_ARGS[@]}" \
+        ${EXTRA_CLASSICAL_ARGS[@]+"${EXTRA_CLASSICAL_ARGS[@]}"} \
         '2>&1' '|' tee "$OUTDIR/run.log" \
         >> "$JOBLIST"
       printf '\n' >> "$JOBLIST"
@@ -102,7 +106,7 @@ for seed in "${SEEDS[@]}"; do
         --classical-distance-backend fast \
         --quantum-steps-fast "$QFAST" \
         --quantum-steps-slow "$QSLOW" \
-        "${EXTRA_CLASSICAL_ARGS[@]}" \
+        ${EXTRA_CLASSICAL_ARGS[@]+"${EXTRA_CLASSICAL_ARGS[@]}"} \
         '2>&1' '|' tee "$OUTDIR/run.log" \
         >> "$JOBLIST"
       printf '\n' >> "$JOBLIST"
@@ -113,6 +117,14 @@ done
 echo "[run] jobs written to $JOBLIST"
 echo "[run] launching with parallelism = $PARALLEL"
 echo
+
+DRYRUN="${DRYRUN:-0}"
+if [[ "$DRYRUN" == "1" ]]; then
+  echo "[dryrun] total jobs: $(wc -l < "$JOBLIST")"
+  echo "[dryrun] first 5 jobs:"
+  head -n 5 "$JOBLIST"
+  exit 0
+fi
 
 # macOS has xargs -P
 cat "$JOBLIST" | xargs -I{} -P "$PARALLEL" bash -lc "{}"
