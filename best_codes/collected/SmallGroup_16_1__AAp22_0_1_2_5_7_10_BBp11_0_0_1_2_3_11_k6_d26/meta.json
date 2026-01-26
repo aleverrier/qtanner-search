@@ -1,0 +1,530 @@
+{
+  "A": {
+    "checks": {
+      "G": {
+        "backend": "fast",
+        "codewords_checked": 127,
+        "d_est": 36,
+        "d_signed": null,
+        "d_witness": 36,
+        "early_stop": false,
+        "exact": true,
+        "k": 7,
+        "rank": 89,
+        "seed": 1806795314
+      },
+      "H": {
+        "backend": "fast",
+        "codewords_checked": 127,
+        "d_est": 36,
+        "d_signed": null,
+        "d_witness": 36,
+        "early_stop": false,
+        "exact": true,
+        "k": 7,
+        "rank": 89,
+        "seed": 366944491
+      }
+    },
+    "d_est": 36,
+    "elements": [
+      0,
+      1,
+      2,
+      5,
+      7,
+      10
+    ],
+    "elements_repr": [
+      "0",
+      "1",
+      "2",
+      "5",
+      "7",
+      "10"
+    ],
+    "group": {
+      "order": 16,
+      "spec": "SmallGroup(16,1)"
+    },
+    "id": "Ap22_0-1-2-5-7-10",
+    "k_classical": 7,
+    "passes": true,
+    "perm_idx": 22,
+    "side": "A",
+    "slice_codes": {
+      "A_G": {
+        "backend": "fast",
+        "d_ub": 36,
+        "d_witness": 36,
+        "exact": true,
+        "k": 7,
+        "n": 96
+      },
+      "A_H": {
+        "backend": "fast",
+        "d_ub": 36,
+        "d_witness": 36,
+        "exact": true,
+        "k": 7,
+        "n": 96
+      }
+    },
+    "slice_n": 96
+  },
+  "B": {
+    "checks": {
+      "Gp": {
+        "backend": "fast",
+        "codewords_checked": 31,
+        "d_est": 48,
+        "d_signed": null,
+        "d_witness": 48,
+        "early_stop": false,
+        "exact": true,
+        "k": 5,
+        "rank": 91,
+        "seed": 2042165050
+      },
+      "Hp": {
+        "backend": "fast",
+        "codewords_checked": 31,
+        "d_est": 48,
+        "d_signed": null,
+        "d_witness": 48,
+        "early_stop": false,
+        "exact": true,
+        "k": 5,
+        "rank": 91,
+        "seed": 1432303853
+      }
+    },
+    "d_est": 48,
+    "elements": [
+      0,
+      0,
+      1,
+      2,
+      3,
+      11
+    ],
+    "elements_repr": [
+      "0",
+      "0",
+      "1",
+      "2",
+      "3",
+      "11"
+    ],
+    "group": {
+      "order": 16,
+      "spec": "SmallGroup(16,1)"
+    },
+    "id": "Bp11_0-0-1-2-3-11",
+    "k_classical": 5,
+    "passes": true,
+    "perm_idx": 11,
+    "side": "B",
+    "slice_codes": {
+      "B_G": {
+        "backend": "fast",
+        "d_ub": 48,
+        "d_witness": 48,
+        "exact": true,
+        "k": 5,
+        "n": 96
+      },
+      "B_H": {
+        "backend": "fast",
+        "d_ub": 48,
+        "d_witness": 48,
+        "exact": true,
+        "k": 5,
+        "n": 96
+      }
+    },
+    "slice_n": 96
+  },
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 36,
+      "d_witness": 36,
+      "exact": true,
+      "k": 7,
+      "n": 96
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 36,
+      "d_witness": 36,
+      "exact": true,
+      "k": 7,
+      "n": 96
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 48,
+      "d_witness": 48,
+      "exact": true,
+      "k": 5,
+      "n": 96
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 48,
+      "d_witness": 48,
+      "exact": true,
+      "k": 5,
+      "n": 96
+    }
+  },
+  "code_id": "SmallGroup_16_1__AAp22_0_1_2_5_7_10_BBp11_0_0_1_2_3_11_k6_d26",
+  "distance": {
+    "dX_best": 26,
+    "dZ_best": 33,
+    "d_ub": 26,
+    "fast": {
+      "dx": {
+        "d_ub": 29,
+        "early_stop": false,
+        "seed": 1062604856,
+        "signed": 29,
+        "steps": 5000
+      },
+      "dz": {
+        "d_ub": 62,
+        "early_stop": false,
+        "seed": 1669034538,
+        "signed": 62,
+        "steps": 5000
+      }
+    },
+    "method": "dist_m4ri_rw_progressive",
+    "refine_chunk": 20000,
+    "refine_chunks": [
+      {
+        "chunk": 1,
+        "d_x_best": 26,
+        "d_z_best": 40,
+        "dx": {
+          "d_ub": 26,
+          "early_stop": false,
+          "seed": 1256109842,
+          "signed": 26,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 40,
+          "early_stop": false,
+          "seed": 1107150081,
+          "signed": 40,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 2,
+        "d_x_best": 26,
+        "d_z_best": 40,
+        "dx": {
+          "d_ub": 30,
+          "early_stop": false,
+          "seed": 631901380,
+          "signed": 30,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 41,
+          "early_stop": false,
+          "seed": 1142334183,
+          "signed": 41,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 3,
+        "d_x_best": 26,
+        "d_z_best": 40,
+        "dx": {
+          "d_ub": 36,
+          "early_stop": false,
+          "seed": 1553378666,
+          "signed": 36,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 45,
+          "early_stop": false,
+          "seed": 1183371982,
+          "signed": 45,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 4,
+        "d_x_best": 26,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 27,
+          "early_stop": false,
+          "seed": 940234536,
+          "signed": 27,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 39,
+          "early_stop": false,
+          "seed": 812920128,
+          "signed": 39,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 5,
+        "d_x_best": 26,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 30,
+          "early_stop": false,
+          "seed": 94322398,
+          "signed": 30,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 39,
+          "early_stop": false,
+          "seed": 452619991,
+          "signed": 39,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 6,
+        "d_x_best": 26,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 31,
+          "early_stop": false,
+          "seed": 938833853,
+          "signed": 31,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 63,
+          "early_stop": false,
+          "seed": 1183998935,
+          "signed": 63,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 7,
+        "d_x_best": 26,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 29,
+          "early_stop": false,
+          "seed": 724669823,
+          "signed": 29,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 39,
+          "early_stop": false,
+          "seed": 1383275478,
+          "signed": 39,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 8,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 27,
+          "early_stop": false,
+          "seed": 943366511,
+          "signed": 27,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 33,
+          "early_stop": false,
+          "seed": 699233742,
+          "signed": 33,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 9,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 28,
+          "early_stop": false,
+          "seed": 140991337,
+          "signed": 28,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 47,
+          "early_stop": false,
+          "seed": 941183032,
+          "signed": 47,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 10,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 28,
+          "early_stop": false,
+          "seed": 1665947766,
+          "signed": 28,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 37,
+          "early_stop": false,
+          "seed": 1124207782,
+          "signed": 37,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 11,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 26,
+          "early_stop": false,
+          "seed": 1106019497,
+          "signed": 26,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 44,
+          "early_stop": false,
+          "seed": 911736069,
+          "signed": 44,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 12,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 26,
+          "early_stop": false,
+          "seed": 1122326134,
+          "signed": 26,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 36,
+          "early_stop": false,
+          "seed": 1612832047,
+          "signed": 36,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 13,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 27,
+          "early_stop": false,
+          "seed": 179459419,
+          "signed": 27,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 56,
+          "early_stop": false,
+          "seed": 141781580,
+          "signed": 56,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 14,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 31,
+          "early_stop": false,
+          "seed": 660734818,
+          "signed": 31,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 46,
+          "early_stop": false,
+          "seed": 2134878589,
+          "signed": 46,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 15,
+        "d_x_best": 26,
+        "d_z_best": 33,
+        "dx": {
+          "d_ub": 26,
+          "early_stop": false,
+          "seed": 1874950126,
+          "signed": 26,
+          "steps": 15000
+        },
+        "dz": {
+          "d_ub": 58,
+          "early_stop": false,
+          "seed": 1294321753,
+          "signed": 58,
+          "steps": 15000
+        },
+        "steps": 15000
+      }
+    ],
+    "steps_fast": 5000,
+    "steps_slow": 300000,
+    "steps_used_total": 600000,
+    "steps_used_x": 300000,
+    "steps_used_z": 300000,
+    "wmin": 24
+  },
+  "group": {
+    "order": 16,
+    "spec": "SmallGroup(16,1)"
+  },
+  "k": 6,
+  "local_codes": {
+    "C0": "hamming_6_3_3_shortened",
+    "C0p": "hamming_6_3_3_shortened",
+    "C1": "hamming_6_3_3_shortened_var22",
+    "C1p": "hamming_6_3_3_shortened_var11",
+    "permA_idx": 22,
+    "permB_idx": 11
+  },
+  "n": 576,
+  "seed": 1,
+  "target_distance": 16
+}
