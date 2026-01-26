@@ -190,14 +190,14 @@
         "early_stop": false,
         "seed": 1930549411,
         "signed": 12,
-        "steps": 2000
+        "steps": 3000
       },
       "dz": {
         "d_ub": 12,
         "early_stop": false,
         "seed": 2127877499,
         "signed": 12,
-        "steps": 2000
+        "steps": 3000
       }
     },
     "method": "dist_m4ri_rw_progressive",
@@ -212,23 +212,63 @@
           "early_stop": false,
           "seed": 2028277857,
           "signed": 12,
-          "steps": 18000
+          "steps": 20000
         },
         "dz": {
           "d_ub": 12,
           "early_stop": false,
           "seed": 1630434966,
           "signed": 12,
-          "steps": 18000
+          "steps": 20000
         },
-        "steps": 18000
+        "steps": 20000
+      },
+      {
+        "chunk": 2,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 901749037,
+          "signed": 12,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 403123852,
+          "signed": 12,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 3,
+        "d_x_best": 12,
+        "d_z_best": 12,
+        "dx": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 2095328386,
+          "signed": 12,
+          "steps": 7000
+        },
+        "dz": {
+          "d_ub": 12,
+          "early_stop": false,
+          "seed": 121751464,
+          "signed": 12,
+          "steps": 7000
+        },
+        "steps": 7000
       }
     ],
-    "steps_fast": 2000,
-    "steps_slow": 20000,
-    "steps_used_total": 40000,
-    "steps_used_x": 20000,
-    "steps_used_z": 20000,
+    "steps_fast": 3000,
+    "steps_slow": 50000,
+    "steps_used_total": 100000,
+    "steps_used_x": 50000,
+    "steps_used_z": 50000,
     "wmin": 10
   },
   "group": {

@@ -200,14 +200,14 @@
         "steps": 200
       }
     },
-    "method": "dist_m4ri_rw_progressive",
+    "method": "dist-m4ri",
     "refine_chunk": 20000,
     "refine_chunks": [],
     "steps_fast": 200,
     "steps_slow": 200,
-    "steps_used_total": 400,
-    "steps_used_x": 200,
-    "steps_used_z": 200,
+    "steps_used_total": 200000,
+    "steps_used_x": 100000,
+    "steps_used_z": 100000,
     "wmin": 0
   },
   "group": {
@@ -225,5 +225,24 @@
   },
   "n": 144,
   "seed": 1,
-  "target_distance": 1
+  "target_distance": 1,
+  "distance_backend": "dist-m4ri",
+  "distance_method": "RW",
+  "m4ri_steps": 100000,
+  "m4ri_seed": 1,
+  "dX_ub": 3,
+  "dZ_ub": 3,
+  "d_ub": 3,
+  "d": 3,
+  "trials": 100000,
+  "updated_at": "2026-01-26T20:21:17Z",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "method": "RW",
+    "steps_per_side": 100000,
+    "dX_ub": 3,
+    "dZ_ub": 3,
+    "d_ub": 3,
+    "updated_at": "2026-01-26T20:21:17Z"
+  }
 }

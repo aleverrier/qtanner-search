@@ -179,52 +179,11 @@
       "n": 24
     }
   },
-  "code_id": "C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_1_2_2_3_k2_d14",
-  "d": 12,
-  "dX_ub": 12,
-  "dZ_ub": 12,
-  "d_ub": 12,
+  "code_id": "C2xC2_AAp12_0_0_0_1_2_2_BBp12_0_0_1_2_2_3_k2_d12",
   "distance": {
     "dX_best": 12,
     "dZ_best": 12,
     "d_ub": 12,
-    "fast": {
-      "dx": {
-        "d_ub": 12,
-        "early_stop": false,
-        "seed": 2,
-        "signed": 12,
-        "steps": 200000
-      },
-      "dz": {
-        "d_ub": 12,
-        "early_stop": false,
-        "seed": 1,
-        "signed": 12,
-        "steps": 200000
-      }
-    },
-    "method": "dist-m4ri",
-    "steps_used_total": 400000,
-    "steps_used_x": 200000,
-    "steps_used_z": 200000
-  },
-  "distance_backend": "dist-m4ri",
-  "distance_m4ri": {
-    "backend": "dist-m4ri",
-    "dX_ub": 12,
-    "dZ_ub": 12,
-    "d_ub": 12,
-    "method": "RW",
-    "seed_base": 1,
-    "steps_per_side": 200000,
-    "updated_at": "2026-01-23T14:42:00Z"
-  },
-  "distance_method": "RW",
-  "distance_prev": {
-    "dX_best": 14,
-    "dZ_best": 14,
-    "d_ub": 14,
     "fast": {
       "dx": {
         "d_ub": 14,
@@ -241,14 +200,14 @@
         "steps": 200
       }
     },
-    "method": "dist_m4ri_rw_progressive",
+    "method": "dist-m4ri",
     "refine_chunk": 20000,
     "refine_chunks": [],
     "steps_fast": 200,
     "steps_slow": 200,
-    "steps_used_total": 400,
-    "steps_used_x": 200,
-    "steps_used_z": 200,
+    "steps_used_total": 200000,
+    "steps_used_x": 100000,
+    "steps_used_z": 100000,
     "wmin": 12
   },
   "group": {
@@ -264,11 +223,29 @@
     "permA_idx": 12,
     "permB_idx": 12
   },
-  "m4ri_seed": 1,
-  "m4ri_steps": 200000,
   "n": 144,
   "seed": 1,
   "target_distance": 1,
-  "trials": 200000,
-  "updated_at": "2026-01-23T14:42:00Z"
+  "distance_backend": "dist-m4ri",
+  "distance_method": "RW",
+  "m4ri_steps": 100000,
+  "m4ri_seed": 1,
+  "dX_ub": 12,
+  "dZ_ub": 12,
+  "d_ub": 12,
+  "d": 12,
+  "trials": 100000,
+  "updated_at": "2026-01-26T20:22:16Z",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "method": "RW",
+    "steps_per_side": 100000,
+    "dX_ub": 12,
+    "dZ_ub": 12,
+    "d_ub": 12,
+    "updated_at": "2026-01-26T20:22:16Z"
+  },
+  "d_in_id": 12,
+  "d_recorded": 12,
+  "d_recorded_kind": "from_code_id"
 }
