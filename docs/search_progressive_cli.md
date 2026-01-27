@@ -96,10 +96,10 @@ If you interrupt the run with Ctrl-C, it will still attempt this update.
 Example:
 
 python3 -u scripts/search_progressive.py \
-  --group "C2xC2" \
-  --target-distance 10 \
-  --classical-target 1 \
+  --group "SmallGroup(16,1)" \
+  --target-distance 16 \
+  --classical-target 16 \
   --classical-distance-backend fast \
-  --quantum-steps-fast 1000 \
-  --quantum-steps-slow 100000 \
+  --quantum-steps-fast 5000 \
+  --quantum-steps-slow 700000 \
   --seed 1

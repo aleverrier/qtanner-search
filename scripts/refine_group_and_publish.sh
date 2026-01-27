@@ -10,7 +10,7 @@ Usage:
 What it does:
   - Finds all codes in BEST_DIR/collected/ whose folder name starts with GROUP_
   - Runs:
-      python3 scripts/refine_best_codes.py --best-dir BEST_DIR --pattern GROUP_ --steps N
+      python3 scripts/refine_best_codes_m4ri.py --best-dir BEST_DIR --group GROUP --trials N
   - Then runs:
       bash scripts/update_best_codes_repo.sh
   - Then commits + pushes the changes (including inside BEST_DIR if it is its own git repo)
@@ -29,20 +29,21 @@ DRYRUN=0
 PUSH=1
 LIST_GROUPS=0
 
-# Optional pass-through knobs to refine_best_codes.py
+# Optional knobs (some legacy flags are accepted but ignored).
 LIMIT=""
 MINDIST=""
 TIMEOUT=""
 FORCE=0
 GAP=""
 PATTERN=""
+PATTERN_SET=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --group) GROUP="$2"; shift 2 ;;
     --trials|--steps) STEPS="$2"; shift 2 ;;
     --best-dir) BEST_DIR="$2"; shift 2 ;;
-    --pattern) PATTERN="$2"; shift 2 ;;
+    --pattern) PATTERN="$2"; PATTERN_SET=1; shift 2 ;;
     --limit) LIMIT="$2"; shift 2 ;;
     --mindist) MINDIST="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
@@ -143,18 +144,26 @@ if [[ -z "${PATTERN}" ]]; then
   PATTERN="${GROUP}_"
 fi
 
-CMD=(python3 scripts/refine_best_codes.py --best-dir "${BEST_DIR}" --pattern "${PATTERN}" --steps "${STEPS}")
+if [[ "${PATTERN_SET}" -eq 1 || -n "${LIMIT}" || -n "${MINDIST}" || -n "${GAP}" ]]; then
+  echo "[warn] --pattern/--limit/--mindist/--gap are not supported by refine_best_codes_m4ri.py; ignoring."
+fi
 
-# Optional pass-through flags
-if [[ -n "${MINDIST}" ]]; then CMD+=(--mindist "${MINDIST}"); fi
+CMD=(
+  python3 scripts/refine_best_codes_m4ri.py
+  --best-dir "${BEST_DIR}"
+  --group "${GROUP}"
+  --trials "${STEPS}"
+)
+
 if [[ -n "${TIMEOUT}" ]]; then CMD+=(--timeout "${TIMEOUT}"); fi
-if [[ -n "${LIMIT}" ]]; then CMD+=(--limit "${LIMIT}"); fi
-if [[ -n "${GAP}" ]]; then CMD+=(--gap "${GAP}"); fi
 if [[ "${FORCE}" -eq 1 ]]; then CMD+=(--force); fi
-if [[ "${DRYRUN}" -eq 1 ]]; then CMD+=(--dry-run); fi
 
 echo "Running refine:"
 echo "  ${CMD[*]}"
+if [[ "${DRYRUN}" -eq 1 ]]; then
+  echo "Dry-run: skipping refine/update/commit/push."
+  exit 0
+fi
 "${CMD[@]}"
 
 if [[ "${DRYRUN}" -eq 1 ]]; then
