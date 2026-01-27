@@ -66,6 +66,14 @@ class GitNonFastForwardError(RuntimeError):
     pass
 
 
+@dataclass
+class BestCodesUpdateResult:
+    records: List[CodeRecord]
+    selected: Dict[Tuple[int, int], CodeRecord]
+    attempts: int = 1
+    committed: bool = False
+
+
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -73,6 +81,13 @@ def _utc_now_iso() -> str:
 def _log(verbose: bool, msg: str) -> None:
     if verbose:
         print(msg)
+
+
+def _default_commit_message(context: Optional[str] = None) -> str:
+    ts = _utc_now_iso()
+    if context:
+        return f"best_codes: refresh best-by-nk after {context} ({ts})"
+    return f"best_codes: refresh best-by-nk ({ts})"
 
 
 def _to_int(val: Any) -> Optional[int]:
@@ -1042,6 +1057,13 @@ def _run_git(cmd: List[str], repo_root: Path, *, check: bool = True) -> subproce
     return subprocess.run(cmd, cwd=str(repo_root), text=True, capture_output=True, check=check)
 
 
+def git_pull_rebase(repo_root: Path, *, verbose: bool = False) -> None:
+    cmd = ["git", "pull", "--rebase", "--autostash"]
+    if verbose:
+        print("[git] " + " ".join(cmd))
+    subprocess.check_call(cmd, cwd=str(repo_root))
+
+
 def git_commit_and_push(repo_root: Path, commit_message: str, retry_on_nonfastforward: bool = True) -> bool:
     root = Path(repo_root)
     _run_git(["git", "add", "best_codes"], root, check=True)
@@ -1065,3 +1087,82 @@ def git_commit_and_push(repo_root: Path, commit_message: str, retry_on_nonfastfo
             raise GitNonFastForwardError(push.stderr.strip())
         raise RuntimeError(push.stderr.strip() or "git push failed")
     return True
+
+
+def run_best_codes_update(
+    repo_root: Path,
+    *,
+    dry_run: bool = False,
+    no_git: bool = False,
+    no_publish: bool = False,
+    verbose: bool = False,
+    include_git_history: bool = True,
+    max_attempts: int = 3,
+    commit_message: Optional[str] = None,
+) -> BestCodesUpdateResult:
+    """Scan, select, sync, optionally publish, and optionally git-push best codes.
+
+    Git retries reuse the same non-fast-forward handling used by the publish script.
+    """
+    root = Path(repo_root)
+    attempts = 0
+    attempts_cap = max(1, int(max_attempts))
+    last_records: List[CodeRecord] = []
+    last_selected: Dict[Tuple[int, int], CodeRecord] = {}
+
+    while attempts < attempts_cap:
+        attempts += 1
+        last_records = scan_all_codes(root, verbose=verbose, include_git_history=include_git_history)
+        last_selected = select_best_by_nk(last_records)
+
+        if dry_run:
+            return BestCodesUpdateResult(
+                records=last_records,
+                selected=last_selected,
+                attempts=attempts,
+                committed=False,
+            )
+
+        sync_best_codes_folder(last_selected, root, dry_run=False, verbose=verbose)
+        if not no_publish:
+            update_best_codes_webpage_data(last_selected, root, dry_run=False, verbose=verbose)
+
+        if no_git:
+            return BestCodesUpdateResult(
+                records=last_records,
+                selected=last_selected,
+                attempts=attempts,
+                committed=False,
+            )
+
+        git_pull_rebase(root, verbose=verbose)
+        msg = commit_message or _default_commit_message()
+        try:
+            committed = git_commit_and_push(
+                root,
+                msg,
+                retry_on_nonfastforward=True,
+            )
+            return BestCodesUpdateResult(
+                records=last_records,
+                selected=last_selected,
+                attempts=attempts,
+                committed=bool(committed),
+            )
+        except GitNonFastForwardError:
+            if attempts >= attempts_cap:
+                raise
+            if verbose:
+                print(
+                    f"[git] non-fast-forward push; retrying "
+                    f"({attempts}/{attempts_cap})"
+                )
+            git_pull_rebase(root, verbose=verbose)
+            # Loop will rescan/reselect after the rebase.
+
+    return BestCodesUpdateResult(
+        records=last_records,
+        selected=last_selected,
+        attempts=attempts,
+        committed=False,
+    )

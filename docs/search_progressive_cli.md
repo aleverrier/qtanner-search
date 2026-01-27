@@ -63,6 +63,22 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
 - `--timings`
   Print timing breakdown.
 
+### Best codes update (post-run)
+After a successful run, `scripts/search_progressive.py` now runs the best-codes
+updater to sync `best_codes/`, rebuild website data, and push to GitHub.
+If you interrupt the run with Ctrl-C, it will still attempt this update.
+
+- `--no-best-codes-update`
+  Skip all post-run best-codes steps.
+- `--no-git`
+  Run the updater but skip git pull/commit/push.
+- `--no-publish`
+  Run the updater but skip website data updates.
+- `--best-codes-no-history`
+  Skip git history scanning during the updater (faster, may miss legacy codes).
+- `--best-codes-max-attempts N`
+  Max push attempts if the remote moved (default: 3).
+
 ### Cayley multiset enumeration
 - `--dedup-cayley`
   Deduplicate multisets up to Aut(G) (requires GAP).
@@ -79,12 +95,11 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
 
 Example:
 
-python3 -u scripts/search_progressive.py \\
-  --group "C2xC2" \\
-  --target-distance 0 \\
-  --classical-target 1 \\
-  --classical-distance-backend fast \\
-  --quantum-steps-fast 1000 \\
-  --quantum-steps-slow 100000 \\
+python3 -u scripts/search_progressive.py \
+  --group "C2xC2" \
+  --target-distance 10 \
+  --classical-target 1 \
+  --classical-distance-backend fast \
+  --quantum-steps-fast 1000 \
+  --quantum-steps-slow 100000 \
   --seed 1
-

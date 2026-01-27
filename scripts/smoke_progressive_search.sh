@@ -7,6 +7,12 @@ DIST_M4RI_CMD="${DIST_M4RI:-$HOME/research/qtanner-tools/dist-m4ri/src/dist_m4ri
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUTDIR="results/smoke_progressive_${STAMP}"
 
+BEST_CODES_ARGS=(--no-best-codes-update)
+if [[ "${SMOKE_BEST_CODES_UPDATE:-0}" == "1" ]]; then
+  # Quick updater integration test: skip git/publish and avoid history scan.
+  BEST_CODES_ARGS=(--no-git --no-publish --best-codes-no-history)
+fi
+
 python -u scripts/search_progressive.py \
   --group "C2" \
   --target-distance 2 \
@@ -21,4 +27,5 @@ python -u scripts/search_progressive.py \
   --quantum-refine-chunk 200 \
   --seed 1 \
   --dist-m4ri-cmd "$DIST_M4RI_CMD" \
-  --results-dir "$OUTDIR"
+  --results-dir "$OUTDIR" \
+  "${BEST_CODES_ARGS[@]}"

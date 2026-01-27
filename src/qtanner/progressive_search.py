@@ -9,6 +9,7 @@ import math
 import multiprocessing as mp
 import os
 import random
+import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
@@ -1464,6 +1465,83 @@ def _save_best_code(
     )
 
 
+def _repo_root_for_best_codes(start: Path) -> Path:
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(start),
+            text=True,
+        ).strip()
+        if out:
+            return Path(out)
+    except Exception:
+        pass
+
+    here = Path(__file__).resolve()
+    for parent in [here.parent, *here.parents]:
+        if (parent / ".git").exists():
+            return parent
+    return start
+
+
+def _run_best_codes_update_after_progressive(
+    *,
+    outdir: Path,
+    group_tag: str,
+    no_git: bool,
+    no_publish: bool,
+    include_git_history: bool,
+    max_attempts: int,
+) -> bool:
+    # Skip updater when an unhandled exception is bubbling up.
+    if sys.exc_info()[0] is not None:
+        print(
+            "[best_codes] skipping update due to active exception.",
+            file=sys.stderr,
+        )
+        return False
+
+    repo_root = _repo_root_for_best_codes(outdir)
+    history_label = "on" if include_git_history else "off"
+    publish_label = "off" if no_publish else "on"
+    git_label = "off" if no_git else "on"
+    print(
+        "[best_codes] updating best_codes "
+        f"(history={history_label} publish={publish_label} git={git_label})"
+    )
+
+    try:
+        # Lazy import so disabling the updater keeps the search fast.
+        from .best_codes_updater import run_best_codes_update
+
+        context = f"progressive {group_tag}"
+        commit_message = (
+            f"best_codes: refresh best-by-nk after {context} "
+            f"({_timestamp_utc()})"
+        )
+        result = run_best_codes_update(
+            repo_root,
+            dry_run=False,
+            no_git=no_git,
+            no_publish=no_publish,
+            verbose=False,
+            include_git_history=include_git_history,
+            max_attempts=max_attempts,
+            commit_message=commit_message,
+        )
+    except Exception as exc:
+        print(f"[best_codes] update failed: {exc}", file=sys.stderr)
+        return False
+
+    committed_label = "yes" if result.committed else "no"
+    print(
+        "[best_codes] done "
+        f"scanned={len(result.records)} selected={len(result.selected)} "
+        f"attempts={result.attempts} committed={committed_label}"
+    )
+    return True
+
+
 def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         description="Progressive exhaustive classical-first search."
@@ -1595,6 +1673,32 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         action="store_true",
         help="Print timing breakdowns for progressive runs.",
     )
+    parser.add_argument(
+        "--no-best-codes-update",
+        action="store_true",
+        help="Skip best_codes sync/publish/git update at the end.",
+    )
+    parser.add_argument(
+        "--no-git",
+        action="store_true",
+        help="When updating best_codes, skip git pull/commit/push.",
+    )
+    parser.add_argument(
+        "--no-publish",
+        action="store_true",
+        help="When updating best_codes, skip website data updates.",
+    )
+    parser.add_argument(
+        "--best-codes-no-history",
+        action="store_true",
+        help="Skip git history scan when updating best_codes (faster).",
+    )
+    parser.add_argument(
+        "--best-codes-max-attempts",
+        type=int,
+        default=3,
+        help="Max push attempts for best_codes updates.",
+    )
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
     args = parser.parse_args(raw_argv)
 
@@ -1639,6 +1743,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--min-distinct must be positive.")
     if args.min_distinct is not None and args.min_distinct > SIDE_LEN:
         raise ValueError("--min-distinct cannot exceed 6.")
+    if args.best_codes_max_attempts <= 0:
+        raise ValueError("--best-codes-max-attempts must be positive.")
 
     if args.classical_jobs == 0:
         cpu_count = os.cpu_count() or 1

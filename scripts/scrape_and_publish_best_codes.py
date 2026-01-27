@@ -4,9 +4,8 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = REPO_ROOT / "src"
@@ -15,11 +14,7 @@ if str(SRC_DIR) not in sys.path:
 
 from qtanner.best_codes_updater import (
     GitNonFastForwardError,
-    scan_all_codes,
-    select_best_by_nk,
-    sync_best_codes_folder,
-    update_best_codes_webpage_data,
-    git_commit_and_push,
+    run_best_codes_update,
 )
 
 
@@ -48,34 +43,6 @@ def _print_summary(selected, records) -> None:
         print(f"{n}\t{k}\t{d}\t{t}\t{rec.code_id}\t{rec.source_kind}")
 
 
-def _git_pull_rebase(root: Path, verbose: bool) -> None:
-    cmd = ["git", "pull", "--rebase", "--autostash"]
-    if verbose:
-        print("[git] " + " ".join(cmd))
-    subprocess.check_call(cmd, cwd=str(root))
-
-
-def _commit_message() -> str:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return f"best_codes: refresh best-by-nk ({ts})"
-
-
-def _run_once(root: Path, args) -> Tuple[dict, List]:
-    records = scan_all_codes(root, verbose=args.verbose)
-    selected = select_best_by_nk(records)
-
-    _print_summary(selected, records)
-
-    if args.dry_run:
-        return selected, records
-
-    sync_best_codes_folder(selected, root, dry_run=False, verbose=args.verbose)
-    if not args.no_publish:
-        update_best_codes_webpage_data(selected, root, dry_run=False, verbose=args.verbose)
-
-    return selected, records
-
-
 def main(argv: List[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Scrape repo for codes and publish best_codes updates.")
     ap.add_argument("--dry-run", action="store_true", help="Scan + select, but do not write or git.")
@@ -87,28 +54,20 @@ def main(argv: List[str] | None = None) -> int:
 
     root = _repo_root()
 
-    attempts = 0
-    while True:
-        attempts += 1
-        _run_once(root, args)
-
-        if args.dry_run or args.no_git:
-            return 0
-
-        _git_pull_rebase(root, args.verbose)
-
-        try:
-            git_commit_and_push(root, _commit_message(), retry_on_nonfastforward=True)
-            return 0
-        except GitNonFastForwardError as exc:
-            if attempts >= args.max_attempts:
-                print(f"[error] push failed after {attempts} attempts: {exc}", file=sys.stderr)
-                return 2
-            if args.verbose:
-                print(f"[git] non-fast-forward, retrying (attempt {attempts}/{args.max_attempts})")
-            _git_pull_rebase(root, args.verbose)
-            # Recompute selection after rebasing onto remote changes.
-            continue
+    try:
+        result = run_best_codes_update(
+            root,
+            dry_run=args.dry_run,
+            no_git=args.no_git,
+            no_publish=args.no_publish,
+            verbose=args.verbose,
+            max_attempts=args.max_attempts,
+        )
+        _print_summary(result.selected, result.records)
+        return 0
+    except GitNonFastForwardError as exc:
+        print(f"[error] push failed after {args.max_attempts} attempts: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

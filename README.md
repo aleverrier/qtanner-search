@@ -12,6 +12,17 @@ for seed in 1 2 3 4 5 6; do
     2>&1 | tee "$RUN_DIR/run.log"
 done
 
+By default, `scripts/search_progressive.py` now updates `best_codes/` at the end of a
+successful run (including publishing website data and pushing to GitHub). Use
+`--no-best-codes-update` to disable this, or pass `--no-git` / `--no-publish`
+to limit the post-run steps.
+If you stop a run with Ctrl-C, it will still attempt the best-codes update.
+
+Quick smoke integration test (skips git/publish + history scan):
+```
+SMOKE_BEST_CODES_UPDATE=1 bash scripts/smoke_progressive_search.sh
+```
+
 ## Update best_codes (scrape + publish)
 
 Dry run (no filesystem or git changes):
