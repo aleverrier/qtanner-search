@@ -768,13 +768,14 @@ function parseABFromCodeId(codeId) {
     const observedMax = computeGroupObservedMaxTrials(codes);
 
     // Curate by group:
-    // required trials per group = max( min_trials_by_group.json, observed max in data )
+    // required trials per group = configured minimum only.
+    // The best-by-(n,k) selection already prefers higher-trial entries.
     const requiredByGroup = {};
     for (const g of new Set([...Object.keys(observedMax), ...Object.keys(minTrialsMap)])) {
-      requiredByGroup[g] = Math.max(observedMax[g] ?? 0, minTrialsMap[g] ?? 0);
+      requiredByGroup[g] = minTrialsMap[g] ?? 0;
     }
 
-    // Keep only the max-trials layer (curated content)
+    // Keep only entries meeting the configured minimum trials.
     const curated = codes.filter(c => {
       const req = requiredByGroup[c.groupRaw] ?? 0;
       const t = c.trials ?? 0;

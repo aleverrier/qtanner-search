@@ -678,7 +678,7 @@ function parseABFromCodeId(codeId) {
 
     const requiredByGroup = {};
     for (const g of new Set([...Object.keys(observedMax), ...Object.keys(minTrialsMap)])) {
-      requiredByGroup[g] = Math.max(observedMax[g] ?? 0, minTrialsMap[g] ?? 0);
+      requiredByGroup[g] = minTrialsMap[g] ?? 0;
     }
 
     const curated = codes.filter(c => {
