@@ -36,7 +36,7 @@ python -m qtanner.search progressive \
   --classical-steps 100 \
   --classical-workers 6 \
   --quantum-steps-fast 2000 \
-  --quantum-steps-slow 50000 \
+  --best-codes-source auto \
   --report-every 50 \
   --timings \
   --seed 1 \
@@ -50,7 +50,9 @@ Notes:
 - Default is to enumerate all multisets of size 6 containing the identity (no Cayley dedup unless `--dedup-cayley`).
 - Ctrl-C stops after the current evaluation and prints the final best-by-k table.
 - Outputs live under the run directory (classical JSONL + histograms, `best_codes/`, `milestones.jsonl`).
-- Quantum distance evaluation runs a fast pass first; slow pass runs only if `d_fast >= ceil(sqrt(n))` and beats the current best-by-k bound for that k. Best-by-k entries are only recorded from the slow pass.
+- When a candidate is logged with `decision=new_best`, a JSON artifact is saved to `codes/pending/` (override with `--save-new-bests-dir`, disable with `--no-save-new-bests`).
+- Typical publish flow: run the search, inspect artifacts under `codes/pending/`, then run `scripts/scrape_and_publish_best_codes.py` to update `best_codes/data.json` and website outputs.
+- Quantum distance evaluation runs a fast pass first; the slow pass runs only if the fast estimate can beat the current best_codes entry for that `(n,k)` (using the best_codes trial count). Best-by-k entries are only recorded from the slow pass.
 - For abelian groups with identical local codes, B classical precompute is skipped and reuses A via inversion mapping; classical precompute logs `[classical]` progress lines with counts and elapsed time.
 - For a laptop, start with `--classical-workers 6` or `--classical-workers 8` and tune from there.
 - `--timings` prints summaries after classical precompute and at the end of the run (multiset/perm generation, slice builds, rank, MTX writes, dist-m4ri time, bookkeeping).

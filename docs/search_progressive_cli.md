@@ -7,7 +7,7 @@ This document explains the command-line options of `scripts/search_progressive.p
 It enumerates candidate quantum Tanner codes (from a group `G` and generator multisets `A,B` plus local-code column permutations),
 filters them using a classical slice-distance heuristic, then estimates quantum CSS distance using two distance estimates:
 - fast estimate (cheap, used to reject early)
-- slow/refined estimate (more expensive, used on promising candidates)
+- slow/refined estimate (more expensive, driven by the current best_codes table for each (n,k))
 
 Distances reported are *upper bounds* found by a search routine (i.e., “we found a logical operator of weight w, so distance <= w”).
 
@@ -47,9 +47,15 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
 - `--quantum-steps-fast STEPS`
   Steps for the fast quantum distance estimate.
 - `--quantum-steps-slow STEPS`
-  Steps for slow/refined estimate.
+  Deprecated (use `--slow-quantum-trials-override`).
+- `--slow-quantum-trials-override STEPS`
+  Override slow/refined trials (debugging only; default derives from best_codes).
 - `--quantum-refine-chunk STEPS`
   Refinement chunk size.
+- `--best-codes-source {auto,origin,working-tree,website}`
+  Where to load the best_codes index from (default: auto).
+- `--best-codes-refresh-seconds N`
+  Minimum seconds between best_codes refreshes (default: 600).
 
 ### Runtime / reproducibility
 - `--seed SEED`
@@ -60,6 +66,10 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   Print summary every N quantum evals.
 - `--results-dir PATH`
   Output directory.
+- `--save-new-bests-dir PATH`
+  Directory for `decision=new_best` JSON artifacts (default: `codes/pending`).
+- `--no-save-new-bests`
+  Disable writing new_best artifacts.
 - `--timings`
   Print timing breakdown.
 
@@ -67,6 +77,11 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
 After a successful run, `scripts/search_progressive.py` now runs the best-codes
 updater to sync `best_codes/`, rebuild website data, and push to GitHub.
 If you interrupt the run with Ctrl-C, it will still attempt this update.
+
+Workflow:
+- Run `scripts/search_progressive.py` (or `python -m qtanner.search progressive`).
+- New best candidates are written to `codes/pending/*.json` when logged as `decision=new_best`.
+- Run `scripts/scrape_and_publish_best_codes.py` to scan pending artifacts and publish `best_codes/data.json`.
 
 - `--no-best-codes-update`
   Skip all post-run best-codes steps.
@@ -101,5 +116,4 @@ python3 -u scripts/search_progressive.py \
   --classical-target 16 \
   --classical-distance-backend fast \
   --quantum-steps-fast 5000 \
-  --quantum-steps-slow 700000 \
   --seed 1

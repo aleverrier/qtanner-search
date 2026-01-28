@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -14,7 +15,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations_with_replacement
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -45,6 +46,7 @@ from .slice_codes import (
 
 SIDE_LEN = 6
 SIDE_PICK = SIDE_LEN - 1
+MIN_SLOW_TRIALS = 50_000
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,9 @@ class ProgressiveDistanceResult:
     ran_refine: bool
     aborted: bool
     abort_reason: Optional[str]
+    slow_skipped: bool
+    slow_skip_reason: Optional[str]
+    slow_steps_target: Optional[int]
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,25 @@ class ClassicalEvalResult:
     passes: bool
     k_min: int
     d_min: int
+
+
+@dataclass(frozen=True)
+class BestCodesEntry:
+    n: int
+    k: int
+    d: Optional[int]
+    m4ri_trials: Optional[int]
+    code_id: str
+
+
+@dataclass(frozen=True)
+class SlowDistanceDecision:
+    run_slow: bool
+    steps_slow: int
+    reason: str
+    best_d: Optional[int] = None
+    best_trials: Optional[int] = None
+    best_code_id: Optional[str] = None
 
 
 def _add_timing(
@@ -180,12 +204,320 @@ def _ceil_sqrt(n: int) -> int:
     return root if root * root == n else root + 1
 
 
+def _is_promising_code(n: int, k: int, d: int) -> bool:
+    if n <= 0 or k <= 0 or d <= 0:
+        return False
+    if d < math.sqrt(n):
+        return False
+    if k * d < n:
+        return False
+    return True
+
+
 def _adaptive_quantum_steps_slow(n_cols: int) -> int:
     if n_cols <= 200:
         return 50000
     if n_cols <= 600:
         return 200000
     return 500000
+
+
+def compute_slow_trials(best_trials: Optional[int], override: Optional[int]) -> int:
+    if override is not None:
+        return max(MIN_SLOW_TRIALS, int(override))
+    if best_trials is not None:
+        return max(MIN_SLOW_TRIALS, int(best_trials))
+    return MIN_SLOW_TRIALS
+
+
+def should_abort_refine(d_x_best: int, d_z_best: int, best_d: Optional[int]) -> bool:
+    if best_d is None:
+        return False
+    return min(int(d_x_best), int(d_z_best)) <= int(best_d)
+
+
+def _to_int(value: object) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return int(value)
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if text and text.lstrip("-").isdigit():
+            try:
+                return int(text)
+            except ValueError:
+                return None
+    return None
+
+
+def _get_first_int(obj: Dict[str, object], keys: Sequence[str]) -> Optional[int]:
+    for key in keys:
+        if key in obj:
+            value = _to_int(obj.get(key))
+            if value is not None:
+                return value
+    return None
+
+
+def _parse_best_codes_json(text: str) -> List[Dict[str, object]]:
+    try:
+        data = json.loads(text)
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    codes = data.get("codes")
+    if not isinstance(codes, list):
+        return []
+    out: List[Dict[str, object]] = []
+    for entry in codes:
+        if isinstance(entry, dict):
+            out.append(entry)
+    return out
+
+
+def _parse_best_codes_index_tsv(text: str) -> List[Dict[str, object]]:
+    rows: List[Dict[str, object]] = []
+    reader = csv.reader(text.splitlines(), delimiter="\t")
+    headers = None
+    for row in reader:
+        if not row:
+            continue
+        if headers is None:
+            headers = [h.strip() for h in row]
+            continue
+        if headers:
+            item = {headers[i]: row[i] if i < len(row) else "" for i in range(len(headers))}
+            rows.append(item)
+    return rows
+
+
+def _select_best_codes_by_nk(records: Sequence[Dict[str, object]]) -> Dict[Tuple[int, int], BestCodesEntry]:
+    grouped: Dict[Tuple[int, int], List[BestCodesEntry]] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        n = _get_first_int(record, ["n"])
+        k = _get_first_int(record, ["k"])
+        if n is None or k is None:
+            continue
+        d = _get_first_int(record, ["d_ub", "d_recorded", "d_obs", "d"])
+        trials = _get_first_int(record, ["m4ri_trials", "trials", "steps_used_total", "steps"])
+        code_id = str(record.get("code_id") or record.get("id") or "")
+        entry = BestCodesEntry(
+            n=int(n),
+            k=int(k),
+            d=d if d is not None else None,
+            m4ri_trials=trials if trials is not None else None,
+            code_id=code_id,
+        )
+        grouped.setdefault((entry.n, entry.k), []).append(entry)
+
+    selected: Dict[Tuple[int, int], BestCodesEntry] = {}
+    for key, entries in grouped.items():
+        max_trials = max(
+            (e.m4ri_trials for e in entries if isinstance(e.m4ri_trials, int)),
+            default=None,
+        )
+        if max_trials is None:
+            candidates = list(entries)
+        else:
+            candidates = [e for e in entries if e.m4ri_trials == max_trials]
+        if not candidates:
+            continue
+        candidates.sort(
+            key=lambda e: (
+                -(e.d if isinstance(e.d, int) else -1),
+                e.code_id or "",
+            )
+        )
+        selected[key] = candidates[0]
+    return selected
+
+
+def _git_run(repo_root: Path, args: Sequence[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(repo_root),
+        text=True,
+        capture_output=True,
+    )
+
+
+def _git_has_origin(repo_root: Path) -> bool:
+    result = _git_run(repo_root, ["remote", "get-url", "origin"])
+    return result.returncode == 0
+
+
+def _git_fetch_origin(repo_root: Path) -> bool:
+    result = _git_run(repo_root, ["fetch", "origin"])
+    return result.returncode == 0
+
+
+def _git_show_text(repo_root: Path, ref: str, path: str) -> Optional[str]:
+    result = _git_run(repo_root, ["show", f"{ref}:{path}"])
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
+def _read_working_tree(repo_root: Path, path: str) -> Optional[str]:
+    try:
+        full_path = repo_root / path
+        if full_path.exists():
+            return full_path.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return None
+    return None
+
+
+def _load_best_codes_records_from_text(text: str, path: str) -> List[Dict[str, object]]:
+    if path.endswith(".json"):
+        return _parse_best_codes_json(text)
+    if path.endswith(".tsv"):
+        return _parse_best_codes_index_tsv(text)
+    return []
+
+
+def load_best_codes_index(repo_root: Path, source: str = "auto") -> Dict[Tuple[int, int], BestCodesEntry]:
+    records, _info = _load_best_codes_index_with_meta(repo_root, source=source)
+    return records
+
+
+def _load_best_codes_index_with_meta(
+    repo_root: Path,
+    *,
+    source: str = "auto",
+) -> Tuple[Dict[Tuple[int, int], BestCodesEntry], Dict[str, str]]:
+    paths = ["best_codes/data.json", "best_codes/index.tsv"]
+    info: Dict[str, str] = {"source": "none", "path": ""}
+    source = (source or "auto").strip().lower()
+
+    def parse_text(text: str, path: str) -> Dict[Tuple[int, int], BestCodesEntry]:
+        records = _load_best_codes_records_from_text(text, path)
+        return _select_best_codes_by_nk(records)
+
+    if source in {"origin", "auto"} and _git_has_origin(repo_root):
+        if _git_fetch_origin(repo_root):
+            for path in paths:
+                text = _git_show_text(repo_root, "origin/main", path)
+                if text:
+                    info["source"] = "origin"
+                    info["path"] = path
+                    return parse_text(text, path), info
+
+    if source in {"working-tree", "auto", "origin"}:
+        for path in paths:
+            text = _read_working_tree(repo_root, path)
+            if text:
+                info["source"] = "working-tree"
+                info["path"] = path
+                return parse_text(text, path), info
+
+    if source == "website":
+        path = "best_codes/data.json"
+        text = _read_working_tree(repo_root, path)
+        if text:
+            info["source"] = "website"
+            info["path"] = path
+            return parse_text(text, path), info
+
+    return {}, info
+
+
+def decide_slow_quantum_plan(
+    *,
+    d_fast: int,
+    fast_trials: int,
+    best_entry: Optional[BestCodesEntry],
+    override: Optional[int] = None,
+) -> SlowDistanceDecision:
+    best_d = best_entry.d if best_entry else None
+    best_trials = best_entry.m4ri_trials if best_entry else None
+    best_code_id = best_entry.code_id if best_entry else None
+
+    steps_slow = compute_slow_trials(best_trials, override)
+
+    if best_d is None:
+        return SlowDistanceDecision(
+            run_slow=True,
+            steps_slow=steps_slow,
+            reason="no_best_entry",
+            best_d=None,
+            best_trials=best_trials,
+            best_code_id=best_code_id,
+        )
+    if d_fast <= best_d:
+        return SlowDistanceDecision(
+            run_slow=False,
+            steps_slow=steps_slow,
+            reason="d_fast<=best",
+            best_d=best_d,
+            best_trials=best_trials,
+            best_code_id=best_code_id,
+        )
+    return SlowDistanceDecision(
+        run_slow=True,
+        steps_slow=steps_slow,
+        reason="d_fast>best",
+        best_d=best_d,
+        best_trials=best_trials,
+        best_code_id=best_code_id,
+    )
+
+
+@dataclass
+class BestCodesIndexCache:
+    repo_root: Path
+    source: str
+    refresh_seconds: int
+    verbose: bool = False
+    index: Dict[Tuple[int, int], BestCodesEntry] = field(default_factory=dict)
+    last_refresh: float = 0.0
+    last_info: Dict[str, str] = field(default_factory=dict)
+
+    def refresh(self) -> None:
+        index, info = _load_best_codes_index_with_meta(
+            self.repo_root,
+            source=self.source,
+        )
+        self.index = index
+        self.last_info = info
+        self.last_refresh = time.monotonic()
+        source_label = info.get("source", "unknown")
+        path_label = info.get("path", "")
+        if self.source in {"origin", "auto"} and source_label != "origin":
+            print(
+                f"[best_codes] WARNING: origin/main unavailable; using "
+                f"{source_label}:{path_label or '(unknown)'}"
+            )
+        if source_label == "origin":
+            print(
+                f"[best_codes] loaded {len(index)} entries from "
+                f"origin/main:{path_label or '(unknown)'}"
+            )
+        elif self.verbose:
+            print(
+                f"[best_codes] loaded {len(index)} entries from "
+                f"{source_label}:{path_label or '(unknown)'}"
+            )
+
+    def get_index(self) -> Dict[Tuple[int, int], BestCodesEntry]:
+        now = time.monotonic()
+        if (
+            self.index
+            and self.refresh_seconds > 0
+            and now - self.last_refresh < self.refresh_seconds
+        ):
+            return self.index
+        self.refresh()
+        return self.index
+
+    def info(self) -> Dict[str, str]:
+        return dict(self.last_info)
 
 
 def _argv_has_flag(argv: Sequence[str], flag: str) -> bool:
@@ -666,6 +998,12 @@ def _progressive_css_distance(
         Callable[[int, int, int, int, int, Optional[str]], None]
     ] = None,
     timings: Optional[Dict[str, float]] = None,
+    slow_decider: Optional[
+        Callable[[int, int, int, int], SlowDistanceDecision]
+    ] = None,
+    refine_abort_check: Optional[
+        Callable[[int, int], Optional[str]]
+    ] = None,
 ) -> ProgressiveDistanceResult:
     wmin = max(0, int(must_exceed))
     dz_fast = _estimate_css_distance_direction(
@@ -699,8 +1037,19 @@ def _progressive_css_distance(
     ran_refine = False
     aborted = False
     abort_reason: Optional[str] = None
+    slow_skipped = False
+    slow_skip_reason: Optional[str] = None
+    slow_steps_target: Optional[int] = steps_slow
 
-    if passed_fast and steps_slow > steps_fast:
+    if slow_decider is not None:
+        decision = slow_decider(d_x_best, d_z_best, steps_fast, steps_slow)
+        slow_steps_target = int(decision.steps_slow)
+        steps_slow = int(decision.steps_slow)
+        if not decision.run_slow:
+            slow_skipped = True
+            slow_skip_reason = decision.reason
+
+    if passed_fast and not slow_skipped and steps_slow > steps_fast:
         ran_refine = True
         steps_used = steps_fast
         chunk_index = 0
@@ -741,6 +1090,23 @@ def _progressive_css_distance(
                         abort_reason,
                     )
                 break
+            if refine_abort_check is not None:
+                maybe_abort = refine_abort_check(d_x_best, d_z_best)
+                if maybe_abort:
+                    aborted = True
+                    abort_reason = maybe_abort
+                    chunk_record["abort_reason"] = abort_reason
+                    refine_chunks.append(chunk_record)
+                    if on_chunk is not None:
+                        on_chunk(
+                            chunk_index,
+                            steps_x,
+                            steps_z,
+                            d_x_best,
+                            d_z_best,
+                            abort_reason,
+                        )
+                    break
             dz_chunk = _estimate_css_distance_direction(
                 hx_rows,
                 hz_rows,
@@ -760,6 +1126,12 @@ def _progressive_css_distance(
                 aborted = True
                 abort_reason = "dz<=must_exceed"
                 chunk_record["abort_reason"] = abort_reason
+            elif refine_abort_check is not None:
+                maybe_abort = refine_abort_check(d_x_best, d_z_best)
+                if maybe_abort:
+                    aborted = True
+                    abort_reason = maybe_abort
+                    chunk_record["abort_reason"] = abort_reason
             refine_chunks.append(chunk_record)
             if on_chunk is not None:
                 on_chunk(
@@ -785,6 +1157,9 @@ def _progressive_css_distance(
         ran_refine=ran_refine,
         aborted=aborted,
         abort_reason=abort_reason,
+        slow_skipped=slow_skipped,
+        slow_skip_reason=slow_skip_reason,
+        slow_steps_target=slow_steps_target,
     )
 
 
@@ -1465,6 +1840,78 @@ def _save_best_code(
     )
 
 
+def _relpath_or_abs(path: Path, root: Path) -> str:
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
+def _canonical_json(obj: Dict[str, object]) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _new_best_artifact_filename(artifact: Dict[str, object]) -> str:
+    group = artifact.get("group")
+    if isinstance(group, dict):
+        group_label = group.get("spec") or group.get("name") or group.get("id")
+    else:
+        group_label = group
+    group_label = _safe_id_component(group_label or "group")
+    n = artifact.get("n")
+    k = artifact.get("k")
+    d_ub = artifact.get("d_ub")
+    eval_index = artifact.get("eval")
+    digest = hashlib.sha256(_canonical_json(artifact).encode("utf-8")).hexdigest()
+    short_hash = digest[:8]
+    return f"{group_label}_n{n}_k{k}_dUB{d_ub}_eval{eval_index}_{short_hash}.json"
+
+
+def _write_new_best_artifact(
+    *,
+    save_dir: Path,
+    artifact: Dict[str, object],
+) -> Optional[Path]:
+    save_dir.mkdir(parents=True, exist_ok=True)
+    filename = _new_best_artifact_filename(artifact)
+    out_path = save_dir / filename
+    if out_path.exists():
+        stem = out_path.stem
+        suffix = out_path.suffix
+        for idx in range(1, 1000):
+            candidate = out_path.with_name(f"{stem}_{idx}{suffix}")
+            if not candidate.exists():
+                out_path = candidate
+                break
+        else:
+            print(
+                f"[progressive] new_best artifact exists, skipping: {out_path}"
+            )
+            return None
+    tmp_path = out_path.with_suffix(out_path.suffix + ".tmp")
+    tmp_path.write_text(
+        json.dumps(artifact, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    os.replace(tmp_path, out_path)
+    print(f"[progressive] new_best artifact saved: {out_path}")
+    return out_path
+
+
+def _maybe_save_new_best_artifact(
+    *,
+    decision: str,
+    save_dir: Optional[Path],
+    artifact: Dict[str, object],
+) -> Optional[Path]:
+    if decision != "new_best":
+        return None
+    if save_dir is None:
+        print("[progressive] new_best artifact disabled (--no-save-new-bests)")
+        return None
+    return _write_new_best_artifact(save_dir=save_dir, artifact=artifact)
+
+
 def _repo_root_for_best_codes(start: Path) -> Path:
     try:
         out = subprocess.check_output(
@@ -1607,8 +2054,17 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         type=int,
         default=None,
         help=(
-            "dist_m4ri RW steps for slow quantum distance estimates "
-            "(default: adaptive based on n)."
+            "Deprecated (use --slow-quantum-trials-override). "
+            "Ignored unless no override is provided."
+        ),
+    )
+    parser.add_argument(
+        "--slow-quantum-trials-override",
+        type=int,
+        default=None,
+        help=(
+            "Override slow quantum distance trials (debugging only). "
+            "Default: derived from best_codes for each (n,k)."
         ),
     )
     parser.add_argument(
@@ -1622,9 +2078,26 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         type=int,
         default=None,
         help=(
-            "Deprecated alias: sets both --quantum-steps-fast and "
-            "--quantum-steps-slow."
+            "Deprecated alias: sets --quantum-steps-fast and "
+            "--slow-quantum-trials-override."
         ),
+    )
+    parser.add_argument(
+        "--best-codes-source",
+        choices=("auto", "origin", "working-tree", "website"),
+        default="auto",
+        help="Source for best_codes index (default: auto).",
+    )
+    parser.add_argument(
+        "--best-codes-refresh-seconds",
+        type=int,
+        default=600,
+        help="Minimum seconds between best_codes refreshes (default: 600).",
+    )
+    parser.add_argument(
+        "--best-codes-verbose",
+        action="store_true",
+        help="Log best_codes thresholds for each (n,k).",
     )
     parser.add_argument(
         "--report-every",
@@ -1644,6 +2117,17 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         type=str,
         default=None,
         help="Results directory (default: results/progressive_<group>_<ts>).",
+    )
+    parser.add_argument(
+        "--save-new-bests-dir",
+        type=str,
+        default="codes/pending",
+        help="Directory for new_best JSON artifacts (default: codes/pending).",
+    )
+    parser.add_argument(
+        "--no-save-new-bests",
+        action="store_true",
+        help="Disable saving new_best JSON artifacts.",
     )
     parser.add_argument(
         "--dist-m4ri-cmd",
@@ -1717,22 +2201,37 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     if args.quantum_steps is not None:
         if args.quantum_steps <= 0:
             raise ValueError("--quantum-steps must be positive.")
-        if _argv_has_flag(raw_argv, "--quantum-steps-fast") or _argv_has_flag(
-            raw_argv, "--quantum-steps-slow"
+        if (
+            _argv_has_flag(raw_argv, "--quantum-steps-fast")
+            or _argv_has_flag(raw_argv, "--quantum-steps-slow")
+            or _argv_has_flag(raw_argv, "--slow-quantum-trials-override")
         ):
             raise ValueError(
                 "--quantum-steps is deprecated; do not mix with "
-                "--quantum-steps-fast/--quantum-steps-slow."
+                "--quantum-steps-fast/--quantum-steps-slow/--slow-quantum-trials-override."
             )
         args.quantum_steps_fast = args.quantum_steps
-        args.quantum_steps_slow = args.quantum_steps
-        quantum_steps_slow_set = True
-    else:
-        quantum_steps_slow_set = _argv_has_flag(raw_argv, "--quantum-steps-slow")
+        args.slow_quantum_trials_override = args.quantum_steps
     if args.quantum_steps_fast <= 0:
         raise ValueError("--quantum-steps-fast must be positive.")
-    if args.quantum_steps_slow is not None and args.quantum_steps_slow <= 0:
-        raise ValueError("--quantum-steps-slow must be positive.")
+    if args.quantum_steps_slow is not None:
+        if args.quantum_steps_slow <= 0:
+            raise ValueError("--quantum-steps-slow must be positive.")
+        if args.slow_quantum_trials_override is None:
+            print(
+                "[progressive] WARNING: --quantum-steps-slow is deprecated; "
+                "using it as --slow-quantum-trials-override.",
+                file=sys.stderr,
+            )
+            args.slow_quantum_trials_override = args.quantum_steps_slow
+        else:
+            print(
+                "[progressive] WARNING: --quantum-steps-slow is deprecated and "
+                "ignored because --slow-quantum-trials-override is set.",
+                file=sys.stderr,
+            )
+    if args.slow_quantum_trials_override is not None and args.slow_quantum_trials_override <= 0:
+        raise ValueError("--slow-quantum-trials-override must be positive.")
     if args.quantum_refine_chunk <= 0:
         raise ValueError("--quantum-refine-chunk must be positive.")
     if args.report_every <= 0:
@@ -1745,6 +2244,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--min-distinct cannot exceed 6.")
     if args.best_codes_max_attempts <= 0:
         raise ValueError("--best-codes-max-attempts must be positive.")
+    if args.best_codes_refresh_seconds <= 0:
+        raise ValueError("--best-codes-refresh-seconds must be positive.")
 
     if args.classical_jobs == 0:
         cpu_count = os.cpu_count() or 1
@@ -1810,6 +2311,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     else:
         outdir = Path("results") / f"progressive_{group_tag}_{_timestamp_utc()}"
     outdir.mkdir(parents=True, exist_ok=True)
+    repo_root = _repo_root_for_best_codes(outdir)
+    save_new_bests_dir: Optional[Path]
+    if args.no_save_new_bests:
+        save_new_bests_dir = None
+    else:
+        candidate = Path(args.save_new_bests_dir)
+        save_new_bests_dir = (
+            candidate if candidate.is_absolute() else repo_root / candidate
+        )
 
     group_cache_dir = outdir / "groups"
     aut_cache_dir = outdir / "cache" / "aut"
@@ -1826,11 +2336,6 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     classical_target = args.classical_target
     if classical_target is None:
         classical_target = _ceil_sqrt(n_slice)
-    if not quantum_steps_slow_set:
-        n_cols_default = base_code.n * base_code.n * group.order
-        args.quantum_steps_slow = _adaptive_quantum_steps_slow(n_cols_default)
-    if args.quantum_steps_slow is None or args.quantum_steps_slow <= 0:
-        raise ValueError("--quantum-steps-slow must be positive.")
 
     run_meta = {
         "mode": "progressive",
@@ -1844,7 +2349,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "classical_workers": args.classical_workers,
         "classical_jobs": args.classical_jobs,
         "quantum_steps_fast": args.quantum_steps_fast,
-        "quantum_steps_slow": args.quantum_steps_slow,
+        "quantum_steps_slow_policy": "best_codes",
+        "slow_quantum_trials_override": args.slow_quantum_trials_override,
         "quantum_refine_chunk": args.quantum_refine_chunk,
         "report_every": args.report_every,
         "max_quantum_evals": args.max_quantum_evals,
@@ -1853,6 +2359,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "dedup_cayley": bool(args.dedup_cayley),
         "min_distinct": args.min_distinct,
         "timings": bool(args.timings),
+        "best_codes_source": args.best_codes_source,
+        "best_codes_refresh_seconds": args.best_codes_refresh_seconds,
+        "best_codes_verbose": bool(args.best_codes_verbose),
+        "save_new_bests": save_new_bests_dir is not None,
+        "save_new_bests_dir": (
+            _relpath_or_abs(save_new_bests_dir, repo_root)
+            if save_new_bests_dir is not None
+            else None
+        ),
     }
     (outdir / "run_meta.json").write_text(
         json.dumps(run_meta, indent=2, sort_keys=True), encoding="utf-8"
@@ -2022,6 +2537,14 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     last_report_time = time.monotonic()
     last_report_eval = 0
 
+    best_codes_cache = BestCodesIndexCache(
+        repo_root=repo_root,
+        source=args.best_codes_source,
+        refresh_seconds=args.best_codes_refresh_seconds,
+        verbose=args.best_codes_verbose,
+    )
+    best_codes_cache.refresh()
+
     interrupted = False
     try:
         for a_setting, b_setting in _iter_progressive_pairs(a_rounds, b_rounds):
@@ -2065,6 +2588,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             current = best_by_k.get(k_val)
             best = 0 if current is None else int(current["d_ub"])
             must_exceed = max(best, args.target_distance - 1)
+            best_codes_index = best_codes_cache.get_index()
+            best_entry = best_codes_index.get((n_cols, k_val))
+            best_codes_info = best_codes_cache.info()
 
             def _log_refine(
                 chunk_index: int,
@@ -2081,42 +2607,123 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     f"dX_best={d_x_best} dZ_best={d_z_best}{note}"
                 )
 
+            plan_holder: Dict[str, SlowDistanceDecision] = {}
+
+            def _decide_slow(
+                d_x_best: int,
+                d_z_best: int,
+                steps_fast: int,
+                steps_slow: int,
+            ) -> SlowDistanceDecision:
+                d_fast = min(int(d_x_best), int(d_z_best))
+                plan = decide_slow_quantum_plan(
+                    d_fast=d_fast,
+                    fast_trials=args.quantum_steps_fast,
+                    best_entry=best_entry,
+                    override=args.slow_quantum_trials_override,
+                )
+                if (
+                    args.slow_quantum_trials_override is not None
+                    and args.slow_quantum_trials_override < MIN_SLOW_TRIALS
+                ):
+                    print(
+                        "[progressive] slow-quantum-trials-override "
+                        f"{args.slow_quantum_trials_override} below "
+                        f"{MIN_SLOW_TRIALS}; enforcing minimum."
+                    )
+                plan_holder["plan"] = plan
+                return plan
+
+            def _refine_abort_check(
+                d_x_best: int,
+                d_z_best: int,
+            ) -> Optional[str]:
+                if best_entry is None:
+                    return None
+                best_d = best_entry.d
+                if best_d is None:
+                    return None
+                if should_abort_refine(d_x_best, d_z_best, best_d):
+                    d_ub = min(int(d_x_best), int(d_z_best))
+                    best_trials = best_entry.m4ri_trials
+                    print(
+                        "Abort refine: "
+                        f"(n,k)=({n_cols},{k_val}) d_ub={d_ub} "
+                        f"<= best_d={best_d} (best_trials={best_trials})"
+                    )
+                    return "best_codes"
+                return None
+
             distance_result = _progressive_css_distance(
                 hx_rows,
                 hz_rows,
                 n_cols,
                 must_exceed=must_exceed,
                 steps_fast=args.quantum_steps_fast,
-                steps_slow=args.quantum_steps_slow,
+                steps_slow=args.quantum_steps_fast,
                 refine_chunk=args.quantum_refine_chunk,
                 rng=rng,
                 dist_m4ri_cmd=args.dist_m4ri_cmd,
                 on_chunk=_log_refine,
                 timings=run_timings,
+                slow_decider=_decide_slow,
+                refine_abort_check=_refine_abort_check,
             )
+            plan = plan_holder.get("plan")
             d_x_best = distance_result.d_x_best
             d_z_best = distance_result.d_z_best
+            d_fast = min(d_x_best, d_z_best)
             steps_used = distance_result.steps_x + distance_result.steps_z
             d_final_ub = min(d_x_best, d_z_best)
-            is_new_best = False
+            is_new_best_by_k = False
             decision = "reject"
             if distance_result.passed_fast:
-                if distance_result.aborted:
+                if distance_result.slow_skipped:
+                    decision = "skip_slow"
+                elif distance_result.aborted:
                     decision = "refine"
                 else:
-                    is_new_best = (
+                    is_new_best_by_k = (
                         d_final_ub > best
                         and d_final_ub >= args.target_distance
                     )
-                    decision = "new_best" if is_new_best else "refine"
+                    decision = "new_best" if is_new_best_by_k else "refine"
+            if plan and plan.best_d is not None and d_fast <= plan.best_d:
+                print(
+                    "Skip slow quantum: "
+                    f"(n,k)=({n_cols},{k_val}) d_fast={d_fast} "
+                    f"current best d={plan.best_d} best trials={plan.best_trials}"
+                )
+            if args.best_codes_verbose and plan is not None:
+                source_label = best_codes_info.get("source", "?")
+                path_label = best_codes_info.get("path", "?")
+                if args.slow_quantum_trials_override is not None:
+                    trials_source = "override"
+                elif best_entry is not None and best_entry.m4ri_trials is not None:
+                    trials_source = "best_codes"
+                else:
+                    trials_source = "default_50k"
+                if plan.best_d is None:
+                    print(
+                        f"[best_codes] (n,k)=({n_cols},{k_val}) "
+                        f"no entry source={source_label}:{path_label} "
+                        f"slow_trials={plan.steps_slow} "
+                        f"slow_trials_source={trials_source}"
+                    )
+                else:
+                    print(
+                        f"[best_codes] (n,k)=({n_cols},{k_val}) "
+                        f"best_d={plan.best_d} best_trials={plan.best_trials} "
+                        f"slow_trials={plan.steps_slow} "
+                        f"slow_trials_source={trials_source} "
+                        f"source={source_label}:{path_label}"
+                    )
             print(
                 f"[eval] eval={eval_index} n={n_cols} k={k_val} best={best} "
                 f"target_distance={args.target_distance} "
                 f"must_exceed={must_exceed} steps_used={steps_used} "
                 f"dX_best={d_x_best} dZ_best={d_z_best} decision={decision}"
             )
-            if not is_new_best:
-                continue
 
             bookkeeping_start = time.perf_counter()
             timestamp = _timestamp_utc()
@@ -2125,6 +2732,43 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 f"k{k_val}_d{d_final_ub}"
             )
             code_id = _safe_id_component(code_id_raw)
+            slow_steps_target = distance_result.slow_steps_target
+            if slow_steps_target is None and plan is not None:
+                slow_steps_target = plan.steps_slow
+            if slow_steps_target is None:
+                slow_steps_target = args.quantum_steps_fast
+            best_d = plan.best_d if plan else None
+            best_trials = plan.best_trials if plan else None
+            best_code_id = plan.best_code_id if plan else None
+
+            best_codes_candidate = False
+            if best_d is None:
+                best_codes_candidate = True
+            else:
+                if best_trials is not None and steps_used < best_trials:
+                    best_codes_candidate = False
+                elif d_final_ub > best_d:
+                    best_codes_candidate = True
+                elif (
+                    d_final_ub == best_d
+                    and best_trials is not None
+                    and steps_used == best_trials
+                    and best_code_id
+                ):
+                    best_codes_candidate = code_id < best_code_id
+            if distance_result.aborted and distance_result.abort_reason == "best_codes":
+                best_codes_candidate = False
+
+            promising = _is_promising_code(n_cols, k_val, d_final_ub)
+            save_candidate = promising and (
+                distance_result.slow_skipped or best_codes_candidate
+            )
+            if not promising and distance_result.slow_skipped:
+                print(
+                    f"[progressive] skip save (non-promising): "
+                    f"n={n_cols} k={k_val} d_ub={d_final_ub}"
+                )
+
             classical_slices = {
                 **a_setting.record.get("slice_codes", {}),
                 **b_setting.record.get("slice_codes", {}),
@@ -2149,7 +2793,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     "method": "dist_m4ri_rw_progressive",
                     "wmin": must_exceed,
                     "steps_fast": args.quantum_steps_fast,
-                    "steps_slow": args.quantum_steps_slow,
+                    "steps_slow": slow_steps_target,
                     "refine_chunk": args.quantum_refine_chunk,
                     "fast": distance_result.fast,
                     "refine_chunks": distance_result.refine_chunks,
@@ -2159,63 +2803,129 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     "dX_best": d_x_best,
                     "dZ_best": d_z_best,
                     "d_ub": d_final_ub,
+                    "slow": {
+                        "skipped": distance_result.slow_skipped,
+                        "skip_reason": distance_result.slow_skip_reason,
+                        "steps_target": slow_steps_target,
+                    },
                 },
+                "best_codes": {
+                    "source": best_codes_info.get("source"),
+                    "path": best_codes_info.get("path"),
+                    "best_d": best_d,
+                    "best_trials": best_trials,
+                    "best_code_id": best_code_id,
+                },
+                "best_codes_candidate": best_codes_candidate,
                 "target_distance": args.target_distance,
                 "seed": seed,
             }
-            _save_best_code(
-                outdir=outdir,
-                code_id=code_id,
-                hx_rows=hx_rows,
-                hz_rows=hz_rows,
-                n_cols=n_cols,
-                meta=meta,
-                timings=run_timings,
-            )
-            best_by_k[k_val] = {
-                "d_ub": d_final_ub,
-                "steps": max(distance_result.steps_x, distance_result.steps_z),
-                "eval": eval_index,
-                "when": timestamp,
-                "A_id": a_setting.setting_id,
-                "B_id": b_setting.setting_id,
-                "code_id": code_id,
-            }
-            with milestones_path.open("a", encoding="utf-8") as mfile:
-                mfile.write(
-                    json.dumps(
-                        {
-                            "timestamp": timestamp,
-                            "eval": eval_index,
-                            "k": k_val,
-                            "d_ub": d_final_ub,
-                            "A_id": a_setting.setting_id,
-                            "B_id": b_setting.setting_id,
-                            "code_id": code_id,
-                        },
-                        sort_keys=True,
-                    )
-                    + "\n"
+            saved_best_code = False
+            if save_candidate:
+                _save_best_code(
+                    outdir=outdir,
+                    code_id=code_id,
+                    hx_rows=hx_rows,
+                    hz_rows=hz_rows,
+                    n_cols=n_cols,
+                    meta=meta,
+                    timings=run_timings,
                 )
-            print(
-                f"NEW_BEST {timestamp} eval={eval_index} n={n_cols} "
-                f"k={k_val} dX_best={d_x_best} dZ_best={d_z_best} "
-                f"d_ub={d_final_ub} steps_used={steps_used} "
-                f"A={a_setting.setting_id} B={b_setting.setting_id}"
-            )
-            if classical_slices:
-                print("classical slices:")
-                for key in ("A_H", "A_G", "B_G", "B_H"):
-                    entry = classical_slices.get(key)
-                    if entry is None:
-                        continue
-                    backend = entry.get("backend", "?")
-                    exact = entry.get("exact")
-                    mode = "exact" if exact else "sampled"
+                saved_best_code = True
+            if decision == "new_best" and not saved_best_code:
+                _save_best_code(
+                    outdir=outdir,
+                    code_id=code_id,
+                    hx_rows=hx_rows,
+                    hz_rows=hz_rows,
+                    n_cols=n_cols,
+                    meta=meta,
+                    timings=run_timings,
+                )
+                saved_best_code = True
+            if decision == "new_best":
+                code_dir = outdir / "best_codes" / code_id
+                artifact = {
+                    "schema": "qtanner.new_best.v1",
+                    "timestamp": timestamp,
+                    "decision": decision,
+                    "code_id": code_id,
+                    "group": {"spec": group.name, "order": group.order},
+                    "n": n_cols,
+                    "k": k_val,
+                    "A_id": a_setting.setting_id,
+                    "B_id": b_setting.setting_id,
+                    "A": a_setting.record,
+                    "B": b_setting.record,
+                    "local_codes": meta["local_codes"],
+                    "distance": meta["distance"],
+                    "dX_best": d_x_best,
+                    "dZ_best": d_z_best,
+                    "d_ub": d_final_ub,
+                    "steps_used": steps_used,
+                    "eval": eval_index,
+                    "seed": seed,
+                    "target_distance": args.target_distance,
+                    "promising": promising,
+                    "best_codes_candidate": best_codes_candidate,
+                    "artifacts": {
+                        "results_dir": _relpath_or_abs(outdir, repo_root),
+                        "code_dir": _relpath_or_abs(code_dir, repo_root),
+                        "hx_path": _relpath_or_abs(code_dir / "Hx.mtx", repo_root),
+                        "hz_path": _relpath_or_abs(code_dir / "Hz.mtx", repo_root),
+                        "meta_path": _relpath_or_abs(code_dir / "meta.json", repo_root),
+                    },
+                }
+                _maybe_save_new_best_artifact(
+                    decision=decision,
+                    save_dir=save_new_bests_dir,
+                    artifact=artifact,
+                )
+                if is_new_best_by_k:
+                    best_by_k[k_val] = {
+                        "d_ub": d_final_ub,
+                        "steps": max(distance_result.steps_x, distance_result.steps_z),
+                        "eval": eval_index,
+                        "when": timestamp,
+                        "A_id": a_setting.setting_id,
+                        "B_id": b_setting.setting_id,
+                        "code_id": code_id,
+                    }
+                    with milestones_path.open("a", encoding="utf-8") as mfile:
+                        mfile.write(
+                            json.dumps(
+                                {
+                                    "timestamp": timestamp,
+                                    "eval": eval_index,
+                                    "k": k_val,
+                                    "d_ub": d_final_ub,
+                                    "A_id": a_setting.setting_id,
+                                    "B_id": b_setting.setting_id,
+                                    "code_id": code_id,
+                                },
+                                sort_keys=True,
+                            )
+                            + "\n"
+                        )
                     print(
-                        f"  {key}: n={entry['n']} k={entry['k']} "
-                        f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
+                        f"NEW_BEST {timestamp} eval={eval_index} n={n_cols} "
+                        f"k={k_val} dX_best={d_x_best} dZ_best={d_z_best} "
+                        f"d_ub={d_final_ub} steps_used={steps_used} "
+                        f"A={a_setting.setting_id} B={b_setting.setting_id}"
                     )
+                    if classical_slices:
+                        print("classical slices:")
+                        for key in ("A_H", "A_G", "B_G", "B_H"):
+                            entry = classical_slices.get(key)
+                            if entry is None:
+                                continue
+                            backend = entry.get("backend", "?")
+                            exact = entry.get("exact")
+                            mode = "exact" if exact else "sampled"
+                            print(
+                                f"  {key}: n={entry['n']} k={entry['k']} "
+                                f"d_ub={entry['d_ub']} backend={backend} mode={mode}"
+                            )
             _add_timing(
                 run_timings,
                 "bookkeeping",
@@ -2249,9 +2959,14 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
 
 
 __all__ = [
+    "BestCodesEntry",
     "ProgressiveSetting",
+    "_maybe_save_new_best_artifact",
     "_enumerate_multisets_with_identity",
     "_interleaved_rounds",
     "_iter_progressive_pairs",
+    "compute_slow_trials",
+    "decide_slow_quantum_plan",
+    "should_abort_refine",
     "progressive_main",
 ]

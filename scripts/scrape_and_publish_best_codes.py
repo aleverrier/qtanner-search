@@ -44,7 +44,9 @@ def _print_summary(selected, records) -> None:
 
 
 def main(argv: List[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="Scrape repo for codes and publish best_codes updates.")
+    ap = argparse.ArgumentParser(
+        description="Scrape repo for codes (including codes/pending) and publish best_codes updates."
+    )
     ap.add_argument("--dry-run", action="store_true", help="Scan + select, but do not write or git.")
     ap.add_argument("--no-git", action="store_true", help="Skip git pull/commit/push.")
     ap.add_argument("--no-publish", action="store_true", help="Skip website data.json/index updates.")

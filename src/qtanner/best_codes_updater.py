@@ -228,6 +228,17 @@ def _safe_load_json(path: Path) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _resolve_artifact_path(repo_root: Path, raw: Any) -> Optional[Path]:
+    if raw is None:
+        return None
+    if not isinstance(raw, (str, Path)):
+        return None
+    p = Path(raw)
+    if not p.is_absolute():
+        p = repo_root / p
+    return p
+
+
 def _git_run(repo_root: Path, args: List[str], *, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=str(repo_root), text=True, capture_output=True, check=check)
 
@@ -453,8 +464,18 @@ def _record_from_meta_file(meta_path: Path, repo_root: Path, source_kind: str, *
     code_dir = None
     hx = None
     hz = None
+    artifacts = meta.get("artifacts") if isinstance(meta.get("artifacts"), dict) else None
+    if isinstance(artifacts, dict):
+        code_dir = _resolve_artifact_path(repo_root, artifacts.get("code_dir"))
+        hx = _resolve_artifact_path(repo_root, artifacts.get("hx_path"))
+        hz = _resolve_artifact_path(repo_root, artifacts.get("hz_path"))
+        if code_dir is not None and (hx is None or hz is None):
+            hx2, hz2 = _find_hx_hz_in_dir(code_dir)
+            hx = hx or hx2
+            hz = hz or hz2
+
     collected_dir = meta.get("collected_dir") if isinstance(meta.get("collected_dir"), str) else None
-    if collected_dir:
+    if code_dir is None and collected_dir:
         cand = repo_root / collected_dir
         if cand.exists():
             code_dir = cand
@@ -583,6 +604,16 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
     if meta_dir.exists():
         for meta_path in sorted(meta_dir.glob("*.json")):
             rec = _record_from_meta_file(meta_path, root, "best_codes_meta", verbose=verbose)
+            if rec:
+                records.append(rec)
+
+    # 3b) Scan new_best artifacts in codes/pending
+    pending_dir = root / "codes" / "pending"
+    if pending_dir.exists():
+        for meta_path in sorted(pending_dir.rglob("*.json")):
+            if not meta_path.is_file():
+                continue
+            rec = _record_from_meta_file(meta_path, root, "pending_json", verbose=verbose)
             if rec:
                 records.append(rec)
 
