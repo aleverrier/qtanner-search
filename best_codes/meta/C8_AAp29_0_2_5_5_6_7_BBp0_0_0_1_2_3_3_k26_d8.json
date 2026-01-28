@@ -72,7 +72,6 @@
     },
     "slice_n": 48
   },
-  "A_id": "Ap29_0-2-5-5-6-7",
   "B": {
     "checks": {
       "Gp": {
@@ -146,20 +145,49 @@
     },
     "slice_n": 48
   },
-  "B_id": "Bp0_0-0-1-2-3-3",
-  "artifacts": {
-    "code_dir": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_2_5_5_6_7_BBp0_0_0_1_2_3_3_k26_d8",
-    "hx_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_2_5_5_6_7_BBp0_0_0_1_2_3_3_k26_d8/Hx.mtx",
-    "hz_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_2_5_5_6_7_BBp0_0_0_1_2_3_3_k26_d8/Hz.mtx",
-    "meta_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_2_5_5_6_7_BBp0_0_0_1_2_3_3_k26_d8/meta.json",
-    "results_dir": "results/campaign_target8_20260128T135527Z/C8_seed4"
+  "best_codes": {
+    "best_code_id": null,
+    "best_d": null,
+    "best_trials": null,
+    "path": "best_codes/data.json",
+    "source": "origin"
   },
   "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 13,
+      "d_witness": 13,
+      "exact": false,
+      "k": 9,
+      "n": 48
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 13,
+      "d_witness": 13,
+      "exact": false,
+      "k": 9,
+      "n": 48
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 24,
+      "d_witness": 24,
+      "exact": true,
+      "k": 3,
+      "n": 48
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 24,
+      "d_witness": 24,
+      "exact": true,
+      "k": 3,
+      "n": 48
+    }
+  },
   "code_id": "C8_AAp29_0_2_5_5_6_7_BBp0_0_0_1_2_3_3_k26_d8",
-  "dX_best": 8,
-  "dZ_best": 8,
-  "d_ub": 8,
-  "decision": "new_best",
   "distance": {
     "dX_best": 8,
     "dZ_best": 8,
@@ -256,7 +284,6 @@
     "steps_used_z": 50000,
     "wmin": 7
   },
-  "eval": 515,
   "group": {
     "order": 8,
     "spec": "C8"
@@ -271,10 +298,6 @@
     "permB_idx": 0
   },
   "n": 288,
-  "promising": false,
-  "schema": "qtanner.new_best.v1",
   "seed": 4,
-  "steps_used": 100000,
-  "target_distance": 8,
-  "timestamp": "20260128T135934Z"
+  "target_distance": 8
 }
