@@ -1,4 +1,7 @@
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 import json, os, re, shutil, tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone

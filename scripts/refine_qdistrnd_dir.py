@@ -11,8 +11,11 @@ Prints a single parseable line:
 
 The 'd' reported is min(dX,dZ) (an upper bound found by QDistRnd's random search).
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import os

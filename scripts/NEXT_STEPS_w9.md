@@ -9,7 +9,7 @@ Use the deep wrapper (it forwards arguments with more aggressive defaults: large
 `qd-num=2000`, and GAP session enabled):
 
 ```bash
-python scripts/run_one_group_w9_deep.py --only-group 4,2 --slice-d-min 9
+./scripts/py scripts/run_one_group_w9_deep.py --only-group 4,2 --slice-d-min 9
 ```
 
 Notes:
@@ -25,7 +25,7 @@ If you only see `k=2,4` (or similarly tiny dimensions), you likely need to incre
 coverage and/or loosen slice filtering:
 
 ```bash
-python scripts/run_one_group_w9_deep.py \
+./scripts/py scripts/run_one_group_w9_deep.py \
   --only-group 4,2 \
   --slice-d-min 9 \
   --max-A 200 --max-B 200 --max-pairs 20000 \
@@ -38,7 +38,7 @@ When you have a promising candidate directory under `data/tmp/search_w9_smallgro
 contains `Hx.mtx` and `Hz.mtx`, re-run QDistRnd with more trials:
 
 ```bash
-python scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/o4_g2_p123_a12_b20 \
+./scripts/py scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/o4_g2_p123_a12_b20 \
   --qd-num 2000 --qd-mindist 12 --timeout 180
 ```
 
@@ -51,7 +51,7 @@ If a candidate is clearly leading for its `(n,k)` bucket, you can bump to 10k on
 candidate (still far below the 50k used in the paper):
 
 ```bash
-python scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/<cand_dir> \
+./scripts/py scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/<cand_dir> \
   --qd-num 10000 --qd-mindist <best_d_so_far>
 ```
 

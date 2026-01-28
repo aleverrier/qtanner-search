@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Run a tiny [6,3,3]x[6,3,3] Tanner instance and assert CSS commutation."""
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import sys
 from pathlib import Path

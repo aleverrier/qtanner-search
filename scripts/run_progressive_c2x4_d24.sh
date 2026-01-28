@@ -28,10 +28,10 @@ REPORT_EVERY="${REPORT_EVERY:-50}"
 SEED="${SEED:-0}"
 
 # Use whichever progressive CLI interface exists
-if python -m qtanner.search progressive --help >/dev/null 2>&1; then
-  CMD=(python -m qtanner.search progressive)
+if ./scripts/py -m qtanner.search progressive --help >/dev/null 2>&1; then
+  CMD=(./scripts/py -m qtanner.search progressive)
 else
-  CMD=(python -m qtanner.search --mode progressive)
+  CMD=(./scripts/py -m qtanner.search --mode progressive)
 fi
 
 echo "OUTDIR=$OUTDIR" | tee "$OUTDIR/run.log"

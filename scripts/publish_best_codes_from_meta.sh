@@ -4,7 +4,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py
 
 # Stage everything, but DO NOT push here
 git add -A

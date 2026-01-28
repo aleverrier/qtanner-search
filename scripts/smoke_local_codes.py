@@ -1,6 +1,9 @@
 """Quick smoke checks for local code variants."""
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import os
 import sys

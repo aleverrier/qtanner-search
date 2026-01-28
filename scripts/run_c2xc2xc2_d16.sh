@@ -4,7 +4,7 @@ set -euo pipefail
 TS="$(date +%Y%m%d_%H%M%S)"
 OUTDIR="results/c2xc2xc2_d16_${TS}"
 
-python -m qtanner.search \
+./scripts/py -m qtanner.search \
   --groups C2xC2xC2 \
   --max-n 288 \
   --steps 4000 \

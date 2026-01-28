@@ -15,8 +15,11 @@ This script is designed to be forgiving with CLI flags, so you can keep using:
 
 All other unknown flags are passed through to the underlying search script.
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import datetime as _dt

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 
 import argparse
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -17,7 +21,7 @@ def main() -> int:
     args, _unknown = ap.parse_known_args()
 
     script = Path(__file__).resolve().parent / "rebuild_best_codes_artifacts_from_meta.py"
-    cmd = ["python3", str(script), "--best-dir", args.best_dir]
+    cmd = [sys.executable, str(script), "--best-dir", args.best_dir]
     print("[info] ensure_best_codes_data_json_from_meta.py -> rebuild_best_codes_artifacts_from_meta.py")
     return subprocess.call(cmd)
 

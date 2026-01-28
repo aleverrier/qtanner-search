@@ -44,7 +44,7 @@ echo "Parallel jobs:  $PARALLEL"
 echo
 
 # Detect which flag name your code uses for "classical sample size"
-HELP_OUT="$(python3 "$SEARCH_SCRIPT" --help 2>&1 || true)"
+HELP_OUT="$(./scripts/py "$SEARCH_SCRIPT" --help 2>&1 || true)"
 
 CLASSICAL_MAX_FLAG=""
 if echo "$HELP_OUT" | grep -q -- '--classical-sample-codewords'; then
@@ -58,7 +58,7 @@ else
   echo "I searched for: --classical-sample-codewords / --classical-max-codewords / --classical-sample"
   echo
   echo "Run this and paste the output to me:"
-  echo "  python3 $SEARCH_SCRIPT --help | sed -n '1,200p'"
+  echo "  ./scripts/py $SEARCH_SCRIPT --help | sed -n '1,200p'"
   exit 1
 fi
 
@@ -115,7 +115,7 @@ EOF
   echo "[start] ${group} seed=${seed}"
 
   (
-    python3 -u "$SEARCH_SCRIPT" \
+    ./scripts/py -u "$SEARCH_SCRIPT" \
       --group "$group" \
       "$DIST_FLAG" "$TARGET_DIST" \
       --seed "$seed" \

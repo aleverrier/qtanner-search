@@ -12,8 +12,11 @@ This script writes a JSONL file with one record per refinement attempt, includin
 It relies on the candidate directories produced in --tmpdir, each containing:
   - Hx.mtx, Hz.mtx
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import json

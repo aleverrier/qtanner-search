@@ -4,7 +4,7 @@ set -euo pipefail
 TS="$(date +%Y%m%d_%H%M%S)"
 OUTDIR="results/progressive_c2xc2xc2_d16_${TS}"
 
-python3 -m qtanner.search progressive \
+./scripts/py -m qtanner.search progressive \
   --group C2xC2xC2xC2 \
   --target-distance 16 \
   --classical-steps 100 \

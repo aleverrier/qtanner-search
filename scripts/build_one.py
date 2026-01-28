@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Build one lifted quantum Tanner code instance and write outputs."""
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import json

@@ -5,13 +5,16 @@ This is a convenience wrapper around scripts/run_search_w9_smallgroups.py.
 
 Typical usage:
 
-  python scripts/run_one_group_w9_deep.py --only-group 4,2
-  python scripts/run_one_group_w9_deep.py --only-group 4,2 --slice-d-min 9
+  ./scripts/py scripts/run_one_group_w9_deep.py --only-group 4,2
+  ./scripts/py scripts/run_one_group_w9_deep.py --only-group 4,2 --slice-d-min 9
 
 Any extra arguments are forwarded to run_search_w9_smallgroups.py.
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import os

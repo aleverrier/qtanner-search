@@ -11,8 +11,11 @@ Thin wrapper around scripts/run_search_w9_smallgroups.py to support:
 It also accepts --top-per-nk for compatibility but does not forward it to
 run_search_w9_smallgroups.py (which does not know that flag).
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import subprocess

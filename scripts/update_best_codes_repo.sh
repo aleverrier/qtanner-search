@@ -5,10 +5,10 @@ ROOT="$(git rev-parse --show-toplevel)"
 cd "$ROOT"
 
 echo "[update_best_codes_repo] Collecting best codes..."
-python scripts/collect_best_codes.py
+./scripts/py scripts/collect_best_codes.py
 
 echo "[update_best_codes_repo] Regenerating website data.json..."
-python scripts/generate_best_codes_site.py
+./scripts/py scripts/generate_best_codes_site.py
 
 # Stage ONLY curated outputs (never add results/ or runs/)
 git add \

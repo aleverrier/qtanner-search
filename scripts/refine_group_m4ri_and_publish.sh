@@ -11,7 +11,7 @@ GROUP="$1"
 TRIALS="$2"
 shift 2
 
-python3 scripts/refine_best_codes_m4ri.py --group "${GROUP}" --trials "${TRIALS}" "$@"
+./scripts/py scripts/refine_best_codes_m4ri.py --group "${GROUP}" --trials "${TRIALS}" "$@"
 
 # Regenerate website + commit/push (your existing script already does that)
 bash scripts/update_best_codes_repo.sh

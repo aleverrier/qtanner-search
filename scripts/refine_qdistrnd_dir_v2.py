@@ -11,13 +11,16 @@ that contains:
 
 Example:
 
-  python scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/o4_g2_p12_a7_b19 \
+  ./scripts/py scripts/refine_qdistrnd_dir.py data/tmp/search_w9_smallgroups/o4_g2_p12_a7_b19 \
     --qd-num 2000 --qd-mindist 12
 
 Outputs a single machine-readable line starting with "QDISTRESULT".
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import re

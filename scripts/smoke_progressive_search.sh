@@ -13,7 +13,7 @@ if [[ "${SMOKE_BEST_CODES_UPDATE:-0}" == "1" ]]; then
   BEST_CODES_ARGS=(--no-git --no-publish --best-codes-no-history)
 fi
 
-python -u scripts/search_progressive.py \
+./scripts/py -u scripts/search_progressive.py \
   --group "C2" \
   --target-distance 2 \
   --classical-target 2 \

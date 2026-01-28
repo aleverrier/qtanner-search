@@ -15,13 +15,16 @@ By default, rows whose text contains "archived" or "below_min_trials" are ignore
 so archived results won't reappear on the website.
 
 Run (from repo root):
-  python3 scripts/update_website.py
+  ./scripts/py scripts/update_website.py
 
 If auto-detection ever picks the wrong dataset file, force it:
-  python3 scripts/update_website.py --data-file docs/some_file.json
+  ./scripts/py scripts/update_website.py --data-file docs/some_file.json
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import csv

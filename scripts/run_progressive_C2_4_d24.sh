@@ -10,7 +10,7 @@ export DIST_M4RI="${DIST_M4RI:-$HOME/research/qtanner-tools/dist-m4ri/src/dist_m
 # Make sure progress prints immediately
 export PYTHONUNBUFFERED=1
 
-python -u scripts/search_progressive.py \
+./scripts/py -u scripts/search_progressive.py \
   --G 'C2^4' \
   --d0 24 \
   --min_classical_distance 24 \

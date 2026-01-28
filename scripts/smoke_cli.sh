@@ -12,7 +12,7 @@ cat <<'EOS' > "${TMP_DIR}/qtanner"
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 export PYTHONPATH="${ROOT}/src:${PYTHONPATH:-}"
-exec python -m qtanner.cli "$@"
+exec ./scripts/py -m qtanner.cli "$@"
 EOS
 chmod +x "${TMP_DIR}/qtanner"
 export PATH="${TMP_DIR}:${PATH}"

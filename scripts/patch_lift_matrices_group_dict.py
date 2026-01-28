@@ -13,13 +13,16 @@ cached via functools.lru_cache.
 
 Usage:
   # restore clean version
-  python scripts/patch_lift_matrices_group_dict.py --git-restore
+  ./scripts/py scripts/patch_lift_matrices_group_dict.py --git-restore
 
   # apply patch
-  python scripts/patch_lift_matrices_group_dict.py
+  ./scripts/py scripts/patch_lift_matrices_group_dict.py
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import subprocess

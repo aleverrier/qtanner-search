@@ -15,11 +15,14 @@ What it does (best-effort, robust to missing info):
 - Tries to find and copy matching .mtx matrices into best_codes/matrices/
 
 Usage:
-  python scripts/update_best_log.py --dry-run
-  python scripts/update_best_log.py --write
+  ./scripts/py scripts/update_best_log.py --dry-run
+  ./scripts/py scripts/update_best_log.py --write
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import json

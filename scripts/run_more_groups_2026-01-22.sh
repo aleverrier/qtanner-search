@@ -25,11 +25,11 @@ elif [ -x ./qtanner-search ]; then
   RUNNER=(./qtanner-search)
 fi
 
-# (b) if it looks like a python package, try installing it in editable mode
+# (b) if it looks like a ./scripts/py package, try installing it in editable mode
 if [ "${#RUNNER[@]}" -eq 0 ]; then
   if [ -f pyproject.toml ] || [ -f setup.py ]; then
-    echo "[info] No CLI found yet. Trying: python3 -m pip install -e ."
-    python3 -m pip install -e . >/dev/null 2>&1 || true
+    echo "[info] No CLI found yet. Trying: ./scripts/py -m pip install -e ."
+    ./scripts/py -m pip install -e . >/dev/null 2>&1 || true
 
     if command -v qtanner-search >/dev/null 2>&1; then
       RUNNER=(qtanner-search)
@@ -39,11 +39,11 @@ if [ "${#RUNNER[@]}" -eq 0 ]; then
   fi
 fi
 
-# (c) last resort: search for a python/sh entrypoint mentioning '--group'
+# (c) last resort: search for a ./scripts/py/sh entrypoint mentioning '--group'
 if [ "${#RUNNER[@]}" -eq 0 ]; then
   echo "[info] Searching repo for an entrypoint mentioning '--group'..."
 
-  # Find up to ~50 candidate files (python or shell), skipping common bulky dirs.
+  # Find up to ~50 candidate files (./scripts/py or shell), skipping common bulky dirs.
   CANDS=""
   CANDS="$(find . \
     -path './.git' -prune -o \
@@ -55,24 +55,24 @@ if [ "${#RUNNER[@]}" -eq 0 ]; then
 
   for f in $CANDS; do
     if grep -q -- "--group" "$f" 2>/dev/null; then
-      # Try python module form first (handles relative imports better)
+      # Try ./scripts/py module form first (handles relative imports better)
       if [[ "$f" == *.py ]]; then
         mod="${f#./}"
         mod="${mod#src/}"
         mod="${mod%.py}"
         mod="${mod//\//.}"
 
-        if PYTHONPATH=".:src:${PYTHONPATH:-}" python3 -m "$mod" --help >/tmp/qt_help 2>&1; then
+        if PYTHONPATH=".:src:${PYTHONPATH:-}" ./scripts/py -m "$mod" --help >/tmp/qt_help 2>&1; then
           if grep -q -- "--group" /tmp/qt_help; then
-            RUNNER=(python3 -m "$mod")
+            RUNNER=(./scripts/py -m "$mod")
             break
           fi
         fi
 
         # Fallback: run as a script
-        if PYTHONPATH=".:src:${PYTHONPATH:-}" python3 "$f" --help >/tmp/qt_help 2>&1; then
+        if PYTHONPATH=".:src:${PYTHONPATH:-}" ./scripts/py "$f" --help >/tmp/qt_help 2>&1; then
           if grep -q -- "--group" /tmp/qt_help; then
-            RUNNER=(python3 "$f")
+            RUNNER=(./scripts/py "$f")
             break
           fi
         fi

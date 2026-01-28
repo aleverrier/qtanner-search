@@ -53,7 +53,7 @@ if [[ "${PULL}" -eq 1 ]]; then
 fi
 
 if [[ "${VERIFY}" -eq 1 ]]; then
-  python3 scripts/publish_best_codes_group.py \
+  ./scripts/py scripts/publish_best_codes_group.py \
     ${GROUP:+--group "$GROUP"} \
     ${ORDER:+--order "$ORDER"} \
     --best-dir "$BEST_DIR" \
@@ -62,7 +62,7 @@ if [[ "${VERIFY}" -eq 1 ]]; then
 fi
 
 TMP_GROUPS="$(mktemp)"
-python3 scripts/publish_best_codes_group.py \
+./scripts/py scripts/publish_best_codes_group.py \
   ${GROUP:+--group "$GROUP"} \
   ${ORDER:+--order "$ORDER"} \
   --best-dir "$BEST_DIR" \
@@ -77,7 +77,7 @@ fi
 
 while IFS= read -r G; do
   [[ -n "$G" ]] || continue
-  MIN_TRIALS="$(python3 - <<PY
+  MIN_TRIALS="$(./scripts/py - <<PY
 import json
 from pathlib import Path
 path = Path("$BEST_DIR") / "min_trials_by_group.json"
@@ -85,13 +85,13 @@ data = json.loads(path.read_text()) if path.exists() else {}
 print(int(data.get("$G", data.get("SmallGroup", 0) or 0)))
 PY
   )"
-  python3 scripts/prune_best_codes_group.py --best-dir "$BEST_DIR" --group "$G" --min-trials "$MIN_TRIALS"
+  ./scripts/py scripts/prune_best_codes_group.py --best-dir "$BEST_DIR" --group "$G" --min-trials "$MIN_TRIALS"
 done < "$TMP_GROUPS"
 
 rm -f "$TMP_GROUPS"
 
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "$BEST_DIR"
-python3 scripts/sync_best_codes_matrices.py --best-dir "$BEST_DIR" || true
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "$BEST_DIR"
+./scripts/py scripts/sync_best_codes_matrices.py --best-dir "$BEST_DIR" || true
 
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 LABEL="${GROUP:-order=${ORDER}}"

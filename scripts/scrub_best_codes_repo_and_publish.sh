@@ -9,10 +9,10 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 echo "[1/3] scrub duplicates conservatively (keep smallest d_ub, max trials)"
-python3 scripts/scrub_best_codes_repo.py --best-dir "${BEST_DIR}" --archive-root "${BEST_DIR}/archived/scrub_all_${TS}"
+./scripts/py scripts/scrub_best_codes_repo.py --best-dir "${BEST_DIR}" --archive-root "${BEST_DIR}/archived/scrub_all_${TS}"
 
 echo "[2/3] rebuild website artifacts from active meta only (non-recursive)"
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "${BEST_DIR}"
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "${BEST_DIR}"
 
 echo "[3/3] commit + push"
 if [[ -n "$(git status --porcelain)" ]]; then

@@ -28,7 +28,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 echo "[1/5] refine ALL codes with n=$N to trials=$TRIALS (per side), jobs=$JOBS"
-python3 scripts/refine_best_codes_m4ri_by_length.py \
+./scripts/py scripts/refine_best_codes_m4ri_by_length.py \
   --best-dir best_codes \
   --n "$N" \
   --trials "$TRIALS" \
@@ -37,7 +37,7 @@ python3 scripts/refine_best_codes_m4ri_by_length.py \
   --dist-m4ri "$DIST_M4RI"
 
 echo "[2/5] prune-by-length: archive any remaining n=$N entries with trials < $TRIALS"
-python3 - <<PY
+./scripts/py - <<PY
 import json, re, shutil
 from pathlib import Path
 from datetime import datetime, timezone
@@ -108,11 +108,11 @@ for cid,_t in bad:
 PY
 
 echo "[3/5] rebuild website artifacts"
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir best_codes
-python3 scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir best_codes
+./scripts/py scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
 
 echo "[4/5] sync matrices (canonical __Hx/__Hz)"
-python3 scripts/sync_best_codes_matrices.py --best-dir best_codes || true
+./scripts/py scripts/sync_best_codes_matrices.py --best-dir best_codes || true
 
 echo "[5/5] commit + push"
 git add best_codes scripts

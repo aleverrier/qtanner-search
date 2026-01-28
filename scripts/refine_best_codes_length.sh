@@ -81,7 +81,7 @@ if [[ -n "${DIST_M4RI}" ]]; then
 fi
 
 if [[ "${VERIFY}" -eq 1 ]]; then
-  python3 scripts/refine_best_codes_length.py \
+  ./scripts/py scripts/refine_best_codes_length.py \
     --best-dir "$BEST_DIR" \
     --n "$N" \
     --trials-per-side "$TRIALS" \
@@ -89,15 +89,15 @@ if [[ "${VERIFY}" -eq 1 ]]; then
   exit $?
 fi
 
-python3 scripts/refine_best_codes_length.py \
+./scripts/py scripts/refine_best_codes_length.py \
   --best-dir "$BEST_DIR" \
   --n "$N" \
   --trials-per-side "$TRIALS" \
   --jobs "$JOBS" \
   ${DIST_M4RI:+--dist-m4ri "$DIST_M4RI"}
 
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "$BEST_DIR"
-python3 scripts/sync_best_codes_matrices.py --best-dir "$BEST_DIR" || true
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py --best-dir "$BEST_DIR"
+./scripts/py scripts/sync_best_codes_matrices.py --best-dir "$BEST_DIR" || true
 
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 git add -A

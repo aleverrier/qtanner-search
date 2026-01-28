@@ -2,7 +2,7 @@ for seed in 1 2 3 4 5 6; do
   RUN_DIR="results/progressive_C11_target24_seed${seed}_$(date -u +%Y%m%dT%H%M%SZ)"
   mkdir -p "$RUN_DIR"
 
-  python3 -u scripts/search_progressive.py \
+  ./scripts/py -u scripts/search_progressive.py \
     --group C11 \
     --target-distance 14 \
     --seed "$seed" \
@@ -27,12 +27,12 @@ SMOKE_BEST_CODES_UPDATE=1 bash scripts/smoke_progressive_search.sh
 
 Dry run (no filesystem or git changes):
 ```
-python3 scripts/scrape_and_publish_best_codes.py --dry-run
+./scripts/py scripts/scrape_and_publish_best_codes.py --dry-run
 ```
 
 Full update (sync best_codes/, rebuild data.json/index.tsv, commit + push):
 ```
-python3 scripts/scrape_and_publish_best_codes.py
+./scripts/py scripts/scrape_and_publish_best_codes.py
 ```
 
 Common flags:

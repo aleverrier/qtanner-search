@@ -4,13 +4,16 @@ Recover (A,B) and local permutations from LRZ paper .mtx parity-check matrices
 for the w=9 construction (local [6,3,3] on both sides), as implemented in build_QT.py.
 
 Single-code:
-  python scripts/lrz_recover_w9.py --hx path/to/HX_*.mtx --hz path/to/HZ_*.mtx
+  ./scripts/py scripts/lrz_recover_w9.py --hx path/to/HX_*.mtx --hz path/to/HZ_*.mtx
 
 Batch:
-  python scripts/lrz_recover_w9.py --root data/lrz_paper_mtx/633x633 \
+  ./scripts/py scripts/lrz_recover_w9.py --root data/lrz_paper_mtx/633x633 \
                                    --out  data/lrz_paper_mtx/633x633/recovered_codes.md
 """
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 
 import argparse
 import json

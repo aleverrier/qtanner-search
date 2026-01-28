@@ -3,13 +3,16 @@
 Run a command with a hard wall-clock timeout.
 
 Usage:
-  python scripts/run_with_timeout.py --seconds 180 --log results/logs/run.log -- <command> [args...]
+  ./scripts/py scripts/run_with_timeout.py --seconds 180 --log results/logs/run.log -- <command> [args...]
 
 Exit codes:
   - returns the command's exit code if it finishes in time
   - returns 124 on timeout
 """
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 
 import argparse
 import os
@@ -35,7 +38,7 @@ def main() -> int:
         cmd = cmd[1:]
 
     if not cmd:
-        ap.error("No command provided. Example: -- python scripts/run_search_w9_smallgroups.py")
+        ap.error("No command provided. Example: -- ./scripts/py scripts/run_search_w9_smallgroups.py")
 
     log_fh = None
     stdout = None

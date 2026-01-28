@@ -7,7 +7,7 @@ DIST_M4RI_CMD="${DIST_M4RI:-$HOME/research/qtanner-tools/dist-m4ri/src/dist_m4ri
 STAMP="$(date +%Y%m%d_%H%M%S)"
 OUTDIR="results/smoke_histogram_table_${STAMP}"
 
-python -u scripts/search_progressive.py \
+./scripts/py -u scripts/search_progressive.py \
   --group "C2" \
   --target-distance 2 \
   --classical-target 2 \

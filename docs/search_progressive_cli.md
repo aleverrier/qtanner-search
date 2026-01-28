@@ -81,7 +81,7 @@ updater to sync `best_codes/`, rebuild website data, and push to GitHub.
 If you interrupt the run with Ctrl-C, it will still attempt this update.
 
 Workflow:
-- Run `scripts/search_progressive.py` (or `python -m qtanner.search progressive`).
+- Run `scripts/search_progressive.py` (or `./scripts/py -m qtanner.search progressive`).
 - New best candidates are written to `codes/pending/*.json` when logged as `decision=new_best`.
 - Run `scripts/scrape_and_publish_best_codes.py` to scan pending artifacts and publish `best_codes/data.json`.
 
@@ -112,7 +112,7 @@ Workflow:
 
 Example:
 
-python3 -u scripts/search_progressive.py \
+./scripts/py -u scripts/search_progressive.py \
   --group "SmallGroup(16,1)" \
   --target-distance 16 \
   --classical-target 16 \

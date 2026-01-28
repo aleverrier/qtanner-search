@@ -1,4 +1,7 @@
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 import argparse, csv
 from pathlib import Path
 from typing import Any, Dict, List, Tuple

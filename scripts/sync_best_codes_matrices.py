@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 
 import argparse
 import shutil

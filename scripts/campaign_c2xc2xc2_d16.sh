@@ -11,8 +11,8 @@ if [ -f research/bin/activate ]; then
 fi
 
 # Basic checks
-if ! command -v python >/dev/null 2>&1; then
-  echo "ERROR: python not found." >&2
+if ! command -v ./scripts/py >/dev/null 2>&1; then
+  echo "ERROR: ./scripts/py not found." >&2
   exit 1
 fi
 if ! command -v dist_m4ri >/dev/null 2>&1; then
@@ -55,7 +55,7 @@ echo "STEPS_LIST=$STEPS_LIST"
 echo
 
 # Detect which flags exist on qtanner.search (so we don't pass unknown args)
-HELP="$(python -m qtanner.search --help 2>&1 || true)"
+HELP="$(./scripts/py -m qtanner.search --help 2>&1 || true)"
 HAS_STEPS=0;  echo "$HELP" | grep -q -- '--steps' && HAS_STEPS=1 || true
 HAS_SEED=0;   echo "$HELP" | grep -q -- '--seed' && HAS_SEED=1 || true
 HAS_TARGET=0; echo "$HELP" | grep -q -- '--target-distance' && HAS_TARGET=1 || true

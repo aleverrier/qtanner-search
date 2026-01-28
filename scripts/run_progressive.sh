@@ -53,4 +53,4 @@ ARGS=(
 [[ -n "$QFAST"    ]] && ARGS+=( --quantum-steps-fast "$QFAST" )
 [[ -n "$QSLOW"    ]] && ARGS+=( --quantum-steps-slow "$QSLOW" )
 
-python -u scripts/search_progressive.py "${ARGS[@]}" 2>&1 | tee "$LOG"
+./scripts/py -u scripts/search_progressive.py "${ARGS[@]}" 2>&1 | tee "$LOG"

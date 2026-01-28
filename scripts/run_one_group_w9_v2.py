@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Run a fast w=9 search for a single SmallGroup."""
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import os

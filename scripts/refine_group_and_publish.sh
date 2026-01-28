@@ -10,7 +10,7 @@ Usage:
 What it does:
   - Finds all codes in BEST_DIR/collected/ whose folder name starts with GROUP_
   - Runs:
-      python3 scripts/refine_best_codes_m4ri.py --best-dir BEST_DIR --group GROUP --trials N
+      ./scripts/py scripts/refine_best_codes_m4ri.py --best-dir BEST_DIR --group GROUP --trials N
   - Then runs:
       bash scripts/update_best_codes_repo.sh
   - Then commits + pushes the changes (including inside BEST_DIR if it is its own git repo)
@@ -149,7 +149,7 @@ if [[ "${PATTERN_SET}" -eq 1 || -n "${LIMIT}" || -n "${MINDIST}" || -n "${GAP}" 
 fi
 
 CMD=(
-  python3 scripts/refine_best_codes_m4ri.py
+  ./scripts/py scripts/refine_best_codes_m4ri.py
   --best-dir "${BEST_DIR}"
   --group "${GROUP}"
   --trials "${STEPS}"

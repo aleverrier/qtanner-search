@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Estimate CSS distance upper bounds from Hx/Hz .mtx files via QDistRnd."""
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import json

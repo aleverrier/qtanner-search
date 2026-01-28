@@ -24,20 +24,20 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 echo "[1/6] m4ri refine for group=$GROUP trials=$TRIALS (only if trials increases)"
-python3 scripts/refine_best_codes_m4ri.py --group "$GROUP" --trials "$TRIALS"
+./scripts/py scripts/refine_best_codes_m4ri.py --group "$GROUP" --trials "$TRIALS"
 
 echo "[2/6] rename code IDs if refined distance changed"
-python3 scripts/sync_best_codes_names_from_meta.py --group "$GROUP" --archive-collisions
+./scripts/py scripts/sync_best_codes_names_from_meta.py --group "$GROUP" --archive-collisions
 
 echo "[3/6] prune: enforce min trials AND keep only best per k"
-python3 scripts/prune_best_codes_group.py --group "$GROUP" --min-trials "$TRIALS"
+./scripts/py scripts/prune_best_codes_group.py --group "$GROUP" --min-trials "$TRIALS"
 
 echo "[4/6] rebuild website artifacts from meta"
-python3 scripts/rebuild_best_codes_artifacts_from_meta.py
-python3 scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
+./scripts/py scripts/rebuild_best_codes_artifacts_from_meta.py
+./scripts/py scripts/ensure_best_codes_data_json_from_meta.py --best-dir best_codes
 
 echo "[5/6] ASSERT: no remaining $GROUP code has trials < $TRIALS in data.json"
-python3 - <<PY
+./scripts/py - <<PY
 import json
 from pathlib import Path
 

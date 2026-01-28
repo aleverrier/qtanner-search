@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
 
 import argparse
 import itertools
@@ -11,7 +14,7 @@ import numpy as np
 
 # Reuse your working MatrixMarket reader + GAP exporter from lrz_recover_w9.py
 # Load helpers from scripts/lrz_recover_w9.py WITHOUT requiring 'scripts' to be importable.
-# This makes the script work when executed as: python scripts/lrz_recover_b2.py ...
+# This makes the script work when executed as: ./scripts/py scripts/lrz_recover_b2.py ...
 import importlib.util as _ilu
 
 _w9_path = Path(__file__).resolve().with_name("lrz_recover_w9.py")

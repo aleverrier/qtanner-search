@@ -29,7 +29,7 @@ RUN_ROOT="results/order16_min${MIN_DIST}_qf${QFAST}_qs${QSLOW}_${STAMP}"
 mkdir -p "$RUN_ROOT"
 
 # ===== detect optional CLI flags =====
-HELP="$(python3 scripts/search_progressive.py --help 2>&1 || true)"
+HELP="$(./scripts/py scripts/search_progressive.py --help 2>&1 || true)"
 
 EXTRA_CLASSICAL_ARGS=()
 if echo "$HELP" | grep -q -- '--classical-fast-max-codewords'; then
@@ -86,7 +86,7 @@ for seed in "${SEEDS[@]}"; do
 
     if [[ "$kind" == "spec" ]]; then
       # If your script supports --group-spec, use it.
-      printf '%q ' python3 -u scripts/search_progressive.py \
+      printf '%q ' ./scripts/py -u scripts/search_progressive.py \
         --group-spec "$val" \
         --target-distance "$MIN_DIST" \
         --seed "$seed" \
@@ -99,7 +99,7 @@ for seed in "${SEEDS[@]}"; do
       printf '\n' >> "$JOBLIST"
     else
       # Otherwise use --group alias mode.
-      printf '%q ' python3 -u scripts/search_progressive.py \
+      printf '%q ' ./scripts/py -u scripts/search_progressive.py \
         --group "$val" \
         --target-distance "$MIN_DIST" \
         --seed "$seed" \

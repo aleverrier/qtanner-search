@@ -16,12 +16,15 @@ Optional (off by default):
   Use --run-distance to enable; keep steps small.
 
 Usage:
-  python scripts/verify_collected_codes.py
-  python scripts/verify_collected_codes.py --limit 5
-  python scripts/verify_collected_codes.py --run-distance --steps 2000 --timeout 120
+  ./scripts/py scripts/verify_collected_codes.py
+  ./scripts/py scripts/verify_collected_codes.py --limit 5
+  ./scripts/py scripts/verify_collected_codes.py --run-distance --steps 2000 --timeout 120
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import re

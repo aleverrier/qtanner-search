@@ -4,8 +4,11 @@ Generate best_codes/data.json from best_codes/meta/*.json.
 
 This turns collected metadata into a static website data file.
 """
-
 from __future__ import annotations
+from _ensure_python import ensure_minimum_python
+ensure_minimum_python()
+
+
 
 import argparse
 import json
