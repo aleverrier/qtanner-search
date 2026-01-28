@@ -26707,7 +26707,7 @@
       "d_ub": 18,
       "group": "C11",
       "k": 12,
-      "m4ri_trials": 600000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A": {
           "checks": {
@@ -26890,6 +26890,10 @@
           }
         },
         "code_id": "C11_AAp6_0_0_0_1_4_5_BBp0_0_3_5_6_8_9_k12_d18",
+        "d": 18,
+        "dX_ub": 18,
+        "dZ_ub": 19,
+        "d_ub": 18,
         "distance": {
           "dX_best": 18,
           "dZ_best": 19,
@@ -26910,7 +26914,7 @@
               "steps": 3000
             }
           },
-          "method": "dist_m4ri_rw_progressive",
+          "method": "dist-m4ri",
           "refine_chunk": 20000,
           "refine_chunks": [
             {
@@ -27216,11 +27220,22 @@
           ],
           "steps_fast": 3000,
           "steps_slow": 300000,
-          "steps_used_total": 600000,
-          "steps_used_x": 300000,
-          "steps_used_z": 300000,
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000,
           "wmin": 17
         },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 18,
+          "dZ_ub": 19,
+          "d_ub": 18,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T07:52:10Z"
+        },
+        "distance_method": "RW",
         "group": {
           "order": 11,
           "spec": "C11"
@@ -27234,13 +27249,17 @@
           "permA_idx": 6,
           "permB_idx": 0
         },
+        "m4ri_seed": 1,
+        "m4ri_steps": 3000000,
         "n": 396,
         "seed": 1,
-        "target_distance": 14
+        "target_distance": 14,
+        "trials": 3000000,
+        "updated_at": "2026-01-28T07:52:10Z"
       },
       "n": 396,
-      "steps_used_total": 600000,
-      "trials": 600000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_12_1__AAp11_0_0_1_2_5_6_BBp27_0_1_4_6_7_11_k2_d29",
@@ -29532,13 +29551,13 @@
       "trials": 600000
     },
     {
-      "code_id": "SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30",
-      "dX_ub": null,
-      "dZ_ub": null,
-      "d_ub": 30,
+      "code_id": "SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26",
+      "dX_ub": 27,
+      "dZ_ub": 26,
+      "d_ub": 26,
       "group": "SmallGroup_12_1_",
       "k": 10,
-      "m4ri_trials": 600000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A_elems": [
           0,
@@ -29559,27 +29578,52 @@
         ],
         "B_id": "p27_0_1_6_6_7_11",
         "also_seen_in": [],
-        "code_id": "SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30",
+        "code_id": "SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26",
         "collected_at_utc": "2026-01-27T07:19:44Z",
-        "collected_dir": "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30",
+        "collected_dir": "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26",
         "collected_files": [
-          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/Hz.mtx",
-          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/Hx.mtx",
-          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/meta.json",
-          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/settings.json"
+          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26/Hz.mtx",
+          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26/Hx.mtx",
+          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26/meta.json",
+          "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26/settings.json"
         ],
-        "d_in_id": 30,
-        "d_recorded": 30,
+        "d": 26,
+        "dX_ub": 27,
+        "dZ_ub": 26,
+        "d_in_id": 26,
+        "d_recorded": 26,
         "d_recorded_kind": "from_code_id",
-        "distance_method": "dist-m4ri",
+        "d_ub": 26,
+        "distance": {
+          "dX_best": 27,
+          "dZ_best": 26,
+          "d_ub": 26,
+          "method": "dist-m4ri",
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000
+        },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 27,
+          "dZ_ub": 26,
+          "d_ub": 26,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T07:41:29Z"
+        },
+        "distance_method": "RW",
         "distance_seed": 2087358390,
         "distance_trials": 600000,
         "distance_trials_path": "distance/steps_used_total",
         "group": "SmallGroup_12_1_",
         "k": 10,
+        "m4ri_seed": 2087358390,
+        "m4ri_steps": 3000000,
         "matrices_flat": [
-          "best_codes/matrices/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30__Hz.mtx",
-          "best_codes/matrices/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30__Hx.mtx"
+          "best_codes/matrices/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26__Hz.mtx",
+          "best_codes/matrices/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d26__Hx.mtx"
         ],
         "n": 432,
         "permutation_candidates": [],
@@ -30144,11 +30188,13 @@
         },
         "source_meta_path_in_collected": "best_codes/collected/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/meta.json",
         "source_meta_path_in_src": "results/progressive_orders12_15_td14_20260125T212631Z/SmallGroup_12_1_/best_codes/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30/meta.json",
-        "src_dir": "results/progressive_orders12_15_td14_20260125T212631Z/SmallGroup_12_1_/best_codes/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30"
+        "src_dir": "results/progressive_orders12_15_td14_20260125T212631Z/SmallGroup_12_1_/best_codes/SmallGroup_12_1__AAp20_0_1_2_4_10_11_BBp27_0_1_6_6_7_11_k10_d30",
+        "trials": 3000000,
+        "updated_at": "2026-01-28T07:41:29Z"
       },
       "n": 432,
-      "steps_used_total": 600000,
-      "trials": 600000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_12_2__AAp26_0_1_2_3_8_10_BBp10_0_1_4_5_7_9_k12_d30",
@@ -35137,13 +35183,13 @@
       "trials": 600000
     },
     {
-      "code_id": "SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39",
-      "dX_ub": null,
-      "dZ_ub": null,
-      "d_ub": 39,
+      "code_id": "SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34",
+      "dX_ub": 34,
+      "dZ_ub": 34,
+      "d_ub": 34,
       "group": "SmallGroup_14_2_",
       "k": 4,
-      "m4ri_trials": 600000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A_elems": [
           0,
@@ -35166,27 +35212,52 @@
         "also_seen_in": [
           "results/progressive_order16_td16_EXT_20260125T210549Z/SmallGroup_12_/best_codes/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39"
         ],
-        "code_id": "SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39",
+        "code_id": "SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34",
         "collected_at_utc": "2026-01-27T07:19:44Z",
-        "collected_dir": "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39",
+        "collected_dir": "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34",
         "collected_files": [
-          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/Hz.mtx",
-          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/Hx.mtx",
-          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/meta.json",
-          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/settings.json"
+          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34/Hz.mtx",
+          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34/Hx.mtx",
+          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34/meta.json",
+          "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34/settings.json"
         ],
-        "d_in_id": 39,
-        "d_recorded": 39,
+        "d": 34,
+        "dX_ub": 34,
+        "dZ_ub": 34,
+        "d_in_id": 34,
+        "d_recorded": 34,
         "d_recorded_kind": "from_code_id",
-        "distance_method": "dist-m4ri",
+        "d_ub": 34,
+        "distance": {
+          "dX_best": 34,
+          "dZ_best": 34,
+          "d_ub": 34,
+          "method": "dist-m4ri",
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000
+        },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 34,
+          "dZ_ub": 34,
+          "d_ub": 34,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T07:46:49Z"
+        },
+        "distance_method": "RW",
         "distance_seed": 116003646,
         "distance_trials": 600000,
         "distance_trials_path": "distance/steps_used_total",
         "group": "SmallGroup_14_2_",
         "k": 4,
+        "m4ri_seed": 116003646,
+        "m4ri_steps": 3000000,
         "matrices_flat": [
-          "best_codes/matrices/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39__Hz.mtx",
-          "best_codes/matrices/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39__Hx.mtx"
+          "best_codes/matrices/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34__Hz.mtx",
+          "best_codes/matrices/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d34__Hx.mtx"
         ],
         "n": 504,
         "permutation_candidates": [],
@@ -35751,11 +35822,13 @@
         },
         "source_meta_path_in_collected": "best_codes/collected/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/meta.json",
         "source_meta_path_in_src": "results/progressive_order16_td16_EXT_20260125T210525Z/SmallGroup_16_2/best_codes/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39/meta.json",
-        "src_dir": "results/progressive_order16_td16_EXT_20260125T210525Z/SmallGroup_16_2/best_codes/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39"
+        "src_dir": "results/progressive_order16_td16_EXT_20260125T210525Z/SmallGroup_16_2/best_codes/SmallGroup_14_2__AAp15_0_1_3_4_7_11_BBp19_0_3_4_6_9_13_k4_d39",
+        "trials": 3000000,
+        "updated_at": "2026-01-28T07:46:49Z"
       },
       "n": 504,
-      "steps_used_total": 600000,
-      "trials": 600000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_14_2__AAp27_0_1_9_10_11_13_BBp10_0_1_3_7_8_11_k6_d45",
@@ -67187,6 +67260,6 @@
       "trials": 600000
     }
   ],
-  "generated_at_utc": "2026-01-28T07:24:52Z",
+  "generated_at_utc": "2026-01-28T07:52:20Z",
   "total_codes": 131
 }
