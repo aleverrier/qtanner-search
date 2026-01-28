@@ -12,6 +12,8 @@ for seed in 1 2 3 4 5 6; do
     2>&1 | tee "$RUN_DIR/run.log"
 done
 
+Interpreter override: set `QTANNER_PYTHON` to a specific Python (e.g., Homebrew) if you want to bypass the auto-selection logic in `./scripts/py`.
+
 By default, `scripts/search_progressive.py` now updates `best_codes/` at the end of a
 successful run (including publishing website data and pushing to GitHub). Use
 `--no-best-codes-update` to disable this, or pass `--no-git` / `--no-publish`
