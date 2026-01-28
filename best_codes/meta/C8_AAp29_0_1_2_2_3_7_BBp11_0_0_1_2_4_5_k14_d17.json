@@ -72,7 +72,6 @@
     },
     "slice_n": 48
   },
-  "A_id": "Ap29_0-1-2-2-3-7",
   "B": {
     "checks": {
       "Gp": {
@@ -146,20 +145,49 @@
     },
     "slice_n": 48
   },
-  "B_id": "Bp11_0-0-1-2-4-5",
-  "artifacts": {
-    "code_dir": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_1_2_2_3_7_BBp11_0_0_1_2_4_5_k14_d17",
-    "hx_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_1_2_2_3_7_BBp11_0_0_1_2_4_5_k14_d17/Hx.mtx",
-    "hz_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_1_2_2_3_7_BBp11_0_0_1_2_4_5_k14_d17/Hz.mtx",
-    "meta_path": "results/campaign_target8_20260128T135527Z/C8_seed4/best_codes/C8_AAp29_0_1_2_2_3_7_BBp11_0_0_1_2_4_5_k14_d17/meta.json",
-    "results_dir": "results/campaign_target8_20260128T135527Z/C8_seed4"
+  "best_codes": {
+    "best_code_id": "SmallGroup_8_1__AAp29_0_0_1_1_4_6_BBp8_0_3_4_4_6_6_k14_d16",
+    "best_d": 16,
+    "best_trials": 100000,
+    "path": "best_codes/data.json",
+    "source": "origin"
   },
   "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 18,
+      "d_witness": 18,
+      "exact": true,
+      "k": 7,
+      "n": 48
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 18,
+      "d_witness": 18,
+      "exact": true,
+      "k": 7,
+      "n": 48
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 32,
+      "d_witness": 32,
+      "exact": true,
+      "k": 2,
+      "n": 48
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 32,
+      "d_witness": 32,
+      "exact": true,
+      "k": 2,
+      "n": 48
+    }
+  },
   "code_id": "C8_AAp29_0_1_2_2_3_7_BBp11_0_0_1_2_4_5_k14_d17",
-  "dX_best": 18,
-  "dZ_best": 17,
-  "d_ub": 17,
-  "decision": "new_best",
   "distance": {
     "dX_best": 18,
     "dZ_best": 17,
@@ -296,7 +324,6 @@
     "steps_used_z": 100000,
     "wmin": 9
   },
-  "eval": 10849,
   "group": {
     "order": 8,
     "spec": "C8"
@@ -311,10 +338,6 @@
     "permB_idx": 11
   },
   "n": 288,
-  "promising": false,
-  "schema": "qtanner.new_best.v1",
   "seed": 4,
-  "steps_used": 200000,
-  "target_distance": 8,
-  "timestamp": "20260128T143411Z"
+  "target_distance": 8
 }

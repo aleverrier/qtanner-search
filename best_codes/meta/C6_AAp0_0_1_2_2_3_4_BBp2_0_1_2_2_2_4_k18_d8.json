@@ -72,7 +72,6 @@
     },
     "slice_n": 36
   },
-  "A_id": "Ap0_0-1-2-2-3-4",
   "B": {
     "checks": {
       "Gp": {
@@ -146,20 +145,49 @@
     },
     "slice_n": 36
   },
-  "B_id": "Bp2_0-1-2-2-2-4",
-  "artifacts": {
-    "code_dir": "results/campaign_target8_20260128T135527Z/C6_seed2/best_codes/C6_AAp0_0_1_2_2_3_4_BBp2_0_1_2_2_2_4_k18_d8",
-    "hx_path": "results/campaign_target8_20260128T135527Z/C6_seed2/best_codes/C6_AAp0_0_1_2_2_3_4_BBp2_0_1_2_2_2_4_k18_d8/Hx.mtx",
-    "hz_path": "results/campaign_target8_20260128T135527Z/C6_seed2/best_codes/C6_AAp0_0_1_2_2_3_4_BBp2_0_1_2_2_2_4_k18_d8/Hz.mtx",
-    "meta_path": "results/campaign_target8_20260128T135527Z/C6_seed2/best_codes/C6_AAp0_0_1_2_2_3_4_BBp2_0_1_2_2_2_4_k18_d8/meta.json",
-    "results_dir": "results/campaign_target8_20260128T135527Z/C6_seed2"
+  "best_codes": {
+    "best_code_id": null,
+    "best_d": null,
+    "best_trials": null,
+    "path": "best_codes/data.json",
+    "source": "origin"
   },
   "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 10,
+      "d_witness": 10,
+      "exact": true,
+      "k": 8,
+      "n": 36
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 10,
+      "d_witness": 10,
+      "exact": true,
+      "k": 8,
+      "n": 36
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 7,
+      "d_witness": 7,
+      "exact": true,
+      "k": 7,
+      "n": 36
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 7,
+      "d_witness": 7,
+      "exact": true,
+      "k": 7,
+      "n": 36
+    }
+  },
   "code_id": "C6_AAp0_0_1_2_2_3_4_BBp2_0_1_2_2_2_4_k18_d8",
-  "dX_best": 8,
-  "dZ_best": 8,
-  "d_ub": 8,
-  "decision": "new_best",
   "distance": {
     "dX_best": 8,
     "dZ_best": 8,
@@ -256,7 +284,6 @@
     "steps_used_z": 50000,
     "wmin": 7
   },
-  "eval": 4890,
   "group": {
     "order": 6,
     "spec": "C6"
@@ -271,10 +298,6 @@
     "permB_idx": 2
   },
   "n": 216,
-  "promising": false,
-  "schema": "qtanner.new_best.v1",
   "seed": 2,
-  "steps_used": 100000,
-  "target_distance": 8,
-  "timestamp": "20260128T143029Z"
+  "target_distance": 8
 }
