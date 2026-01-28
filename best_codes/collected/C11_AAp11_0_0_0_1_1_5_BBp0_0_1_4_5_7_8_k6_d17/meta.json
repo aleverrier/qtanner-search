@@ -180,6 +180,10 @@
     }
   },
   "code_id": "C11_AAp11_0_0_0_1_1_5_BBp0_0_1_4_5_7_8_k6_d17",
+  "d": 17,
+  "dX_ub": 17,
+  "dZ_ub": 17,
+  "d_ub": 17,
   "distance": {
     "dX_best": 17,
     "dZ_best": 17,
@@ -200,7 +204,7 @@
         "steps": 3000
       }
     },
-    "method": "dist_m4ri_rw_progressive",
+    "method": "dist-m4ri",
     "refine_chunk": 20000,
     "refine_chunks": [
       {
@@ -506,11 +510,22 @@
     ],
     "steps_fast": 3000,
     "steps_slow": 300000,
-    "steps_used_total": 600000,
-    "steps_used_x": 300000,
-    "steps_used_z": 300000,
+    "steps_used_total": 6000000,
+    "steps_used_x": 3000000,
+    "steps_used_z": 3000000,
     "wmin": 16
   },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 17,
+    "dZ_ub": 17,
+    "d_ub": 17,
+    "method": "RW",
+    "steps_per_side": 3000000,
+    "updated_at": "2026-01-28T02:27:56Z"
+  },
+  "distance_method": "RW",
   "group": {
     "order": 11,
     "spec": "C11"
@@ -524,7 +539,11 @@
     "permA_idx": 11,
     "permB_idx": 0
   },
+  "m4ri_seed": 1,
+  "m4ri_steps": 3000000,
   "n": 396,
   "seed": 1,
-  "target_distance": 14
+  "target_distance": 14,
+  "trials": 3000000,
+  "updated_at": "2026-01-28T02:27:56Z"
 }
