@@ -1089,10 +1089,40 @@ def _run_git(cmd: List[str], repo_root: Path, *, check: bool = True) -> subproce
 
 
 def git_pull_rebase(repo_root: Path, *, verbose: bool = False) -> None:
-    cmd = ["git", "pull", "--rebase", "--autostash"]
-    if verbose:
-        print("[git] " + " ".join(cmd))
-    subprocess.check_call(cmd, cwd=str(repo_root))
+    def _run(cmd: List[str]) -> subprocess.CompletedProcess:
+        if verbose:
+            print("[git] " + " ".join(cmd))
+        return subprocess.run(cmd, cwd=str(repo_root), text=True, capture_output=True)
+
+    branch_res = _run(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    if branch_res.returncode != 0:
+        raise subprocess.CalledProcessError(
+            branch_res.returncode,
+            branch_res.args,
+            branch_res.stdout,
+            branch_res.stderr,
+        )
+    branch = (branch_res.stdout or "").strip() or "main"
+
+    fetch_cmd = ["git", "fetch", "origin", branch]
+    fetch_res = _run(fetch_cmd)
+    if fetch_res.returncode != 0:
+        raise subprocess.CalledProcessError(
+            fetch_res.returncode,
+            fetch_cmd,
+            fetch_res.stdout,
+            fetch_res.stderr,
+        )
+
+    rebase_cmd = ["git", "rebase", "--autostash", f"origin/{branch}"]
+    rebase_res = _run(rebase_cmd)
+    if rebase_res.returncode != 0:
+        raise subprocess.CalledProcessError(
+            rebase_res.returncode,
+            rebase_cmd,
+            rebase_res.stdout,
+            rebase_res.stderr,
+        )
 
 
 def git_commit_and_push(repo_root: Path, commit_message: str, retry_on_nonfastforward: bool = True) -> bool:
