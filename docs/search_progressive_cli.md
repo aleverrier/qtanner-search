@@ -66,6 +66,8 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   Print summary every N quantum evals.
 - `--results-dir PATH`
   Output directory.
+- `--min-base-k MIN_BASE_K`
+  Only consider local-code permutations whose unlifted/base code dimension is >= MIN_BASE_K.
 - `--save-new-bests-dir PATH`
   Directory for `decision=new_best` JSON artifacts (default: `codes/pending`).
 - `--no-save-new-bests`

@@ -27,7 +27,7 @@ from .dist_m4ri import (
     run_dist_m4ri_css_rw,
 )
 from .gf2 import gf2_rank
-from .group import FiniteGroup, canonical_group_spec, group_from_spec
+from .group import CyclicGroup, FiniteGroup, canonical_group_spec, group_from_spec
 from .lift_matrices import build_hx_hz, css_commutes
 from .local_codes import (
     LocalCode,
@@ -580,6 +580,38 @@ def _local_code_specs_match(
     return _local_code_signature(base_a, variants_a) == _local_code_signature(
         base_b, variants_b
     )
+
+
+def passes_base_k_filter(k_base: int, min_base_k: int) -> bool:
+    if min_base_k <= 0:
+        return True
+    return int(k_base) >= int(min_base_k)
+
+
+def _compute_base_k_table_for_variants(
+    *,
+    base_code: LocalCode,
+    variant_codes: List[LocalCode],
+) -> List[List[int]]:
+    perm_total = len(variant_codes)
+    group = CyclicGroup(1)
+    A0 = [0] * base_code.n
+    B0 = [0] * base_code.n
+    table: List[List[int]] = []
+    for a_idx in range(perm_total):
+        row: List[int] = []
+        C1 = variant_codes[a_idx]
+        for b_idx in range(perm_total):
+            C1p = variant_codes[b_idx]
+            hx_rows, hz_rows, n_cols = build_hx_hz(
+                group, A0, B0, base_code, C1, base_code, C1p
+            )
+            rank_hx = gf2_rank(list(hx_rows), n_cols)
+            rank_hz = gf2_rank(list(hz_rows), n_cols)
+            k_base = n_cols - rank_hx - rank_hz
+            row.append(k_base)
+        table.append(row)
+    return table
 
 
 def _enumerate_multisets_with_identity(order: int) -> List[List[int]]:
@@ -2119,6 +2151,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         help="Results directory (default: results/progressive_<group>_<ts>).",
     )
     parser.add_argument(
+        "--min-base-k",
+        type=int,
+        default=0,
+        help=(
+            "Only consider local-code permutations whose unlifted/base "
+            "code dimension is >= MIN_BASE_K."
+        ),
+    )
+    parser.add_argument(
         "--save-new-bests-dir",
         type=str,
         default="codes/pending",
@@ -2362,6 +2403,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "best_codes_source": args.best_codes_source,
         "best_codes_refresh_seconds": args.best_codes_refresh_seconds,
         "best_codes_verbose": bool(args.best_codes_verbose),
+        "min_base_k": int(args.min_base_k),
         "save_new_bests": save_new_bests_dir is not None,
         "save_new_bests_dir": (
             _relpath_or_abs(save_new_bests_dir, repo_root)
@@ -2414,6 +2456,26 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     print(
         f"[progressive] perms={perm_total} settings_per_side={total_settings}"
     )
+
+    base_k_table: Optional[List[List[int]]] = None
+    if args.min_base_k > 0:
+        base_k_table = _compute_base_k_table_for_variants(
+            base_code=base_code,
+            variant_codes=variant_codes,
+        )
+        total_pairs = perm_total * perm_total
+        kept_pairs = sum(
+            1
+            for row in base_k_table
+            for k_base in row
+            if passes_base_k_filter(k_base, args.min_base_k)
+        )
+        skipped_pairs = total_pairs - kept_pairs
+        print(
+            "[progressive] base_k perms considered="
+            f"{total_pairs} kept={kept_pairs} skipped={skipped_pairs} "
+            f"min_base_k={args.min_base_k}"
+        )
 
     canonicalize = None
     if automorphisms is not None:
@@ -2536,6 +2598,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     pairs_seen = 0
     last_report_time = time.monotonic()
     last_report_eval = 0
+    seen_perm_skips: set[tuple[int, int]] = set()
 
     best_codes_cache = BestCodesIndexCache(
         repo_root=repo_root,
@@ -2551,6 +2614,18 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             pairs_seen += 1
             permA = a_setting.perm_idx
             permB = b_setting.perm_idx
+            k_base: Optional[int] = None
+            if base_k_table is not None:
+                k_base = base_k_table[permA][permB]
+                if not passes_base_k_filter(k_base, args.min_base_k):
+                    if args.best_codes_verbose and (permA, permB) not in seen_perm_skips:
+                        print(
+                            "Skip perms: "
+                            f"base_k={k_base} < min_base_k={args.min_base_k} "
+                            f"(perm_id={permA}, perm'_id={permB})"
+                        )
+                        seen_perm_skips.add((permA, permB))
+                    continue
             C1 = variant_codes[permA]
             C1p = variant_codes[permB]
             build_start = time.perf_counter()
@@ -2718,12 +2793,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                         f"slow_trials_source={trials_source} "
                         f"source={source_label}:{path_label}"
                     )
-            print(
+            eval_line = (
                 f"[eval] eval={eval_index} n={n_cols} k={k_val} best={best} "
                 f"target_distance={args.target_distance} "
                 f"must_exceed={must_exceed} steps_used={steps_used} "
                 f"dX_best={d_x_best} dZ_best={d_z_best} decision={decision}"
             )
+            if k_base is not None:
+                eval_line += f" k_base={k_base}"
+            print(eval_line)
 
             bookkeeping_start = time.perf_counter()
             timestamp = _timestamp_utc()
@@ -2820,6 +2898,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 "target_distance": args.target_distance,
                 "seed": seed,
             }
+            if k_base is not None:
+                meta["base"] = {"k_base": k_base}
             saved_best_code = False
             if save_candidate:
                 _save_best_code(
@@ -2876,6 +2956,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                         "meta_path": _relpath_or_abs(code_dir / "meta.json", repo_root),
                     },
                 }
+                if k_base is not None:
+                    artifact["k_base"] = k_base
                 _maybe_save_new_best_artifact(
                     decision=decision,
                     save_dir=save_new_bests_dir,
@@ -2963,8 +3045,11 @@ __all__ = [
     "ProgressiveSetting",
     "_maybe_save_new_best_artifact",
     "_enumerate_multisets_with_identity",
+    "_build_variant_codes",
+    "_compute_base_k_table_for_variants",
     "_interleaved_rounds",
     "_iter_progressive_pairs",
+    "passes_base_k_filter",
     "compute_slow_trials",
     "decide_slow_quantum_plan",
     "should_abort_refine",

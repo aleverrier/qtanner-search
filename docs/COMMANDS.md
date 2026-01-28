@@ -51,6 +51,7 @@ Notes:
 - Ctrl-C stops after the current evaluation and prints the final best-by-k table.
 - Outputs live under the run directory (classical JSONL + histograms, `best_codes/`, `milestones.jsonl`).
 - When a candidate is logged with `decision=new_best`, a JSON artifact is saved to `codes/pending/` (override with `--save-new-bests-dir`, disable with `--no-save-new-bests`).
+- Use `--min-base-k` to prune local-code permutation pairs whose unlifted/base code dimension is too small (e.g., `--min-base-k 6`).
 - Typical publish flow: run the search, inspect artifacts under `codes/pending/`, then run `scripts/scrape_and_publish_best_codes.py` to update `best_codes/data.json` and website outputs.
 - Quantum distance evaluation runs a fast pass first; the slow pass runs only if the fast estimate can beat the current best_codes entry for that `(n,k)` (using the best_codes trial count). Best-by-k entries are only recorded from the slow pass.
 - For abelian groups with identical local codes, B classical precompute is skipped and reuses A via inversion mapping; classical precompute logs `[classical]` progress lines with counts and elapsed time.
