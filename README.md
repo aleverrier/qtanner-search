@@ -41,3 +41,5 @@ Common flags:
 - `--verbose` show skipped files + actions
 
 Note: the scraper now scans git history to recover older best codes, so a run can take about a minute.
+
+Interpreter override: set `QTANNER_PYTHON` to a specific Python (e.g., Homebrew) if you want to bypass the auto-selection logic in `./scripts/py`.
