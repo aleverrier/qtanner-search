@@ -18630,7 +18630,7 @@
       "d_ub": 20,
       "group": "SmallGroup(8,1)",
       "k": 10,
-      "m4ri_trials": 100000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A": {
           "checks": {
@@ -18813,6 +18813,10 @@
           }
         },
         "code_id": "SmallGroup_8_1__AAp27_0_1_2_2_3_4_BBp12_0_2_2_4_5_6_k10_d20",
+        "d": 20,
+        "dX_ub": 20,
+        "dZ_ub": 20,
+        "d_ub": 20,
         "distance": {
           "dX_best": 20,
           "dZ_best": 20,
@@ -18833,7 +18837,7 @@
               "steps": 3000
             }
           },
-          "method": "dist_m4ri_rw_progressive",
+          "method": "dist-m4ri",
           "refine_chunk": 20000,
           "refine_chunks": [
             {
@@ -18899,11 +18903,22 @@
           ],
           "steps_fast": 3000,
           "steps_slow": 50000,
-          "steps_used_total": 100000,
-          "steps_used_x": 50000,
-          "steps_used_z": 50000,
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000,
           "wmin": 18
         },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 20,
+          "dZ_ub": 20,
+          "d_ub": 20,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T06:46:50Z"
+        },
+        "distance_method": "RW",
         "group": {
           "order": 8,
           "spec": "SmallGroup(8,1)"
@@ -18917,13 +18932,17 @@
           "permA_idx": 27,
           "permB_idx": 12
         },
+        "m4ri_seed": 1,
+        "m4ri_steps": 3000000,
         "n": 288,
         "seed": 1,
-        "target_distance": 16
+        "target_distance": 16,
+        "trials": 3000000,
+        "updated_at": "2026-01-28T06:46:50Z"
       },
       "n": 288,
-      "steps_used_total": 100000,
-      "trials": 100000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_8_5__AAp11_0_1_3_4_5_7_BBp6_0_1_2_3_4_5_k12_d17",
@@ -26118,13 +26137,13 @@
       "trials": 6000000
     },
     {
-      "code_id": "C11_AAp6_0_0_0_1_3_4_BBp6_0_3_5_8_8_10_k8_d24",
+      "code_id": "C11_AAp6_0_0_0_1_3_4_BBp6_0_3_5_8_8_10_k8_d23",
       "dX_ub": 24,
-      "dZ_ub": 24,
-      "d_ub": 24,
+      "dZ_ub": 23,
+      "d_ub": 23,
       "group": "C11",
       "k": 8,
-      "m4ri_trials": 600000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A": {
           "checks": {
@@ -26306,11 +26325,18 @@
             "n": 66
           }
         },
-        "code_id": "C11_AAp6_0_0_0_1_3_4_BBp6_0_3_5_8_8_10_k8_d24",
+        "code_id": "C11_AAp6_0_0_0_1_3_4_BBp6_0_3_5_8_8_10_k8_d23",
+        "d": 23,
+        "dX_ub": 24,
+        "dZ_ub": 23,
+        "d_in_id": 23,
+        "d_recorded": 23,
+        "d_recorded_kind": "from_code_id",
+        "d_ub": 23,
         "distance": {
           "dX_best": 24,
-          "dZ_best": 24,
-          "d_ub": 24,
+          "dZ_best": 23,
+          "d_ub": 23,
           "fast": {
             "dx": {
               "d_ub": 26,
@@ -26327,7 +26353,7 @@
               "steps": 3000
             }
           },
-          "method": "dist_m4ri_rw_progressive",
+          "method": "dist-m4ri",
           "refine_chunk": 20000,
           "refine_chunks": [
             {
@@ -26633,11 +26659,22 @@
           ],
           "steps_fast": 3000,
           "steps_slow": 300000,
-          "steps_used_total": 600000,
-          "steps_used_x": 300000,
-          "steps_used_z": 300000,
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000,
           "wmin": 22
         },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 24,
+          "dZ_ub": 23,
+          "d_ub": 23,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T07:02:00Z"
+        },
+        "distance_method": "RW",
         "group": {
           "order": 11,
           "spec": "C11"
@@ -26651,13 +26688,17 @@
           "permA_idx": 6,
           "permB_idx": 6
         },
+        "m4ri_seed": 1,
+        "m4ri_steps": 3000000,
         "n": 396,
         "seed": 1,
-        "target_distance": 14
+        "target_distance": 14,
+        "trials": 3000000,
+        "updated_at": "2026-01-28T07:02:00Z"
       },
       "n": 396,
-      "steps_used_total": 600000,
-      "trials": 600000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "C11_AAp6_0_0_0_1_4_5_BBp0_0_3_5_6_8_9_k12_d18",
@@ -43372,13 +43413,13 @@
       "trials": 600000
     },
     {
-      "code_id": "SmallGroup_15_1__AAp11_0_4_5_5_10_14_BBp14_0_1_5_7_12_14_k4_d50",
-      "dX_ub": 50,
-      "dZ_ub": 51,
-      "d_ub": 50,
+      "code_id": "SmallGroup_15_1__AAp11_0_4_5_5_10_14_BBp14_0_1_5_7_12_14_k4_d41",
+      "dX_ub": 41,
+      "dZ_ub": 46,
+      "d_ub": 41,
       "group": "SmallGroup(15,1)",
       "k": 4,
-      "m4ri_trials": 600000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A": {
           "checks": {
@@ -43560,11 +43601,18 @@
             "n": 90
           }
         },
-        "code_id": "SmallGroup_15_1__AAp11_0_4_5_5_10_14_BBp14_0_1_5_7_12_14_k4_d50",
+        "code_id": "SmallGroup_15_1__AAp11_0_4_5_5_10_14_BBp14_0_1_5_7_12_14_k4_d41",
+        "d": 41,
+        "dX_ub": 41,
+        "dZ_ub": 46,
+        "d_in_id": 41,
+        "d_recorded": 41,
+        "d_recorded_kind": "from_code_id",
+        "d_ub": 41,
         "distance": {
-          "dX_best": 50,
-          "dZ_best": 51,
-          "d_ub": 50,
+          "dX_best": 41,
+          "dZ_best": 46,
+          "d_ub": 41,
           "fast": {
             "dx": {
               "d_ub": 70,
@@ -43581,7 +43629,7 @@
               "steps": 4000
             }
           },
-          "method": "dist_m4ri_rw_progressive",
+          "method": "dist-m4ri",
           "refine_chunk": 20000,
           "refine_chunks": [
             {
@@ -43887,11 +43935,22 @@
           ],
           "steps_fast": 4000,
           "steps_slow": 300000,
-          "steps_used_total": 600000,
-          "steps_used_x": 300000,
-          "steps_used_z": 300000,
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000,
           "wmin": 46
         },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 41,
+          "dZ_ub": 46,
+          "d_ub": 41,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T06:50:25Z"
+        },
+        "distance_method": "RW",
         "group": {
           "order": 15,
           "spec": "SmallGroup(15,1)"
@@ -43905,13 +43964,17 @@
           "permA_idx": 11,
           "permB_idx": 14
         },
+        "m4ri_seed": 1,
+        "m4ri_steps": 3000000,
         "n": 540,
         "seed": 1,
-        "target_distance": 16
+        "target_distance": 16,
+        "trials": 3000000,
+        "updated_at": "2026-01-28T06:50:25Z"
       },
       "n": 540,
-      "steps_used_total": 600000,
-      "trials": 600000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_15_1__AAp12_0_3_7_10_10_11_BBp27_0_1_8_9_14_14_k6_d43",
@@ -60111,12 +60174,12 @@
     },
     {
       "code_id": "SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20",
-      "dX_ub": null,
-      "dZ_ub": null,
+      "dX_ub": 22,
+      "dZ_ub": 20,
       "d_ub": 20,
       "group": "SmallGroup_16_1_",
       "k": 20,
-      "m4ri_trials": 2000000,
+      "m4ri_trials": 6000000,
       "meta": {
         "A_elems": [
           0,
@@ -60148,15 +60211,40 @@
           "best_codes/collected/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20/meta.json",
           "best_codes/collected/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20/settings.json"
         ],
+        "d": 20,
+        "dX_ub": 22,
+        "dZ_ub": 20,
         "d_in_id": 20,
         "d_recorded": 20,
         "d_recorded_kind": "from_code_id",
-        "distance_method": "dist-m4ri",
+        "d_ub": 20,
+        "distance": {
+          "dX_best": 22,
+          "dZ_best": 20,
+          "d_ub": 20,
+          "method": "dist-m4ri",
+          "steps_used_total": 6000000,
+          "steps_used_x": 3000000,
+          "steps_used_z": 3000000
+        },
+        "distance_backend": "dist-m4ri",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "dX_ub": 22,
+          "dZ_ub": 20,
+          "d_ub": 20,
+          "method": "RW",
+          "steps_per_side": 3000000,
+          "updated_at": "2026-01-28T07:00:29Z"
+        },
+        "distance_method": "RW",
         "distance_seed": 657260152,
         "distance_trials": 2000000,
         "distance_trials_path": "distance/steps_used_total",
         "group": "SmallGroup_16_1_",
         "k": 20,
+        "m4ri_seed": 657260152,
+        "m4ri_steps": 3000000,
         "matrices_flat": [
           "best_codes/matrices/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20__Hz.mtx",
           "best_codes/matrices/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20__Hx.mtx"
@@ -61404,11 +61492,13 @@
         },
         "source_meta_path_in_collected": "best_codes/collected/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20/meta.json",
         "source_meta_path_in_src": "results/progressive_order16_td16_EXT_20260125T202743Z/SmallGroup_16_1/best_codes/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20/meta.json",
-        "src_dir": "results/progressive_order16_td16_EXT_20260125T202743Z/SmallGroup_16_1/best_codes/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20"
+        "src_dir": "results/progressive_order16_td16_EXT_20260125T202743Z/SmallGroup_16_1/best_codes/SmallGroup_16_1__AAp0_0_6_7_8_9_11_BBp11_0_5_6_9_11_13_k20_d20",
+        "trials": 3000000,
+        "updated_at": "2026-01-28T07:00:29Z"
       },
       "n": 576,
-      "steps_used_total": 2000000,
-      "trials": 2000000
+      "steps_used_total": 6000000,
+      "trials": 6000000
     },
     {
       "code_id": "SmallGroup_16_1__AAp23_0_3_8_9_11_12_BBp27_0_3_4_4_13_15_k22_d20",
@@ -67097,6 +67187,6 @@
       "trials": 600000
     }
   ],
-  "generated_at_utc": "2026-01-28T06:38:41Z",
+  "generated_at_utc": "2026-01-28T07:24:52Z",
   "total_codes": 131
 }
