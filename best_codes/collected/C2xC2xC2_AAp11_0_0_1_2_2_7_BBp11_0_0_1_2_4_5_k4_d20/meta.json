@@ -2,20 +2,28 @@
   "A": {
     "checks": {
       "G": {
+        "backend": "fast",
+        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": 20,
+        "d_signed": null,
+        "d_witness": 20,
         "early_stop": false,
+        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 44492250
+        "seed": 903120086
       },
       "H": {
+        "backend": "fast",
+        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": 20,
+        "d_signed": null,
+        "d_witness": 20,
         "early_stop": false,
+        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 1861972589
+        "seed": 1488505608
       }
     },
     "d_est": 20,
@@ -46,12 +54,18 @@
     "side": "A",
     "slice_codes": {
       "A_G": {
+        "backend": "fast",
         "d_ub": 20,
+        "d_witness": 20,
+        "exact": true,
         "k": 4,
         "n": 48
       },
       "A_H": {
+        "backend": "fast",
         "d_ub": 20,
+        "d_witness": 20,
+        "exact": true,
         "k": 4,
         "n": 48
       }
@@ -61,20 +75,28 @@
   "B": {
     "checks": {
       "Gp": {
+        "backend": "fast",
+        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": 20,
+        "d_signed": null,
+        "d_witness": 20,
         "early_stop": false,
+        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 34745225
+        "seed": 932264029
       },
       "Hp": {
+        "backend": "fast",
+        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": 20,
+        "d_signed": null,
+        "d_witness": 20,
         "early_stop": false,
+        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 85831133
+        "seed": 2118551374
       }
     },
     "d_est": 20,
@@ -105,12 +127,18 @@
     "side": "B",
     "slice_codes": {
       "B_G": {
+        "backend": "fast",
         "d_ub": 20,
+        "d_witness": 20,
+        "exact": true,
         "k": 4,
         "n": 48
       },
       "B_H": {
+        "backend": "fast",
         "d_ub": 20,
+        "d_witness": 20,
+        "exact": true,
         "k": 4,
         "n": 48
       }
@@ -119,22 +147,34 @@
   },
   "classical_slices": {
     "A_G": {
+      "backend": "fast",
       "d_ub": 20,
+      "d_witness": 20,
+      "exact": true,
       "k": 4,
       "n": 48
     },
     "A_H": {
+      "backend": "fast",
       "d_ub": 20,
+      "d_witness": 20,
+      "exact": true,
       "k": 4,
       "n": 48
     },
     "B_G": {
+      "backend": "fast",
       "d_ub": 20,
+      "d_witness": 20,
+      "exact": true,
       "k": 4,
       "n": 48
     },
     "B_H": {
+      "backend": "fast",
       "d_ub": 20,
+      "d_witness": 20,
+      "exact": true,
       "k": 4,
       "n": 48
     }
@@ -152,9 +192,9 @@
       "dz_ub": 20,
       "early_stop_x": false,
       "early_stop_z": false,
-      "seed_x": 455595368,
-      "seed_z": 1873456154,
-      "steps": 2000
+      "seed_x": 1931709659,
+      "seed_z": 232979655,
+      "steps": 200000
     },
     "method": "dist_m4ri_rw",
     "slow": {
@@ -165,14 +205,14 @@
       "dz_ub": 20,
       "early_stop_x": false,
       "early_stop_z": false,
-      "seed_x": 2124891729,
-      "seed_z": 1865863469,
-      "steps": 50000
+      "seed_x": 409259218,
+      "seed_z": 1133780475,
+      "steps": 200000
     },
     "sqrt_n": 17,
-    "steps_fast": 2000,
-    "steps_slow": 50000,
-    "wmin": 15
+    "steps_fast": 200000,
+    "steps_slow": 200000,
+    "wmin": 19
   },
   "group": {
     "order": 8,
@@ -188,6 +228,6 @@
     "permB_idx": 11
   },
   "n": 288,
-  "seed": 1,
-  "target_distance": 16
+  "seed": 1566693380,
+  "target_distance": 20
 }
