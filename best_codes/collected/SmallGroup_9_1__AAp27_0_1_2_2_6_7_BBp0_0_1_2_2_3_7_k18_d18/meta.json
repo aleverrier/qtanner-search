@@ -11,7 +11,7 @@
         "exact": true,
         "k": 7,
         "rank": 47,
-        "seed": 465416098
+        "seed": 1164396365
       },
       "H": {
         "backend": "fast",
@@ -23,7 +23,7 @@
         "exact": true,
         "k": 7,
         "rank": 47,
-        "seed": 219089788
+        "seed": 526940615
       }
     },
     "d_est": 22,
@@ -84,7 +84,7 @@
         "exact": false,
         "k": 9,
         "rank": 45,
-        "seed": 546559283
+        "seed": 58818390
       },
       "Hp": {
         "backend": "fast",
@@ -96,7 +96,7 @@
         "exact": false,
         "k": 9,
         "rank": 45,
-        "seed": 1852256408
+        "seed": 1349439642
       }
     },
     "d_est": 19,
@@ -145,6 +145,17 @@
     },
     "slice_n": 54
   },
+  "base": {
+    "k_base": 6
+  },
+  "best_codes": {
+    "best_code_id": "SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_0_5_5_8_8_k18_d9",
+    "best_d": 9,
+    "best_trials": 100000,
+    "path": "best_codes/data.json",
+    "source": "origin"
+  },
+  "best_codes_candidate": true,
   "classical_slices": {
     "A_G": {
       "backend": "fast",
@@ -188,16 +199,16 @@
       "dx": {
         "d_ub": 19,
         "early_stop": false,
-        "seed": 1958861031,
+        "seed": 317007885,
         "signed": 19,
-        "steps": 3000
+        "steps": 500
       },
       "dz": {
-        "d_ub": 18,
+        "d_ub": 22,
         "early_stop": false,
-        "seed": 340420896,
-        "signed": 18,
-        "steps": 3000
+        "seed": 337668883,
+        "signed": 22,
+        "steps": 500
       }
     },
     "method": "dist_m4ri_rw_progressive",
@@ -210,14 +221,14 @@
         "dx": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 1852832470,
+          "seed": 1992541137,
           "signed": 18,
           "steps": 20000
         },
         "dz": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 939159052,
+          "seed": 1367097848,
           "signed": 18,
           "steps": 20000
         },
@@ -230,14 +241,14 @@
         "dx": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 272347861,
+          "seed": 2020931526,
           "signed": 18,
           "steps": 20000
         },
         "dz": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 290728692,
+          "seed": 1351236683,
           "signed": 18,
           "steps": 20000
         },
@@ -250,25 +261,70 @@
         "dx": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 1081021575,
+          "seed": 493731562,
           "signed": 18,
-          "steps": 7000
+          "steps": 20000
         },
         "dz": {
           "d_ub": 18,
           "early_stop": false,
-          "seed": 1409952893,
+          "seed": 740920594,
           "signed": 18,
-          "steps": 7000
+          "steps": 20000
         },
-        "steps": 7000
+        "steps": 20000
+      },
+      {
+        "chunk": 4,
+        "d_x_best": 18,
+        "d_z_best": 18,
+        "dx": {
+          "d_ub": 18,
+          "early_stop": false,
+          "seed": 781096401,
+          "signed": 18,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 18,
+          "early_stop": false,
+          "seed": 127907004,
+          "signed": 18,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 5,
+        "d_x_best": 18,
+        "d_z_best": 18,
+        "dx": {
+          "d_ub": 18,
+          "early_stop": false,
+          "seed": 936541263,
+          "signed": 18,
+          "steps": 19500
+        },
+        "dz": {
+          "d_ub": 18,
+          "early_stop": false,
+          "seed": 944676756,
+          "signed": 18,
+          "steps": 19500
+        },
+        "steps": 19500
       }
     ],
-    "steps_fast": 3000,
-    "steps_slow": 50000,
-    "steps_used_total": 100000,
-    "steps_used_x": 50000,
-    "steps_used_z": 50000,
+    "slow": {
+      "skip_reason": null,
+      "skipped": false,
+      "steps_target": 100000
+    },
+    "steps_fast": 500,
+    "steps_slow": 100000,
+    "steps_used_total": 200000,
+    "steps_used_x": 100000,
+    "steps_used_z": 100000,
     "wmin": 17
   },
   "group": {
@@ -285,6 +341,6 @@
     "permB_idx": 0
   },
   "n": 324,
-  "seed": 1,
-  "target_distance": 18
+  "seed": 1062382462,
+  "target_distance": 8
 }
