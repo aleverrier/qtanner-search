@@ -180,31 +180,27 @@
     }
   },
   "code_id": "SmallGroup_8_1__AAp11_0_0_1_3_6_7_BBp12_0_0_0_2_4_5_k2_d23",
-  "d": 23,
-  "dX_ub": 23,
-  "dZ_ub": 23,
-  "d_ub": 23,
   "distance": {
     "dX_best": 23,
-    "dZ_best": 23,
+    "dZ_best": 24,
     "d_ub": 23,
     "fast": {
       "dx": {
-        "d_ub": 23,
+        "d_ub": 24,
         "early_stop": false,
-        "seed": 1830045531,
-        "signed": 23,
-        "steps": 4000
+        "seed": 1690497763,
+        "signed": 24,
+        "steps": 3000
       },
       "dz": {
-        "d_ub": 25,
+        "d_ub": 26,
         "early_stop": false,
-        "seed": 882552464,
-        "signed": 25,
-        "steps": 4000
+        "seed": 1325123798,
+        "signed": 26,
+        "steps": 3000
       }
     },
-    "method": "dist-m4ri",
+    "method": "dist_m4ri_rw_progressive",
     "refine_chunk": 20000,
     "refine_chunks": [
       {
@@ -214,14 +210,14 @@
         "dx": {
           "d_ub": 23,
           "early_stop": false,
-          "seed": 241047738,
+          "seed": 731644238,
           "signed": 23,
           "steps": 20000
         },
         "dz": {
           "d_ub": 24,
           "early_stop": false,
-          "seed": 2066316555,
+          "seed": 724106992,
           "signed": 24,
           "steps": 20000
         },
@@ -232,17 +228,17 @@
         "d_x_best": 23,
         "d_z_best": 24,
         "dx": {
-          "d_ub": 24,
+          "d_ub": 23,
           "early_stop": false,
-          "seed": 1566529388,
-          "signed": 24,
+          "seed": 974688455,
+          "signed": 23,
           "steps": 20000
         },
         "dz": {
-          "d_ub": 24,
+          "d_ub": 25,
           "early_stop": false,
-          "seed": 858303752,
-          "signed": 24,
+          "seed": 52834893,
+          "signed": 25,
           "steps": 20000
         },
         "steps": 20000
@@ -252,80 +248,29 @@
         "d_x_best": 23,
         "d_z_best": 24,
         "dx": {
-          "d_ub": 24,
+          "d_ub": 25,
           "early_stop": false,
-          "seed": 1775539677,
-          "signed": 24,
-          "steps": 20000
+          "seed": 856916273,
+          "signed": 25,
+          "steps": 7000
         },
         "dz": {
           "d_ub": 24,
           "early_stop": false,
-          "seed": 2082737481,
+          "seed": 997188871,
           "signed": 24,
-          "steps": 20000
+          "steps": 7000
         },
-        "steps": 20000
-      },
-      {
-        "chunk": 4,
-        "d_x_best": 23,
-        "d_z_best": 24,
-        "dx": {
-          "d_ub": 24,
-          "early_stop": false,
-          "seed": 1532401219,
-          "signed": 24,
-          "steps": 20000
-        },
-        "dz": {
-          "d_ub": 25,
-          "early_stop": false,
-          "seed": 1779939759,
-          "signed": 25,
-          "steps": 20000
-        },
-        "steps": 20000
-      },
-      {
-        "chunk": 5,
-        "d_x_best": 23,
-        "d_z_best": 24,
-        "dx": {
-          "d_ub": 25,
-          "early_stop": false,
-          "seed": 1486393352,
-          "signed": 25,
-          "steps": 16000
-        },
-        "dz": {
-          "d_ub": 25,
-          "early_stop": false,
-          "seed": 6806440,
-          "signed": 25,
-          "steps": 16000
-        },
-        "steps": 16000
+        "steps": 7000
       }
     ],
-    "steps_fast": 4000,
-    "steps_slow": 100000,
-    "steps_used_total": 6000000,
-    "steps_used_x": 3000000,
-    "steps_used_z": 3000000,
+    "steps_fast": 3000,
+    "steps_slow": 50000,
+    "steps_used_total": 100000,
+    "steps_used_x": 50000,
+    "steps_used_z": 50000,
     "wmin": 21
   },
-  "distance_backend": "dist-m4ri",
-  "distance_m4ri": {
-    "backend": "dist-m4ri",
-    "dX_ub": 23,
-    "dZ_ub": 23,
-    "d_ub": 23,
-    "method": "RW",
-    "steps_per_side": 3000000,
-    "updated_at": "2026-01-28T05:54:18Z"
-  },
-  "distance_method": "RW",
   "group": {
     "order": 8,
     "spec": "SmallGroup(8,1)"
@@ -339,11 +284,7 @@
     "permA_idx": 11,
     "permB_idx": 12
   },
-  "m4ri_seed": 1,
-  "m4ri_steps": 3000000,
   "n": 288,
   "seed": 1,
-  "target_distance": 16,
-  "trials": 3000000,
-  "updated_at": "2026-01-28T05:54:18Z"
+  "target_distance": 16
 }

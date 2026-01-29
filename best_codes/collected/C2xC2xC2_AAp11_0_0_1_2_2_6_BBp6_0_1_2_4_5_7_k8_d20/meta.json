@@ -2,28 +2,20 @@
   "A": {
     "checks": {
       "G": {
-        "backend": "fast",
-        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": null,
-        "d_witness": 20,
+        "d_signed": 20,
         "early_stop": false,
-        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 44110750
+        "seed": 1125110968
       },
       "H": {
-        "backend": "fast",
-        "codewords_checked": 15,
         "d_est": 20,
-        "d_signed": null,
-        "d_witness": 20,
+        "d_signed": 20,
         "early_stop": false,
-        "exact": true,
         "k": 4,
         "rank": 44,
-        "seed": 495414362
+        "seed": 672449908
       }
     },
     "d_est": 20,
@@ -54,18 +46,12 @@
     "side": "A",
     "slice_codes": {
       "A_G": {
-        "backend": "fast",
         "d_ub": 20,
-        "d_witness": 20,
-        "exact": true,
         "k": 4,
         "n": 48
       },
       "A_H": {
-        "backend": "fast",
         "d_ub": 20,
-        "d_witness": 20,
-        "exact": true,
         "k": 4,
         "n": 48
       }
@@ -75,28 +61,20 @@
   "B": {
     "checks": {
       "Gp": {
-        "backend": "fast",
-        "codewords_checked": 63,
         "d_est": 24,
-        "d_signed": null,
-        "d_witness": 24,
+        "d_signed": 24,
         "early_stop": false,
-        "exact": true,
         "k": 6,
         "rank": 42,
-        "seed": 1962856673
+        "seed": 1246687705
       },
       "Hp": {
-        "backend": "fast",
-        "codewords_checked": 63,
         "d_est": 24,
-        "d_signed": null,
-        "d_witness": 24,
+        "d_signed": 24,
         "early_stop": false,
-        "exact": true,
         "k": 6,
         "rank": 42,
-        "seed": 1101924622
+        "seed": 725236284
       }
     },
     "d_est": 24,
@@ -127,18 +105,12 @@
     "side": "B",
     "slice_codes": {
       "B_G": {
-        "backend": "fast",
         "d_ub": 24,
-        "d_witness": 24,
-        "exact": true,
         "k": 6,
         "n": 48
       },
       "B_H": {
-        "backend": "fast",
         "d_ub": 24,
-        "d_witness": 24,
-        "exact": true,
         "k": 6,
         "n": 48
       }
@@ -147,54 +119,42 @@
   },
   "classical_slices": {
     "A_G": {
-      "backend": "fast",
       "d_ub": 20,
-      "d_witness": 20,
-      "exact": true,
       "k": 4,
       "n": 48
     },
     "A_H": {
-      "backend": "fast",
       "d_ub": 20,
-      "d_witness": 20,
-      "exact": true,
       "k": 4,
       "n": 48
     },
     "B_G": {
-      "backend": "fast",
       "d_ub": 24,
-      "d_witness": 24,
-      "exact": true,
       "k": 6,
       "n": 48
     },
     "B_H": {
-      "backend": "fast",
       "d_ub": 24,
-      "d_witness": 24,
-      "exact": true,
       "k": 6,
       "n": 48
     }
   },
   "code_id": "C2xC2xC2_AAp11_0_0_1_2_2_6_BBp6_0_1_2_4_5_7_k8_d20",
   "distance": {
-    "d_fast_ub": 20,
+    "d_fast_ub": 21,
     "d_slow_ub": 20,
     "d_ub": 20,
     "fast": {
-      "d_ub": 20,
-      "dx_signed": 20,
-      "dx_ub": 20,
-      "dz_signed": 20,
-      "dz_ub": 20,
+      "d_ub": 21,
+      "dx_signed": 21,
+      "dx_ub": 21,
+      "dz_signed": 21,
+      "dz_ub": 21,
       "early_stop_x": false,
       "early_stop_z": false,
-      "seed_x": 277838275,
-      "seed_z": 1038196042,
-      "steps": 200000
+      "seed_x": 2099850450,
+      "seed_z": 1021912933,
+      "steps": 2000
     },
     "method": "dist_m4ri_rw",
     "slow": {
@@ -205,14 +165,14 @@
       "dz_ub": 20,
       "early_stop_x": false,
       "early_stop_z": false,
-      "seed_x": 570109013,
-      "seed_z": 1484073872,
-      "steps": 200000
+      "seed_x": 1069144297,
+      "seed_z": 1575108193,
+      "steps": 50000
     },
     "sqrt_n": 17,
-    "steps_fast": 200000,
-    "steps_slow": 200000,
-    "wmin": 19
+    "steps_fast": 2000,
+    "steps_slow": 50000,
+    "wmin": 15
   },
   "group": {
     "order": 8,
@@ -228,6 +188,6 @@
     "permB_idx": 6
   },
   "n": 288,
-  "seed": 1566693380,
-  "target_distance": 20
+  "seed": 1,
+  "target_distance": 16
 }

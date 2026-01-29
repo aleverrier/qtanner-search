@@ -1,0 +1,329 @@
+{
+  "A_elems": [
+    0,
+    2,
+    4,
+    11,
+    13,
+    15
+  ],
+  "A_id": "p0_0_2_4_11_13_15",
+  "B_elems": [
+    0,
+    0,
+    1,
+    10,
+    12,
+    16
+  ],
+  "B_id": "p0_0_0_1_10_12_16",
+  "also_seen_in": [],
+  "code_id": "SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34",
+  "collected_at_utc": "2026-01-29T16:16:21Z",
+  "collected_dir": "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34",
+  "collected_files": [
+    "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/Hz.mtx",
+    "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/Hx.mtx",
+    "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/meta.json",
+    "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/settings.json"
+  ],
+  "d_in_id": 34,
+  "d_recorded": 34,
+  "d_recorded_kind": "from_code_id",
+  "distance_method": "dist-m4ri",
+  "distance_seed": 1726002950,
+  "distance_trials": 50000,
+  "distance_trials_path": "distance/slow/steps_target",
+  "group": "SmallGroup_17_1_",
+  "k": 18,
+  "matrices_flat": [
+    "best_codes/matrices/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34__Hz.mtx",
+    "best_codes/matrices/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34__Hx.mtx"
+  ],
+  "n": 612,
+  "permutation_candidates": [],
+  "run_dir": "results/smoke_SG17_1_20260129T115352Z",
+  "run_meta": {
+    "best_codes_refresh_seconds": 600,
+    "best_codes_source": "auto",
+    "best_codes_verbose": false,
+    "classical_distance_backend": "fast",
+    "classical_exhaustive_k_max": 8,
+    "classical_jobs": 1,
+    "classical_sample_count": 256,
+    "classical_steps": 100,
+    "classical_target": 11,
+    "classical_workers": 1,
+    "dedup_cayley": false,
+    "dist_m4ri_cmd": "dist_m4ri",
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "max_quantum_evals": 10000000,
+    "min_base_k": 2,
+    "min_distinct": null,
+    "mode": "progressive",
+    "quantum_refine_chunk": 20000,
+    "quantum_steps_fast": 1000,
+    "quantum_steps_slow_policy": "best_codes",
+    "report_every": 50,
+    "save_new_bests": true,
+    "save_new_bests_dir": "codes/pending",
+    "seed": 2086380354,
+    "slow_quantum_trials_override": null,
+    "target_distance": 8,
+    "timings": false
+  },
+  "run_meta_path_in_src": "results/smoke_SG17_1_20260129T115352Z/run_meta.json",
+  "schema": "explicitqt_best_code_meta_v1",
+  "settings_path": "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/settings.json",
+  "source_meta": {
+    "A": {
+      "checks": {
+        "G": {
+          "backend": "fast",
+          "codewords_checked": 256,
+          "d_est": 37,
+          "d_signed": null,
+          "d_witness": 37,
+          "early_stop": false,
+          "exact": false,
+          "k": 19,
+          "rank": 83,
+          "seed": 1951050607
+        },
+        "H": {
+          "backend": "fast",
+          "codewords_checked": 256,
+          "d_est": 38,
+          "d_signed": null,
+          "d_witness": 38,
+          "early_stop": false,
+          "exact": false,
+          "k": 19,
+          "rank": 83,
+          "seed": 1508839302
+        }
+      },
+      "d_est": 37,
+      "elements": [
+        0,
+        2,
+        4,
+        11,
+        13,
+        15
+      ],
+      "elements_repr": [
+        "0",
+        "2",
+        "4",
+        "11",
+        "13",
+        "15"
+      ],
+      "group": {
+        "order": 17,
+        "spec": "SmallGroup(17,1)"
+      },
+      "id": "Ap0_0-2-4-11-13-15",
+      "k_classical": 19,
+      "passes": true,
+      "perm_idx": 0,
+      "side": "A",
+      "slice_codes": {
+        "A_G": {
+          "backend": "fast",
+          "d_ub": 37,
+          "d_witness": 37,
+          "exact": false,
+          "k": 19,
+          "n": 102
+        },
+        "A_H": {
+          "backend": "fast",
+          "d_ub": 38,
+          "d_witness": 38,
+          "exact": false,
+          "k": 19,
+          "n": 102
+        }
+      },
+      "slice_n": 102
+    },
+    "B": {
+      "checks": {
+        "Gp": {
+          "backend": "fast",
+          "codewords_checked": 7,
+          "d_est": 51,
+          "d_signed": null,
+          "d_witness": 51,
+          "early_stop": false,
+          "exact": true,
+          "k": 3,
+          "rank": 99,
+          "seed": 1099294679
+        },
+        "Hp": {
+          "backend": "fast",
+          "codewords_checked": 7,
+          "d_est": 51,
+          "d_signed": null,
+          "d_witness": 51,
+          "early_stop": false,
+          "exact": true,
+          "k": 3,
+          "rank": 99,
+          "seed": 160722404
+        }
+      },
+      "d_est": 51,
+      "elements": [
+        0,
+        0,
+        1,
+        10,
+        12,
+        16
+      ],
+      "elements_repr": [
+        "0",
+        "0",
+        "1",
+        "10",
+        "12",
+        "16"
+      ],
+      "group": {
+        "order": 17,
+        "spec": "SmallGroup(17,1)"
+      },
+      "id": "Bp0_0-0-1-10-12-16",
+      "k_classical": 3,
+      "passes": true,
+      "perm_idx": 0,
+      "side": "B",
+      "slice_codes": {
+        "B_G": {
+          "backend": "fast",
+          "d_ub": 51,
+          "d_witness": 51,
+          "exact": true,
+          "k": 3,
+          "n": 102
+        },
+        "B_H": {
+          "backend": "fast",
+          "d_ub": 51,
+          "d_witness": 51,
+          "exact": true,
+          "k": 3,
+          "n": 102
+        }
+      },
+      "slice_n": 102
+    },
+    "base": {
+      "k_base": 18
+    },
+    "best_codes": {
+      "best_code_id": null,
+      "best_d": null,
+      "best_trials": null,
+      "path": "best_codes/data.json",
+      "source": "origin"
+    },
+    "best_codes_candidate": true,
+    "classical_slices": {
+      "A_G": {
+        "backend": "fast",
+        "d_ub": 37,
+        "d_witness": 37,
+        "exact": false,
+        "k": 19,
+        "n": 102
+      },
+      "A_H": {
+        "backend": "fast",
+        "d_ub": 38,
+        "d_witness": 38,
+        "exact": false,
+        "k": 19,
+        "n": 102
+      },
+      "B_G": {
+        "backend": "fast",
+        "d_ub": 51,
+        "d_witness": 51,
+        "exact": true,
+        "k": 3,
+        "n": 102
+      },
+      "B_H": {
+        "backend": "fast",
+        "d_ub": 51,
+        "d_witness": 51,
+        "exact": true,
+        "k": 3,
+        "n": 102
+      }
+    },
+    "code_id": "SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34",
+    "distance": {
+      "dX_best": 35,
+      "dZ_best": 34,
+      "d_ub": 34,
+      "fast": {
+        "dx": {
+          "d_ub": 35,
+          "early_stop": true,
+          "seed": 1726002950,
+          "signed": -35,
+          "steps": 1000
+        },
+        "dz": {
+          "d_ub": 34,
+          "early_stop": true,
+          "seed": 227399110,
+          "signed": -34,
+          "steps": 1000
+        }
+      },
+      "method": "dist_m4ri_rw_progressive",
+      "refine_chunk": 20000,
+      "refine_chunks": [],
+      "slow": {
+        "skip_reason": null,
+        "skipped": false,
+        "steps_target": 50000
+      },
+      "steps_fast": 1000,
+      "steps_slow": 50000,
+      "steps_used_total": 2000,
+      "steps_used_x": 1000,
+      "steps_used_z": 1000,
+      "wmin": 51
+    },
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "k": 18,
+    "local_codes": {
+      "C0": "hamming_6_3_3_shortened",
+      "C0p": "hamming_6_3_3_shortened",
+      "C1": "hamming_6_3_3_shortened_var0",
+      "C1p": "hamming_6_3_3_shortened_var0",
+      "permA_idx": 0,
+      "permB_idx": 0
+    },
+    "n": 612,
+    "seed": 2086380354,
+    "target_distance": 8
+  },
+  "source_meta_path_in_collected": "best_codes/collected/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/meta.json",
+  "source_meta_path_in_src": "results/smoke_SG17_1_20260129T115352Z/best_codes/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34/meta.json",
+  "src_dir": "results/smoke_SG17_1_20260129T115352Z/best_codes/SmallGroup_17_1__AAp0_0_2_4_11_13_15_BBp0_0_0_1_10_12_16_k18_d34"
+}

@@ -1,0 +1,306 @@
+{
+  "A": {
+    "checks": {
+      "G": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 42,
+        "d_signed": null,
+        "d_witness": 42,
+        "early_stop": false,
+        "exact": false,
+        "k": 9,
+        "rank": 93,
+        "seed": 183635140
+      },
+      "H": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 42,
+        "d_signed": null,
+        "d_witness": 42,
+        "early_stop": false,
+        "exact": false,
+        "k": 9,
+        "rank": 93,
+        "seed": 1197292086
+      }
+    },
+    "d_est": 42,
+    "elements": [
+      0,
+      2,
+      3,
+      5,
+      7,
+      13
+    ],
+    "elements_repr": [
+      "0",
+      "2",
+      "3",
+      "5",
+      "7",
+      "13"
+    ],
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "id": "Ap11_0-2-3-5-7-13",
+    "k_classical": 9,
+    "passes": true,
+    "perm_idx": 11,
+    "side": "A",
+    "slice_codes": {
+      "A_G": {
+        "backend": "fast",
+        "d_ub": 42,
+        "d_witness": 42,
+        "exact": false,
+        "k": 9,
+        "n": 102
+      },
+      "A_H": {
+        "backend": "fast",
+        "d_ub": 42,
+        "d_witness": 42,
+        "exact": false,
+        "k": 9,
+        "n": 102
+      }
+    },
+    "slice_n": 102
+  },
+  "B": {
+    "checks": {
+      "Gp": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 32,
+        "d_signed": null,
+        "d_witness": 32,
+        "early_stop": false,
+        "exact": false,
+        "k": 18,
+        "rank": 84,
+        "seed": 837221982
+      },
+      "Hp": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 32,
+        "d_signed": null,
+        "d_witness": 32,
+        "early_stop": false,
+        "exact": false,
+        "k": 18,
+        "rank": 84,
+        "seed": 148694315
+      }
+    },
+    "d_est": 32,
+    "elements": [
+      0,
+      5,
+      8,
+      10,
+      10,
+      15
+    ],
+    "elements_repr": [
+      "0",
+      "5",
+      "8",
+      "10",
+      "10",
+      "15"
+    ],
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "id": "Bp6_0-5-8-10-10-15",
+    "k_classical": 18,
+    "passes": true,
+    "perm_idx": 6,
+    "side": "B",
+    "slice_codes": {
+      "B_G": {
+        "backend": "fast",
+        "d_ub": 32,
+        "d_witness": 32,
+        "exact": false,
+        "k": 18,
+        "n": 102
+      },
+      "B_H": {
+        "backend": "fast",
+        "d_ub": 32,
+        "d_witness": 32,
+        "exact": false,
+        "k": 18,
+        "n": 102
+      }
+    },
+    "slice_n": 102
+  },
+  "base": {
+    "k_base": 4
+  },
+  "best_codes": {
+    "best_code_id": null,
+    "best_d": null,
+    "best_trials": null,
+    "path": "best_codes/data.json",
+    "source": "origin"
+  },
+  "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 42,
+      "d_witness": 42,
+      "exact": false,
+      "k": 9,
+      "n": 102
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 42,
+      "d_witness": 42,
+      "exact": false,
+      "k": 9,
+      "n": 102
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 32,
+      "d_witness": 32,
+      "exact": false,
+      "k": 18,
+      "n": 102
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 32,
+      "d_witness": 32,
+      "exact": false,
+      "k": 18,
+      "n": 102
+    }
+  },
+  "code_id": "SmallGroup_17_1__AAp11_0_2_3_5_7_13_BBp6_0_5_8_10_10_15_k4_d39",
+  "distance": {
+    "dX_best": 44,
+    "dZ_best": 39,
+    "d_ub": 39,
+    "fast": {
+      "dx": {
+        "d_ub": 87,
+        "early_stop": false,
+        "seed": 1217062971,
+        "signed": 87,
+        "steps": 1000
+      },
+      "dz": {
+        "d_ub": 65,
+        "early_stop": false,
+        "seed": 50534400,
+        "signed": 65,
+        "steps": 1000
+      }
+    },
+    "method": "dist_m4ri_rw_progressive",
+    "refine_chunk": 20000,
+    "refine_chunks": [
+      {
+        "chunk": 1,
+        "d_x_best": 44,
+        "d_z_best": 43,
+        "dx": {
+          "d_ub": 44,
+          "early_stop": false,
+          "seed": 1155314906,
+          "signed": 44,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 43,
+          "early_stop": false,
+          "seed": 689355345,
+          "signed": 43,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 2,
+        "d_x_best": 44,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 53,
+          "early_stop": false,
+          "seed": 1267935392,
+          "signed": 53,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 39,
+          "early_stop": false,
+          "seed": 986570878,
+          "signed": 39,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 3,
+        "d_x_best": 44,
+        "d_z_best": 39,
+        "dx": {
+          "d_ub": 50,
+          "early_stop": false,
+          "seed": 671737485,
+          "signed": 50,
+          "steps": 9000
+        },
+        "dz": {
+          "d_ub": 45,
+          "early_stop": false,
+          "seed": 823120021,
+          "signed": 45,
+          "steps": 9000
+        },
+        "steps": 9000
+      }
+    ],
+    "slow": {
+      "skip_reason": null,
+      "skipped": false,
+      "steps_target": 50000
+    },
+    "steps_fast": 1000,
+    "steps_slow": 50000,
+    "steps_used_total": 100000,
+    "steps_used_x": 50000,
+    "steps_used_z": 50000,
+    "wmin": 37
+  },
+  "group": {
+    "order": 17,
+    "spec": "SmallGroup(17,1)"
+  },
+  "k": 4,
+  "local_codes": {
+    "C0": "hamming_6_3_3_shortened",
+    "C0p": "hamming_6_3_3_shortened",
+    "C1": "hamming_6_3_3_shortened_var11",
+    "C1p": "hamming_6_3_3_shortened_var6",
+    "permA_idx": 11,
+    "permB_idx": 6
+  },
+  "n": 612,
+  "seed": 2086380354,
+  "target_distance": 8
+}

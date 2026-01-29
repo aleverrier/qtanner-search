@@ -1,0 +1,306 @@
+{
+  "A": {
+    "checks": {
+      "G": {
+        "backend": "fast",
+        "codewords_checked": 7,
+        "d_est": 51,
+        "d_signed": null,
+        "d_witness": 51,
+        "early_stop": false,
+        "exact": true,
+        "k": 3,
+        "rank": 99,
+        "seed": 820959952
+      },
+      "H": {
+        "backend": "fast",
+        "codewords_checked": 7,
+        "d_est": 51,
+        "d_signed": null,
+        "d_witness": 51,
+        "early_stop": false,
+        "exact": true,
+        "k": 3,
+        "rank": 99,
+        "seed": 1587016554
+      }
+    },
+    "d_est": 51,
+    "elements": [
+      0,
+      0,
+      1,
+      1,
+      1,
+      10
+    ],
+    "elements_repr": [
+      "0",
+      "0",
+      "1",
+      "1",
+      "1",
+      "10"
+    ],
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "id": "Ap0_0-0-1-1-1-10",
+    "k_classical": 3,
+    "passes": true,
+    "perm_idx": 0,
+    "side": "A",
+    "slice_codes": {
+      "A_G": {
+        "backend": "fast",
+        "d_ub": 51,
+        "d_witness": 51,
+        "exact": true,
+        "k": 3,
+        "n": 102
+      },
+      "A_H": {
+        "backend": "fast",
+        "d_ub": 51,
+        "d_witness": 51,
+        "exact": true,
+        "k": 3,
+        "n": 102
+      }
+    },
+    "slice_n": 102
+  },
+  "B": {
+    "checks": {
+      "Gp": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 44,
+        "d_signed": null,
+        "d_witness": 44,
+        "early_stop": false,
+        "exact": false,
+        "k": 9,
+        "rank": 93,
+        "seed": 872706794
+      },
+      "Hp": {
+        "backend": "fast",
+        "codewords_checked": 256,
+        "d_est": 43,
+        "d_signed": null,
+        "d_witness": 43,
+        "early_stop": false,
+        "exact": false,
+        "k": 9,
+        "rank": 93,
+        "seed": 434026873
+      }
+    },
+    "d_est": 43,
+    "elements": [
+      0,
+      3,
+      8,
+      10,
+      13,
+      14
+    ],
+    "elements_repr": [
+      "0",
+      "3",
+      "8",
+      "10",
+      "13",
+      "14"
+    ],
+    "group": {
+      "order": 17,
+      "spec": "SmallGroup(17,1)"
+    },
+    "id": "Bp3_0-3-8-10-13-14",
+    "k_classical": 9,
+    "passes": true,
+    "perm_idx": 3,
+    "side": "B",
+    "slice_codes": {
+      "B_G": {
+        "backend": "fast",
+        "d_ub": 44,
+        "d_witness": 44,
+        "exact": false,
+        "k": 9,
+        "n": 102
+      },
+      "B_H": {
+        "backend": "fast",
+        "d_ub": 43,
+        "d_witness": 43,
+        "exact": false,
+        "k": 9,
+        "n": 102
+      }
+    },
+    "slice_n": 102
+  },
+  "base": {
+    "k_base": 6
+  },
+  "best_codes": {
+    "best_code_id": null,
+    "best_d": null,
+    "best_trials": null,
+    "path": "best_codes/data.json",
+    "source": "origin"
+  },
+  "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 51,
+      "d_witness": 51,
+      "exact": true,
+      "k": 3,
+      "n": 102
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 51,
+      "d_witness": 51,
+      "exact": true,
+      "k": 3,
+      "n": 102
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 44,
+      "d_witness": 44,
+      "exact": false,
+      "k": 9,
+      "n": 102
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 43,
+      "d_witness": 43,
+      "exact": false,
+      "k": 9,
+      "n": 102
+    }
+  },
+  "code_id": "SmallGroup_17_1__AAp0_0_0_1_1_1_10_BBp3_0_3_8_10_13_14_k6_d13",
+  "distance": {
+    "dX_best": 17,
+    "dZ_best": 13,
+    "d_ub": 13,
+    "fast": {
+      "dx": {
+        "d_ub": 18,
+        "early_stop": false,
+        "seed": 1127294625,
+        "signed": 18,
+        "steps": 1000
+      },
+      "dz": {
+        "d_ub": 13,
+        "early_stop": false,
+        "seed": 1382554754,
+        "signed": 13,
+        "steps": 1000
+      }
+    },
+    "method": "dist_m4ri_rw_progressive",
+    "refine_chunk": 20000,
+    "refine_chunks": [
+      {
+        "chunk": 1,
+        "d_x_best": 17,
+        "d_z_best": 13,
+        "dx": {
+          "d_ub": 17,
+          "early_stop": false,
+          "seed": 1333311346,
+          "signed": 17,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 13,
+          "early_stop": false,
+          "seed": 1283880267,
+          "signed": 13,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 2,
+        "d_x_best": 17,
+        "d_z_best": 13,
+        "dx": {
+          "d_ub": 17,
+          "early_stop": false,
+          "seed": 1340364195,
+          "signed": 17,
+          "steps": 20000
+        },
+        "dz": {
+          "d_ub": 13,
+          "early_stop": false,
+          "seed": 1756995599,
+          "signed": 13,
+          "steps": 20000
+        },
+        "steps": 20000
+      },
+      {
+        "chunk": 3,
+        "d_x_best": 17,
+        "d_z_best": 13,
+        "dx": {
+          "d_ub": 17,
+          "early_stop": false,
+          "seed": 1583982843,
+          "signed": 17,
+          "steps": 9000
+        },
+        "dz": {
+          "d_ub": 13,
+          "early_stop": false,
+          "seed": 391141814,
+          "signed": 13,
+          "steps": 9000
+        },
+        "steps": 9000
+      }
+    ],
+    "slow": {
+      "skip_reason": null,
+      "skipped": false,
+      "steps_target": 50000
+    },
+    "steps_fast": 1000,
+    "steps_slow": 50000,
+    "steps_used_total": 100000,
+    "steps_used_x": 50000,
+    "steps_used_z": 50000,
+    "wmin": 7
+  },
+  "group": {
+    "order": 17,
+    "spec": "SmallGroup(17,1)"
+  },
+  "k": 6,
+  "local_codes": {
+    "C0": "hamming_6_3_3_shortened",
+    "C0p": "hamming_6_3_3_shortened",
+    "C1": "hamming_6_3_3_shortened_var0",
+    "C1p": "hamming_6_3_3_shortened_var3",
+    "permA_idx": 0,
+    "permB_idx": 3
+  },
+  "n": 612,
+  "seed": 2086380354,
+  "target_distance": 8
+}
