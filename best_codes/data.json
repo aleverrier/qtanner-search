@@ -5038,7 +5038,6 @@
           },
           "slice_n": 24
         },
-        "A_id": "Ap6_0-0-0-1-2-3",
         "B": {
           "checks": {
             "Gp": {
@@ -5112,20 +5111,52 @@
           },
           "slice_n": 24
         },
-        "B_id": "Bp6_0-0-1-1-2-3",
-        "artifacts": {
-          "code_dir": "results/smoke_SG4_2_20260128T213050Z/best_codes/SmallGroup_4_2__AAp6_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k8_d12",
-          "hx_path": "results/smoke_SG4_2_20260128T213050Z/best_codes/SmallGroup_4_2__AAp6_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k8_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG4_2_20260128T213050Z/best_codes/SmallGroup_4_2__AAp6_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k8_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG4_2_20260128T213050Z/best_codes/SmallGroup_4_2__AAp6_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k8_d12/meta.json",
-          "results_dir": "results/smoke_SG4_2_20260128T213050Z"
+        "base": {
+          "k_base": 8
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_4_1__AAp6_0_0_1_2_2_3_BBp6_0_0_0_1_2_3_k8_d11",
+          "best_d": 11,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 4,
+            "n": 24
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 4,
+            "n": 24
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 4,
+            "n": 24
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 4,
+            "n": 24
+          }
+        },
         "code_id": "SmallGroup_4_2__AAp6_0_0_0_1_2_3_BBp6_0_0_1_1_2_3_k8_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -5362,13 +5393,11 @@
           "steps_used_z": 200000,
           "wmin": 7
         },
-        "eval": 40,
         "group": {
           "order": 4,
           "spec": "SmallGroup(4,2)"
         },
         "k": 8,
-        "k_base": 8,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -5378,12 +5407,8 @@
           "permB_idx": 6
         },
         "n": 144,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1376414902,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260128T213122Z"
+        "target_distance": 8
       },
       "n": 144,
       "steps_used_total": 400000,
@@ -32976,7 +33001,6 @@
           },
           "slice_n": 54
         },
-        "A_id": "Ap11_0-0-3-4-7-8",
         "B": {
           "checks": {
             "Gp": {
@@ -33050,20 +33074,52 @@
           },
           "slice_n": 54
         },
-        "B_id": "Bp6_0-2-5-5-7-8",
-        "artifacts": {
-          "code_dir": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp11_0_0_3_4_7_8_BBp6_0_2_5_5_7_8_k4_d24",
-          "hx_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp11_0_0_3_4_7_8_BBp6_0_2_5_5_7_8_k4_d24/Hx.mtx",
-          "hz_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp11_0_0_3_4_7_8_BBp6_0_2_5_5_7_8_k4_d24/Hz.mtx",
-          "meta_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp11_0_0_3_4_7_8_BBp6_0_2_5_5_7_8_k4_d24/meta.json",
-          "results_dir": "results/smoke_SG9_1_20260128T164858Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_9_2__AAp10_0_1_1_2_4_6_BBp11_0_0_1_1_2_7_k4_d23",
+          "best_d": 23,
+          "best_trials": 6000000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 54
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 54
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          }
+        },
         "code_id": "SmallGroup_9_1__AAp11_0_0_3_4_7_8_BBp6_0_2_5_5_7_8_k4_d24",
-        "dX_best": 24,
-        "dZ_best": 24,
-        "d_ub": 24,
-        "decision": "new_best",
         "distance": {
           "dX_best": 24,
           "dZ_best": 24,
@@ -39100,13 +39156,11 @@
           "steps_used_z": 6000000,
           "wmin": 7
         },
-        "eval": 446446,
         "group": {
           "order": 9,
           "spec": "SmallGroup(9,1)"
         },
         "k": 4,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -39116,12 +39170,8 @@
           "permB_idx": 6
         },
         "n": 324,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1062382462,
-        "steps_used": 12000000,
-        "target_distance": 8,
-        "timestamp": "20260129T171056Z"
+        "target_distance": 8
       },
       "n": 324,
       "steps_used_total": 12000000,
@@ -45490,7 +45540,6 @@
           },
           "slice_n": 54
         },
-        "A_id": "Ap6_0-1-3-3-4-5",
         "B": {
           "checks": {
             "Gp": {
@@ -45564,20 +45613,52 @@
           },
           "slice_n": 54
         },
-        "B_id": "Bp11_0-2-3-4-7-8",
-        "artifacts": {
-          "code_dir": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_2_3_4_7_8_k8_d22",
-          "hx_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_2_3_4_7_8_k8_d22/Hx.mtx",
-          "hz_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_2_3_4_7_8_k8_d22/Hz.mtx",
-          "meta_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_2_3_4_7_8_k8_d22/meta.json",
-          "results_dir": "results/smoke_SG9_1_20260128T164858Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_1_2_2_4_7_k8_d21",
+          "best_d": 21,
+          "best_trials": 24000000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": true,
+            "k": 4,
+            "n": 54
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": true,
+            "k": 4,
+            "n": 54
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 54
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 54
+          }
+        },
         "code_id": "SmallGroup_9_1__AAp6_0_1_3_3_4_5_BBp11_0_2_3_4_7_8_k8_d22",
-        "dX_best": 22,
-        "dZ_best": 24,
-        "d_ub": 22,
-        "decision": "new_best",
         "distance": {
           "dX_best": 22,
           "dZ_best": 24,
@@ -69614,13 +69695,11 @@
           "steps_used_z": 24000000,
           "wmin": 21
         },
-        "eval": 180881,
         "group": {
           "order": 9,
           "spec": "SmallGroup(9,1)"
         },
         "k": 8,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -69630,12 +69709,8 @@
           "permB_idx": 11
         },
         "n": 324,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1062382462,
-        "steps_used": 48000000,
-        "target_distance": 8,
-        "timestamp": "20260129T083904Z"
+        "target_distance": 8
       },
       "n": 324,
       "steps_used_total": 48000000,
@@ -71478,7 +71553,6 @@
           },
           "slice_n": 54
         },
-        "A_id": "Ap27_0-1-2-2-6-7",
         "B": {
           "checks": {
             "Gp": {
@@ -71552,20 +71626,52 @@
           },
           "slice_n": 54
         },
-        "B_id": "Bp0_0-1-2-2-3-7",
-        "artifacts": {
-          "code_dir": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_1_2_2_3_7_k18_d18",
-          "hx_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_1_2_2_3_7_k18_d18/Hx.mtx",
-          "hz_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_1_2_2_3_7_k18_d18/Hz.mtx",
-          "meta_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_1_2_2_3_7_k18_d18/meta.json",
-          "results_dir": "results/smoke_SG9_1_20260128T164858Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_0_5_5_8_8_k18_d9",
+          "best_d": 9,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 22,
+            "d_witness": 22,
+            "exact": true,
+            "k": 7,
+            "n": 54
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 22,
+            "d_witness": 22,
+            "exact": true,
+            "k": 7,
+            "n": 54
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 19,
+            "d_witness": 19,
+            "exact": false,
+            "k": 9,
+            "n": 54
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 19,
+            "d_witness": 19,
+            "exact": false,
+            "k": 9,
+            "n": 54
+          }
+        },
         "code_id": "SmallGroup_9_1__AAp27_0_1_2_2_6_7_BBp0_0_1_2_2_3_7_k18_d18",
-        "dX_best": 18,
-        "dZ_best": 18,
-        "d_ub": 18,
-        "decision": "new_best",
         "distance": {
           "dX_best": 18,
           "dZ_best": 18,
@@ -71702,13 +71808,11 @@
           "steps_used_z": 100000,
           "wmin": 17
         },
-        "eval": 1456,
         "group": {
           "order": 9,
           "spec": "SmallGroup(9,1)"
         },
         "k": 18,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -71718,12 +71822,8 @@
           "permB_idx": 0
         },
         "n": 324,
-        "promising": true,
-        "schema": "qtanner.new_best.v1",
         "seed": 1062382462,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260128T184451Z"
+        "target_distance": 8
       },
       "n": 324,
       "steps_used_total": 200000,
@@ -71811,7 +71911,6 @@
           },
           "slice_n": 54
         },
-        "A_id": "Ap6_0-0-4-4-5-7",
         "B": {
           "checks": {
             "Gp": {
@@ -71885,20 +71984,52 @@
           },
           "slice_n": 54
         },
-        "B_id": "Bp6_0-1-3-3-6-6",
-        "artifacts": {
-          "code_dir": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_0_4_4_5_7_BBp6_0_1_3_3_6_6_k20_d16",
-          "hx_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_0_4_4_5_7_BBp6_0_1_3_3_6_6_k20_d16/Hx.mtx",
-          "hz_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_0_4_4_5_7_BBp6_0_1_3_3_6_6_k20_d16/Hz.mtx",
-          "meta_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_0_4_4_5_7_BBp6_0_1_3_3_6_6_k20_d16/meta.json",
-          "results_dir": "results/smoke_SG9_1_20260128T164858Z"
+        "base": {
+          "k_base": 8
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_9_1__AAp6_0_0_1_1_4_5_BBp29_0_1_2_2_4_5_k20_d14",
+          "best_d": 14,
+          "best_trials": 800000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": true,
+            "k": 8,
+            "n": 54
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": true,
+            "k": 8,
+            "n": 54
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          }
+        },
         "code_id": "SmallGroup_9_1__AAp6_0_0_4_4_5_7_BBp6_0_1_3_3_6_6_k20_d16",
-        "dX_best": 16,
-        "dZ_best": 16,
-        "d_ub": 16,
-        "decision": "new_best",
         "distance": {
           "dX_best": 16,
           "dZ_best": 16,
@@ -72735,13 +72866,11 @@
           "steps_used_z": 800000,
           "wmin": 15
         },
-        "eval": 340274,
         "group": {
           "order": 9,
           "spec": "SmallGroup(9,1)"
         },
         "k": 20,
-        "k_base": 8,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -72751,12 +72880,8 @@
           "permB_idx": 6
         },
         "n": 324,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1062382462,
-        "steps_used": 1600000,
-        "target_distance": 8,
-        "timestamp": "20260129T130558Z"
+        "target_distance": 8
       },
       "n": 324,
       "steps_used_total": 1600000,
@@ -74972,7 +75097,6 @@
           },
           "slice_n": 54
         },
-        "A_id": "Ap6_0-1-2-2-3-5",
         "B": {
           "checks": {
             "Gp": {
@@ -75046,20 +75170,52 @@
           },
           "slice_n": 54
         },
-        "B_id": "Bp0_0-0-2-2-2-5",
-        "artifacts": {
-          "code_dir": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_2_2_3_5_BBp0_0_0_2_2_2_5_k36_d8",
-          "hx_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_2_2_3_5_BBp0_0_0_2_2_2_5_k36_d8/Hx.mtx",
-          "hz_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_2_2_3_5_BBp0_0_0_2_2_2_5_k36_d8/Hz.mtx",
-          "meta_path": "results/smoke_SG9_1_20260128T164858Z/best_codes/SmallGroup_9_1__AAp6_0_1_2_2_3_5_BBp0_0_0_2_2_2_5_k36_d8/meta.json",
-          "results_dir": "results/smoke_SG9_1_20260128T164858Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": null,
+          "best_d": null,
+          "best_trials": null,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": true,
+            "k": 6,
+            "n": 54
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 9,
+            "d_witness": 9,
+            "exact": false,
+            "k": 15,
+            "n": 54
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 12,
+            "d_witness": 12,
+            "exact": false,
+            "k": 15,
+            "n": 54
+          }
+        },
         "code_id": "SmallGroup_9_1__AAp6_0_1_2_2_3_5_BBp0_0_0_2_2_2_5_k36_d8",
-        "dX_best": 8,
-        "dZ_best": 8,
-        "d_ub": 8,
-        "decision": "new_best",
         "distance": {
           "dX_best": 8,
           "dZ_best": 8,
@@ -75156,13 +75312,11 @@
           "steps_used_z": 50000,
           "wmin": 7
         },
-        "eval": 358320,
         "group": {
           "order": 9,
           "spec": "SmallGroup(9,1)"
         },
         "k": 36,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -75172,12 +75326,8 @@
           "permB_idx": 0
         },
         "n": 324,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1062382462,
-        "steps_used": 100000,
-        "target_distance": 8,
-        "timestamp": "20260129T133302Z"
+        "target_distance": 8
       },
       "n": 324,
       "steps_used_total": 100000,
@@ -83460,7 +83610,6 @@
           },
           "slice_n": 60
         },
-        "A_id": "Ap27_0-1-2-2-4-9",
         "B": {
           "checks": {
             "Gp": {
@@ -83534,20 +83683,52 @@
           },
           "slice_n": 60
         },
-        "B_id": "Bp0_0-2-5-5-6-9",
-        "artifacts": {
-          "code_dir": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp27_0_1_2_2_4_9_BBp0_0_2_5_5_6_9_k14_d20",
-          "hx_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp27_0_1_2_2_4_9_BBp0_0_2_5_5_6_9_k14_d20/Hx.mtx",
-          "hz_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp27_0_1_2_2_4_9_BBp0_0_2_5_5_6_9_k14_d20/Hz.mtx",
-          "meta_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp27_0_1_2_2_4_9_BBp0_0_2_5_5_6_9_k14_d20/meta.json",
-          "results_dir": "results/smoke_SG10_2_20260128T173433Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_10_2__AAp6_0_0_2_3_6_8_BBp28_0_0_2_4_7_9_k14_d18",
+          "best_d": 18,
+          "best_trials": 1600000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": true,
+            "k": 6,
+            "n": 60
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": true,
+            "k": 6,
+            "n": 60
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 60
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 60
+          }
+        },
         "code_id": "SmallGroup_10_2__AAp27_0_1_2_2_4_9_BBp0_0_2_5_5_6_9_k14_d20",
-        "dX_best": 20,
-        "dZ_best": 20,
-        "d_ub": 20,
-        "decision": "new_best",
         "distance": {
           "dX_best": 20,
           "dZ_best": 20,
@@ -85184,13 +85365,11 @@
           "steps_used_z": 1600000,
           "wmin": 18
         },
-        "eval": 769135,
         "group": {
           "order": 10,
           "spec": "SmallGroup(10,2)"
         },
         "k": 14,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -85200,12 +85379,8 @@
           "permB_idx": 0
         },
         "n": 360,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 962284924,
-        "steps_used": 3200000,
-        "target_distance": 8,
-        "timestamp": "20260129T142009Z"
+        "target_distance": 8
       },
       "n": 360,
       "steps_used_total": 3200000,
@@ -86093,7 +86268,6 @@
           },
           "slice_n": 60
         },
-        "A_id": "Ap6_0-1-2-3-7-8",
         "B": {
           "checks": {
             "Gp": {
@@ -86167,20 +86341,52 @@
           },
           "slice_n": 60
         },
-        "B_id": "Bp0_0-2-5-5-7-8",
-        "artifacts": {
-          "code_dir": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp6_0_1_2_3_7_8_BBp0_0_2_5_5_7_8_k20_d18",
-          "hx_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp6_0_1_2_3_7_8_BBp0_0_2_5_5_7_8_k20_d18/Hx.mtx",
-          "hz_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp6_0_1_2_3_7_8_BBp0_0_2_5_5_7_8_k20_d18/Hz.mtx",
-          "meta_path": "results/smoke_SG10_2_20260128T173433Z/best_codes/SmallGroup_10_2__AAp6_0_1_2_3_7_8_BBp0_0_2_5_5_7_8_k20_d18/meta.json",
-          "results_dir": "results/smoke_SG10_2_20260128T173433Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_10_2__AAp29_0_1_3_3_7_8_BBp15_0_0_1_1_5_7_k20_d13",
+          "best_d": 13,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": true,
+            "k": 7,
+            "n": 60
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": true,
+            "k": 7,
+            "n": 60
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 60
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": true,
+            "k": 3,
+            "n": 60
+          }
+        },
         "code_id": "SmallGroup_10_2__AAp6_0_1_2_3_7_8_BBp0_0_2_5_5_7_8_k20_d18",
-        "dX_best": 18,
-        "dZ_best": 18,
-        "d_ub": 18,
-        "decision": "new_best",
         "distance": {
           "dX_best": 18,
           "dZ_best": 18,
@@ -86417,13 +86623,11 @@
           "steps_used_z": 200000,
           "wmin": 16
         },
-        "eval": 953303,
         "group": {
           "order": 10,
           "spec": "SmallGroup(10,2)"
         },
         "k": 20,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -86433,12 +86637,8 @@
           "permB_idx": 0
         },
         "n": 360,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 962284924,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260129T175030Z"
+        "target_distance": 8
       },
       "n": 360,
       "steps_used_total": 400000,
@@ -99915,7 +100115,6 @@
           },
           "slice_n": 72
         },
-        "A_id": "Ap6_0-3-7-7-8-9",
         "B": {
           "checks": {
             "Gp": {
@@ -99989,20 +100188,52 @@
           },
           "slice_n": 72
         },
-        "B_id": "Bp11_0-1-3-4-5-11",
-        "artifacts": {
-          "code_dir": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_7_7_8_9_BBp11_0_1_3_4_5_11_k20_d22",
-          "hx_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_7_7_8_9_BBp11_0_1_3_4_5_11_k20_d22/Hx.mtx",
-          "hz_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_7_7_8_9_BBp11_0_1_3_4_5_11_k20_d22/Hz.mtx",
-          "meta_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_7_7_8_9_BBp11_0_1_3_4_5_11_k20_d22/meta.json",
-          "results_dir": "results/smoke_SG12_2_20260128T215422Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_12_2__AAp6_0_3_6_6_8_9_BBp11_0_1_3_4_5_11_k20_d21",
+          "best_d": 21,
+          "best_trials": 1200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          }
+        },
         "code_id": "SmallGroup_12_2__AAp6_0_3_7_7_8_9_BBp11_0_1_3_4_5_11_k20_d22",
-        "dX_best": 23,
-        "dZ_best": 22,
-        "d_ub": 22,
-        "decision": "new_best",
         "distance": {
           "dX_best": 23,
           "dZ_best": 22,
@@ -101239,13 +101470,11 @@
           "steps_used_z": 1200000,
           "wmin": 21
         },
-        "eval": 220982,
         "group": {
           "order": 12,
           "spec": "SmallGroup(12,2)"
         },
         "k": 20,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -101255,12 +101484,8 @@
           "permB_idx": 11
         },
         "n": 432,
-        "promising": true,
-        "schema": "qtanner.new_best.v1",
         "seed": 1216975346,
-        "steps_used": 2400000,
-        "target_distance": 8,
-        "timestamp": "20260129T180403Z"
+        "target_distance": 8
       },
       "n": 432,
       "steps_used_total": 2400000,
@@ -101348,7 +101573,6 @@
           },
           "slice_n": 72
         },
-        "A_id": "Ap6_0-3-4-4-7-11",
         "B": {
           "checks": {
             "Gp": {
@@ -101422,20 +101646,52 @@
           },
           "slice_n": 72
         },
-        "B_id": "Bp11_0-1-3-4-5-11",
-        "artifacts": {
-          "code_dir": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_4_4_7_11_BBp11_0_1_3_4_5_11_k22_d19",
-          "hx_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_4_4_7_11_BBp11_0_1_3_4_5_11_k22_d19/Hx.mtx",
-          "hz_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_4_4_7_11_BBp11_0_1_3_4_5_11_k22_d19/Hz.mtx",
-          "meta_path": "results/smoke_SG12_2_20260128T215422Z/best_codes/SmallGroup_12_2__AAp6_0_3_4_4_7_11_BBp11_0_1_3_4_5_11_k22_d19/meta.json",
-          "results_dir": "results/smoke_SG12_2_20260128T215422Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_12_2__AAp29_0_3_8_8_9_10_BBp11_0_1_3_4_5_11_k22_d18",
+          "best_d": 18,
+          "best_trials": 600000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": false,
+            "k": 11,
+            "n": 72
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": false,
+            "k": 11,
+            "n": 72
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 24,
+            "d_witness": 24,
+            "exact": false,
+            "k": 10,
+            "n": 72
+          }
+        },
         "code_id": "SmallGroup_12_2__AAp6_0_3_4_4_7_11_BBp11_0_1_3_4_5_11_k22_d19",
-        "dX_best": 19,
-        "dZ_best": 19,
-        "d_ub": 19,
-        "decision": "new_best",
         "distance": {
           "dX_best": 19,
           "dZ_best": 19,
@@ -102072,13 +102328,11 @@
           "steps_used_z": 600000,
           "wmin": 10
         },
-        "eval": 222679,
         "group": {
           "order": 12,
           "spec": "SmallGroup(12,2)"
         },
         "k": 22,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -102088,12 +102342,8 @@
           "permB_idx": 11
         },
         "n": 432,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1216975346,
-        "steps_used": 1200000,
-        "target_distance": 8,
-        "timestamp": "20260129T184300Z"
+        "target_distance": 8
       },
       "n": 432,
       "steps_used_total": 1200000,
@@ -106704,7 +106954,6 @@
           },
           "slice_n": 78
         },
-        "A_id": "Ap11_0-0-0-1-1-8",
         "B": {
           "checks": {
             "Gp": {
@@ -106778,20 +107027,52 @@
           },
           "slice_n": 78
         },
-        "B_id": "Bp16_0-3-5-5-7-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp11_0_0_0_1_1_8_BBp16_0_3_5_5_7_10_k2_d30",
-          "hx_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp11_0_0_0_1_1_8_BBp16_0_3_5_5_7_10_k2_d30/Hx.mtx",
-          "hz_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp11_0_0_0_1_1_8_BBp16_0_3_5_5_7_10_k2_d30/Hz.mtx",
-          "meta_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp11_0_0_0_1_1_8_BBp16_0_3_5_5_7_10_k2_d30/meta.json",
-          "results_dir": "results/smoke_SG13_1_20260128T213610Z"
+        "base": {
+          "k_base": 2
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_13_1__AAp11_0_0_0_1_1_5_BBp8_0_2_3_6_6_6_k2_d26",
+          "best_d": 26,
+          "best_trials": 800000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 1,
+            "n": 78
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 1,
+            "n": 78
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 16,
+            "d_witness": 16,
+            "exact": false,
+            "k": 13,
+            "n": 78
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 16,
+            "d_witness": 16,
+            "exact": false,
+            "k": 13,
+            "n": 78
+          }
+        },
         "code_id": "SmallGroup_13_1__AAp11_0_0_0_1_1_8_BBp16_0_3_5_5_7_10_k2_d30",
-        "dX_best": 30,
-        "dZ_best": 33,
-        "d_ub": 30,
-        "decision": "new_best",
         "distance": {
           "dX_best": 30,
           "dZ_best": 33,
@@ -107628,13 +107909,11 @@
           "steps_used_z": 800000,
           "wmin": 27
         },
-        "eval": 461359,
         "group": {
           "order": 13,
           "spec": "SmallGroup(13,1)"
         },
         "k": 2,
-        "k_base": 2,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -107644,12 +107923,8 @@
           "permB_idx": 16
         },
         "n": 468,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1289541479,
-        "steps_used": 1600000,
-        "target_distance": 8,
-        "timestamp": "20260129T090625Z"
+        "target_distance": 8
       },
       "n": 468,
       "steps_used_total": 1600000,
@@ -107737,7 +108012,6 @@
           },
           "slice_n": 78
         },
-        "A_id": "Ap6_0-0-0-1-4-10",
         "B": {
           "checks": {
             "Gp": {
@@ -107811,20 +108085,52 @@
           },
           "slice_n": 78
         },
-        "B_id": "Bp27_0-2-2-4-4-9",
-        "artifacts": {
-          "code_dir": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_4_10_BBp27_0_2_2_4_4_9_k4_d31",
-          "hx_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_4_10_BBp27_0_2_2_4_4_9_k4_d31/Hx.mtx",
-          "hz_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_4_10_BBp27_0_2_2_4_4_9_k4_d31/Hz.mtx",
-          "meta_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_4_10_BBp27_0_2_2_4_4_9_k4_d31/meta.json",
-          "results_dir": "results/smoke_SG13_1_20260128T213610Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_13_1__AAp6_0_0_0_1_10_11_BBp8_0_2_3_6_6_6_k4_d27",
+          "best_d": 27,
+          "best_trials": 800000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 2,
+            "n": 78
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 2,
+            "n": 78
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 18,
+            "d_witness": 18,
+            "exact": false,
+            "k": 13,
+            "n": 78
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": false,
+            "k": 13,
+            "n": 78
+          }
+        },
         "code_id": "SmallGroup_13_1__AAp6_0_0_0_1_4_10_BBp27_0_2_2_4_4_9_k4_d31",
-        "dX_best": 33,
-        "dZ_best": 31,
-        "d_ub": 31,
-        "decision": "new_best",
         "distance": {
           "dX_best": 33,
           "dZ_best": 31,
@@ -108661,13 +108967,11 @@
           "steps_used_z": 800000,
           "wmin": 27
         },
-        "eval": 424479,
         "group": {
           "order": 13,
           "spec": "SmallGroup(13,1)"
         },
         "k": 4,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -108677,12 +108981,8 @@
           "permB_idx": 27
         },
         "n": 468,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1289541479,
-        "steps_used": 1600000,
-        "target_distance": 8,
-        "timestamp": "20260129T073813Z"
+        "target_distance": 8
       },
       "n": 468,
       "steps_used_total": 1600000,
@@ -110086,7 +110386,6 @@
           },
           "slice_n": 78
         },
-        "A_id": "Ap6_0-0-0-1-5-6",
         "B": {
           "checks": {
             "Gp": {
@@ -110160,20 +110459,52 @@
           },
           "slice_n": 78
         },
-        "B_id": "Bp0_0-3-6-7-9-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_5_6_BBp0_0_3_6_7_9_10_k12_d21",
-          "hx_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_5_6_BBp0_0_3_6_7_9_10_k12_d21/Hx.mtx",
-          "hz_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_5_6_BBp0_0_3_6_7_9_10_k12_d21/Hz.mtx",
-          "meta_path": "results/smoke_SG13_1_20260128T213610Z/best_codes/SmallGroup_13_1__AAp6_0_0_0_1_5_6_BBp0_0_3_6_7_9_10_k12_d21/meta.json",
-          "results_dir": "results/smoke_SG13_1_20260128T213610Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_13_1__AAp6_0_0_0_1_10_11_BBp0_0_6_7_8_11_12_k12_d20",
+          "best_d": 20,
+          "best_trials": 800000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 2,
+            "n": 78
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 52,
+            "d_witness": 52,
+            "exact": true,
+            "k": 2,
+            "n": 78
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 23,
+            "d_witness": 23,
+            "exact": false,
+            "k": 15,
+            "n": 78
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 23,
+            "d_witness": 23,
+            "exact": false,
+            "k": 15,
+            "n": 78
+          }
+        },
         "code_id": "SmallGroup_13_1__AAp6_0_0_0_1_5_6_BBp0_0_3_6_7_9_10_k12_d21",
-        "dX_best": 21,
-        "dZ_best": 22,
-        "d_ub": 21,
-        "decision": "new_best",
         "distance": {
           "dX_best": 21,
           "dZ_best": 22,
@@ -111010,13 +111341,11 @@
           "steps_used_z": 800000,
           "wmin": 20
         },
-        "eval": 465229,
         "group": {
           "order": 13,
           "spec": "SmallGroup(13,1)"
         },
         "k": 12,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -111026,12 +111355,8 @@
           "permB_idx": 0
         },
         "n": 468,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1289541479,
-        "steps_used": 1600000,
-        "target_distance": 8,
-        "timestamp": "20260129T093000Z"
+        "target_distance": 8
       },
       "n": 468,
       "steps_used_total": 1600000,
@@ -122849,7 +123174,6 @@
           },
           "slice_n": 84
         },
-        "A_id": "Ap0_0-3-4-8-11-12",
         "B": {
           "checks": {
             "Gp": {
@@ -122923,20 +123247,52 @@
           },
           "slice_n": 84
         },
-        "B_id": "Bp0_0-0-4-4-12-12",
-        "artifacts": {
-          "code_dir": "results/smoke_SG14_2_20260128T153505Z/best_codes/SmallGroup_14_2__AAp0_0_3_4_8_11_12_BBp0_0_0_4_4_12_12_k48_d9",
-          "hx_path": "results/smoke_SG14_2_20260128T153505Z/best_codes/SmallGroup_14_2__AAp0_0_3_4_8_11_12_BBp0_0_0_4_4_12_12_k48_d9/Hx.mtx",
-          "hz_path": "results/smoke_SG14_2_20260128T153505Z/best_codes/SmallGroup_14_2__AAp0_0_3_4_8_11_12_BBp0_0_0_4_4_12_12_k48_d9/Hz.mtx",
-          "meta_path": "results/smoke_SG14_2_20260128T153505Z/best_codes/SmallGroup_14_2__AAp0_0_3_4_8_11_12_BBp0_0_0_4_4_12_12_k48_d9/meta.json",
-          "results_dir": "results/smoke_SG14_2_20260128T153505Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": null,
+          "best_d": null,
+          "best_trials": null,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 16,
+            "n": 84
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": false,
+            "k": 16,
+            "n": 84
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 23,
+            "d_witness": 23,
+            "exact": false,
+            "k": 18,
+            "n": 84
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 20,
+            "d_witness": 20,
+            "exact": false,
+            "k": 18,
+            "n": 84
+          }
+        },
         "code_id": "SmallGroup_14_2__AAp0_0_3_4_8_11_12_BBp0_0_0_4_4_12_12_k48_d9",
-        "dX_best": 9,
-        "dZ_best": 9,
-        "d_ub": 9,
-        "decision": "new_best",
         "distance": {
           "dX_best": 9,
           "dZ_best": 9,
@@ -123033,13 +123389,11 @@
           "steps_used_z": 50000,
           "wmin": 8
         },
-        "eval": 85021,
         "group": {
           "order": 14,
           "spec": "SmallGroup(14,2)"
         },
         "k": 48,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -123049,12 +123403,8 @@
           "permB_idx": 0
         },
         "n": 504,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1967907489,
-        "steps_used": 100000,
-        "target_distance": 8,
-        "timestamp": "20260129T153043Z"
+        "target_distance": 8
       },
       "n": 504,
       "steps_used_total": 100000,
@@ -131410,7 +131760,6 @@
           },
           "slice_n": 90
         },
-        "A_id": "Ap0_0-2-5-5-8-11",
         "B": {
           "checks": {
             "Gp": {
@@ -131484,20 +131833,52 @@
           },
           "slice_n": 90
         },
-        "B_id": "Bp1_0-4-6-6-8-8",
-        "artifacts": {
-          "code_dir": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp1_0_4_6_6_8_8_k32_d10",
-          "hx_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp1_0_4_6_6_8_8_k32_d10/Hx.mtx",
-          "hz_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp1_0_4_6_6_8_8_k32_d10/Hz.mtx",
-          "meta_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp1_0_4_6_6_8_8_k32_d10/meta.json",
-          "results_dir": "results/smoke_SG15_1_20260128T191622Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_15_1__AAp22_0_7_8_8_9_11_BBp0_0_1_2_3_4_6_k32_d9",
+          "best_d": 9,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 27,
+            "d_witness": 27,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 21,
+            "d_witness": 21,
+            "exact": false,
+            "k": 16,
+            "n": 90
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 22,
+            "d_witness": 22,
+            "exact": false,
+            "k": 16,
+            "n": 90
+          }
+        },
         "code_id": "SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp1_0_4_6_6_8_8_k32_d10",
-        "dX_best": 10,
-        "dZ_best": 10,
-        "d_ub": 10,
-        "decision": "new_best",
         "distance": {
           "dX_best": 10,
           "dZ_best": 10,
@@ -131634,13 +132015,11 @@
           "steps_used_z": 100000,
           "wmin": 9
         },
-        "eval": 79907,
         "group": {
           "order": 15,
           "spec": "SmallGroup(15,1)"
         },
         "k": 32,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -131650,12 +132029,8 @@
           "permB_idx": 1
         },
         "n": 540,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 2005063932,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T152037Z"
+        "target_distance": 8
       },
       "n": 540,
       "steps_used_total": 200000,
@@ -132519,7 +132894,6 @@
           },
           "slice_n": 90
         },
-        "A_id": "Ap0_0-2-5-5-8-11",
         "B": {
           "checks": {
             "Gp": {
@@ -132593,20 +132967,52 @@
           },
           "slice_n": 90
         },
-        "B_id": "Bp0_0-1-7-10-13-14",
-        "artifacts": {
-          "code_dir": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_7_10_13_14_k38_d10",
-          "hx_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_7_10_13_14_k38_d10/Hx.mtx",
-          "hz_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_7_10_13_14_k38_d10/Hz.mtx",
-          "meta_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_7_10_13_14_k38_d10/meta.json",
-          "results_dir": "results/smoke_SG15_1_20260128T191622Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_15_1__AAp0_0_1_4_5_7_13_BBp0_0_1_2_3_4_6_k38_d9",
+          "best_d": 9,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 27,
+            "d_witness": 27,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 29,
+            "d_witness": 29,
+            "exact": false,
+            "k": 13,
+            "n": 90
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": false,
+            "k": 13,
+            "n": 90
+          }
+        },
         "code_id": "SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_7_10_13_14_k38_d10",
-        "dX_best": 10,
-        "dZ_best": 10,
-        "d_ub": 10,
-        "decision": "new_best",
         "distance": {
           "dX_best": 10,
           "dZ_best": 10,
@@ -132743,13 +133149,11 @@
           "steps_used_z": 100000,
           "wmin": 9
         },
-        "eval": 51263,
         "group": {
           "order": 15,
           "spec": "SmallGroup(15,1)"
         },
         "k": 38,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -132759,12 +133163,8 @@
           "permB_idx": 0
         },
         "n": 540,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 2005063932,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T075006Z"
+        "target_distance": 8
       },
       "n": 540,
       "steps_used_total": 200000,
@@ -133210,7 +133610,6 @@
           },
           "slice_n": 90
         },
-        "A_id": "Ap0_0-2-5-5-8-11",
         "B": {
           "checks": {
             "Gp": {
@@ -133284,20 +133683,52 @@
           },
           "slice_n": 90
         },
-        "B_id": "Bp8_0-11-11-11-12-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp8_0_11_11_11_12_13_k42_d10",
-          "hx_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp8_0_11_11_11_12_13_k42_d10/Hx.mtx",
-          "hz_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp8_0_11_11_11_12_13_k42_d10/Hz.mtx",
-          "meta_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp8_0_11_11_11_12_13_k42_d10/meta.json",
-          "results_dir": "results/smoke_SG15_1_20260128T191622Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp0_0_1_1_1_3_3_k42_d9",
+          "best_d": 9,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 27,
+            "d_witness": 27,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 28,
+            "d_witness": 28,
+            "exact": false,
+            "k": 21,
+            "n": 90
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 15,
+            "n": 90
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 15,
+            "n": 90
+          }
+        },
         "code_id": "SmallGroup_15_1__AAp0_0_2_5_5_8_11_BBp8_0_11_11_11_12_13_k42_d10",
-        "dX_best": 10,
-        "dZ_best": 10,
-        "d_ub": 10,
-        "decision": "new_best",
         "distance": {
           "dX_best": 10,
           "dZ_best": 10,
@@ -133434,13 +133865,11 @@
           "steps_used_z": 100000,
           "wmin": 9
         },
-        "eval": 84067,
         "group": {
           "order": 15,
           "spec": "SmallGroup(15,1)"
         },
         "k": 42,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -133450,12 +133879,8 @@
           "permB_idx": 8
         },
         "n": 540,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 2005063932,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T164457Z"
+        "target_distance": 8
       },
       "n": 540,
       "steps_used_total": 200000,
@@ -133861,7 +134286,6 @@
           },
           "slice_n": 90
         },
-        "A_id": "Ap0_0-2-9-9-10-13",
         "B": {
           "checks": {
             "Gp": {
@@ -133935,20 +134359,52 @@
           },
           "slice_n": 90
         },
-        "B_id": "Bp0_0-0-5-5-13-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_9_9_10_13_BBp0_0_0_5_5_13_13_k46_d10",
-          "hx_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_9_9_10_13_BBp0_0_0_5_5_13_13_k46_d10/Hx.mtx",
-          "hz_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_9_9_10_13_BBp0_0_0_5_5_13_13_k46_d10/Hz.mtx",
-          "meta_path": "results/smoke_SG15_1_20260128T191622Z/best_codes/SmallGroup_15_1__AAp0_0_2_9_9_10_13_BBp0_0_0_5_5_13_13_k46_d10/meta.json",
-          "results_dir": "results/smoke_SG15_1_20260128T191622Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_15_1__AAp0_0_1_7_7_13_14_BBp0_0_1_2_3_4_6_k46_d9",
+          "best_d": 9,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": false,
+            "k": 17,
+            "n": 90
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 30,
+            "d_witness": 30,
+            "exact": false,
+            "k": 17,
+            "n": 90
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 27,
+            "d_witness": 27,
+            "exact": false,
+            "k": 17,
+            "n": 90
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 26,
+            "d_witness": 26,
+            "exact": false,
+            "k": 17,
+            "n": 90
+          }
+        },
         "code_id": "SmallGroup_15_1__AAp0_0_2_9_9_10_13_BBp0_0_0_5_5_13_13_k46_d10",
-        "dX_best": 10,
-        "dZ_best": 10,
-        "d_ub": 10,
-        "decision": "new_best",
         "distance": {
           "dX_best": 10,
           "dZ_best": 10,
@@ -134185,13 +134641,11 @@
           "steps_used_z": 200000,
           "wmin": 9
         },
-        "eval": 59109,
         "group": {
           "order": 15,
           "spec": "SmallGroup(15,1)"
         },
         "k": 46,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -134201,12 +134655,8 @@
           "permB_idx": 0
         },
         "n": 540,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 2005063932,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260129T093012Z"
+        "target_distance": 8
       },
       "n": 540,
       "steps_used_total": 400000,
@@ -137413,7 +137863,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap11_0-0-1-10-11-14",
         "B": {
           "checks": {
             "Gp": {
@@ -137487,20 +137936,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp6_0-1-2-2-10-11",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp11_0_0_1_10_11_14_BBp6_0_1_2_2_10_11_k6_d31",
-          "hx_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp11_0_0_1_10_11_14_BBp6_0_1_2_2_10_11_k6_d31/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp11_0_0_1_10_11_14_BBp6_0_1_2_2_10_11_k6_d31/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp11_0_0_1_10_11_14_BBp6_0_1_2_2_10_11_k6_d31/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T153212Z"
+        "base": {
+          "k_base": 4
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp6_0_1_10_11_12_14_BBp11_0_0_1_10_11_11_k6_d30",
+          "best_d": 30,
+          "best_trials": 4000000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 48,
+            "d_witness": 48,
+            "exact": true,
+            "k": 4,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 48,
+            "d_witness": 48,
+            "exact": true,
+            "k": 4,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 44,
+            "d_witness": 44,
+            "exact": true,
+            "k": 8,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 44,
+            "d_witness": 44,
+            "exact": true,
+            "k": 8,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp11_0_0_1_10_11_14_BBp6_0_1_2_2_10_11_k6_d31",
-        "dX_best": 35,
-        "dZ_best": 31,
-        "d_ub": 31,
-        "decision": "new_best",
         "distance": {
           "dX_best": 35,
           "dZ_best": 31,
@@ -141537,13 +142018,11 @@
           "steps_used_z": 4000000,
           "wmin": 30
         },
-        "eval": 7828,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 6,
-        "k_base": 4,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -141553,12 +142032,8 @@
           "permB_idx": 6
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1743580079,
-        "steps_used": 8000000,
-        "target_distance": 8,
-        "timestamp": "20260129T163126Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 8000000,
@@ -153250,7 +153725,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap11_0-4-5-8-10-13",
         "B": {
           "checks": {
             "Gp": {
@@ -153324,20 +153798,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-5-8-8-10-11",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp11_0_4_5_8_10_13_BBp0_0_5_8_8_10_11_k28_d20",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp11_0_4_5_8_10_13_BBp0_0_5_8_8_10_11_k28_d20/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp11_0_4_5_8_10_13_BBp0_0_5_8_8_10_11_k28_d20/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp11_0_4_5_8_10_13_BBp0_0_5_8_8_10_11_k28_d20/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp29_0_1_2_2_4_6_BBp27_0_1_3_3_6_10_k28_d18",
+          "best_d": 18,
+          "best_trials": 4000000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 13,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 13,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp11_0_4_5_8_10_13_BBp0_0_5_8_8_10_11_k28_d20",
-        "dX_best": 20,
-        "dZ_best": 22,
-        "d_ub": 20,
-        "decision": "new_best",
         "distance": {
           "dX_best": 20,
           "dZ_best": 22,
@@ -157374,13 +157880,11 @@
           "steps_used_z": 4000000,
           "wmin": 7
         },
-        "eval": 16610,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 28,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -157390,12 +157894,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 8000000,
-        "target_distance": 8,
-        "timestamp": "20260129T173919Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 8000000,
@@ -157483,7 +157983,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap13_0-1-11-11-12-14",
         "B": {
           "checks": {
             "Gp": {
@@ -157557,20 +158056,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp6_0-4-6-7-10-14",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp13_0_1_11_11_12_14_BBp6_0_4_6_7_10_14_k29_d16",
-          "hx_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp13_0_1_11_11_12_14_BBp6_0_4_6_7_10_14_k29_d16/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp13_0_1_11_11_12_14_BBp6_0_4_6_7_10_14_k29_d16/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp13_0_1_11_11_12_14_BBp6_0_4_6_7_10_14_k29_d16/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T153212Z"
+        "base": {
+          "k_base": 8
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp7_0_1_4_10_13_14_BBp0_0_2_4_7_10_12_k29_d12",
+          "best_d": 12,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 11,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 11,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp13_0_1_11_11_12_14_BBp6_0_4_6_7_10_14_k29_d16",
-        "dX_best": 16,
-        "dZ_best": 16,
-        "d_ub": 16,
-        "decision": "new_best",
         "distance": {
           "dX_best": 16,
           "dZ_best": 16,
@@ -157707,13 +158238,11 @@
           "steps_used_z": 100000,
           "wmin": 12
         },
-        "eval": 5346,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 29,
-        "k_base": 8,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -157723,12 +158252,8 @@
           "permB_idx": 6
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1743580079,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T130858Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -157816,7 +158341,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-6-9-10-12-14",
         "B": {
           "checks": {
             "Gp": {
@@ -157890,20 +158414,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp8_0-2-4-4-9-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_6_9_10_12_14_BBp8_0_2_4_4_9_10_k30_d18",
-          "hx_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_6_9_10_12_14_BBp8_0_2_4_4_9_10_k30_d18/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_6_9_10_12_14_BBp8_0_2_4_4_9_10_k30_d18/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_6_9_10_12_14_BBp8_0_2_4_4_9_10_k30_d18/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T153212Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_2__AAp6_0_4_6_6_10_15_BBp0_0_2_6_7_10_15_k30_d16",
+          "best_d": 16,
+          "best_trials": 600000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 16,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 16,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_6_9_10_12_14_BBp8_0_2_4_4_9_10_k30_d18",
-        "dX_best": 18,
-        "dZ_best": 18,
-        "d_ub": 18,
-        "decision": "new_best",
         "distance": {
           "dX_best": 18,
           "dZ_best": 18,
@@ -158540,13 +159096,11 @@
           "steps_used_z": 600000,
           "wmin": 7
         },
-        "eval": 11308,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 30,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -158556,12 +159110,8 @@
           "permB_idx": 8
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1743580079,
-        "steps_used": 1200000,
-        "target_distance": 8,
-        "timestamp": "20260129T182542Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 1200000,
@@ -159007,7 +159557,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-2-2-4-6",
         "B": {
           "checks": {
             "Gp": {
@@ -159081,20 +159630,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp27_0-7-9-9-10-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_2_4_6_BBp27_0_7_9_9_10_13_k32_d22",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_2_4_6_BBp27_0_7_9_9_10_13_k32_d22/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_2_4_6_BBp27_0_7_9_9_10_13_k32_d22/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_2_4_6_BBp27_0_7_9_9_10_13_k32_d22/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 6
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_1__AAp1_0_1_7_8_14_15_BBp27_0_3_4_4_13_15_k32_d18",
+          "best_d": 18,
+          "best_trials": 1400000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 16,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 16,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_2_2_4_6_BBp27_0_7_9_9_10_13_k32_d22",
-        "dX_best": 22,
-        "dZ_best": 22,
-        "d_ub": 22,
-        "decision": "new_best",
         "distance": {
           "dX_best": 22,
           "dZ_best": 22,
@@ -160531,13 +161112,11 @@
           "steps_used_z": 1400000,
           "wmin": 14
         },
-        "eval": 12593,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 32,
-        "k_base": 6,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -160547,12 +161126,8 @@
           "permB_idx": 27
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 2800000,
-        "target_distance": 8,
-        "timestamp": "20260129T120957Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 2800000,
@@ -161992,7 +162567,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-2-3-10-14",
         "B": {
           "checks": {
             "Gp": {
@@ -162066,20 +162640,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp6_0-4-8-8-10-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_3_10_14_BBp6_0_4_8_8_10_13_k37_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_3_10_14_BBp6_0_4_8_8_10_13_k37_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_3_10_14_BBp6_0_4_8_8_10_13_k37_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_2_3_10_14_BBp6_0_4_8_8_10_13_k37_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_8__AAp29_0_2_6_6_10_14_BBp22_0_2_5_10_13_14_k37_d10",
+          "best_d": 10,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_2_3_10_14_BBp6_0_4_8_8_10_13_k37_d12",
-        "dX_best": 15,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 15,
           "dZ_best": 12,
@@ -162216,13 +162822,11 @@
           "steps_used_z": 100000,
           "wmin": 7
         },
-        "eval": 9547,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 37,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -162232,12 +162836,8 @@
           "permB_idx": 6
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T100357Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -163041,7 +163641,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap22_0-1-2-3-13-14",
         "B": {
           "checks": {
             "Gp": {
@@ -163115,20 +163714,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp6_0-2-7-7-8-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp6_0_2_7_7_8_10_k40_d16",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp6_0_2_7_7_8_10_k40_d16/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp6_0_2_7_7_8_10_k40_d16/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp6_0_2_7_7_8_10_k40_d16/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 8
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp0_0_7_8_8_10_13_k40_d14",
+          "best_d": 14,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp22_0_1_2_3_13_14_BBp6_0_2_7_7_8_10_k40_d16",
-        "dX_best": 16,
-        "dZ_best": 16,
-        "d_ub": 16,
-        "decision": "new_best",
         "distance": {
           "dX_best": 16,
           "dZ_best": 16,
@@ -163365,13 +163996,11 @@
           "steps_used_z": 200000,
           "wmin": 14
         },
-        "eval": 9495,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 40,
-        "k_base": 8,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -163381,12 +164010,8 @@
           "permB_idx": 6
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260129T095818Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 400000,
@@ -163792,7 +164417,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-7-8-9-11",
         "B": {
           "checks": {
             "Gp": {
@@ -163866,20 +164490,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-3-5-10-11-15",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_1_7_8_9_11_BBp0_0_3_5_10_11_15_k42_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_1_7_8_9_11_BBp0_0_3_5_10_11_15_k42_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_1_7_8_9_11_BBp0_0_3_5_10_11_15_k42_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_1_7_8_9_11_BBp0_0_3_5_10_11_15_k42_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T153212Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp0_0_3_4_4_8_10_BBp29_0_3_5_5_6_10_k42_d10",
+          "best_d": 10,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_7_8_9_11_BBp0_0_3_5_10_11_15_k42_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -164016,13 +164672,11 @@
           "steps_used_z": 100000,
           "wmin": 10
         },
-        "eval": 5469,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 42,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -164032,12 +164686,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1743580079,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T131507Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -164125,7 +164775,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-3-9-9-11-15",
         "B": {
           "checks": {
             "Gp": {
@@ -164199,20 +164848,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-3-4-8-9-11",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_3_9_9_11_15_BBp0_0_3_4_8_9_11_k43_d10",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_3_9_9_11_15_BBp0_0_3_4_8_9_11_k43_d10/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_3_9_9_11_15_BBp0_0_3_4_8_9_11_k43_d10/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_3_9_9_11_15_BBp0_0_3_4_8_9_11_k43_d10/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp0_0_3_4_8_11_15_BBp0_0_6_7_10_12_13_k43_d8",
+          "best_d": 8,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 15,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_3_9_9_11_15_BBp0_0_3_4_8_9_11_k43_d10",
-        "dX_best": 10,
-        "dZ_best": 10,
-        "d_ub": 10,
-        "decision": "new_best",
         "distance": {
           "dX_best": 10,
           "dZ_best": 10,
@@ -164349,13 +165030,11 @@
           "steps_used_z": 100000,
           "wmin": 8
         },
-        "eval": 20363,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 43,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -164365,12 +165044,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T185914Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -165234,7 +165909,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-3-4-6-10",
         "B": {
           "checks": {
             "Gp": {
@@ -165308,20 +165982,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp6_0-4-8-8-10-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_4_8_8_10_13_k46_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_4_8_8_10_13_k46_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_4_8_8_10_13_k46_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_4_8_8_10_13_k46_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp6_0_2_3_3_8_12_BBp13_0_1_5_6_11_14_k46_d10",
+          "best_d": 10,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 14,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_4_8_8_10_13_k46_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -165558,13 +166264,11 @@
           "steps_used_z": 200000,
           "wmin": 10
         },
-        "eval": 12936,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 46,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -165574,12 +166278,8 @@
           "permB_idx": 6
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260129T122355Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 400000,
@@ -167059,7 +167759,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-2-8-9-14-15",
         "B": {
           "checks": {
             "Gp": {
@@ -167133,20 +167832,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-3-4-5-12-15",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_3_4_5_12_15_k52_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_3_4_5_12_15_k52_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_3_4_5_12_15_k52_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_3_4_5_12_15_k52_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp6_0_1_4_4_7_13_k52_d10",
+          "best_d": 10,
+          "best_trials": 200000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_3_4_5_12_15_k52_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -167383,13 +168114,11 @@
           "steps_used_z": 200000,
           "wmin": 10
         },
-        "eval": 12992,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 52,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -167399,12 +168128,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 400000,
-        "target_distance": 8,
-        "timestamp": "20260129T123056Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 400000,
@@ -167810,7 +168535,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-2-3-9-10-14",
         "B": {
           "checks": {
             "Gp": {
@@ -167884,20 +168608,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp22_0-5-7-8-12-13",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp22_0_5_7_8_12_13_k55_d8",
-          "hx_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp22_0_5_7_8_12_13_k55_d8/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp22_0_5_7_8_12_13_k55_d8/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T153212Z/best_codes/SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp22_0_5_7_8_12_13_k55_d8/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T153212Z"
+        "base": {
+          "k_base": 12
+        },
+        "best_codes": {
+          "best_code_id": null,
+          "best_d": null,
+          "best_trials": null,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 19,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 19,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_2_3_9_10_14_BBp22_0_5_7_8_12_13_k55_d8",
-        "dX_best": 8,
-        "dZ_best": 9,
-        "d_ub": 8,
-        "decision": "new_best",
         "distance": {
           "dX_best": 8,
           "dZ_best": 9,
@@ -167994,13 +168750,11 @@
           "steps_used_z": 50000,
           "wmin": 7
         },
-        "eval": 8497,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 55,
-        "k_base": 12,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -168010,12 +168764,8 @@
           "permB_idx": 22
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1743580079,
-        "steps_used": 100000,
-        "target_distance": 8,
-        "timestamp": "20260129T171253Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 100000,
@@ -168103,7 +168853,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-3-6-10-13",
         "B": {
           "checks": {
             "Gp": {
@@ -168177,20 +168926,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-2-3-4-8-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_6_10_13_BBp0_0_2_3_4_8_10_k56_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_6_10_13_BBp0_0_2_3_4_8_10_k56_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_6_10_13_BBp0_0_2_3_4_8_10_k56_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_6_10_13_BBp0_0_2_3_4_8_10_k56_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp6_0_1_4_4_7_13_k56_d9",
+          "best_d": 9,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 36,
+            "d_witness": 36,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_3_6_10_13_BBp0_0_2_3_4_8_10_k56_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -168327,13 +169108,11 @@
           "steps_used_z": 100000,
           "wmin": 9
         },
-        "eval": 16418,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 56,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -168343,12 +169122,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T150330Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -168436,7 +169211,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-2-8-9-14-15",
         "B": {
           "checks": {
             "Gp": {
@@ -168510,20 +169284,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-2-3-4-8-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_2_3_4_8_10_k57_d8",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_2_3_4_8_10_k57_d8/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_2_3_4_8_10_k57_d8/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_2_3_4_8_10_k57_d8/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": null,
+          "best_d": null,
+          "best_trials": null,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 34,
+            "d_witness": 34,
+            "exact": false,
+            "k": 18,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_2_8_9_14_15_BBp0_0_2_3_4_8_10_k57_d8",
-        "dX_best": 8,
-        "dZ_best": 8,
-        "d_ub": 8,
-        "decision": "new_best",
         "distance": {
           "dX_best": 8,
           "dZ_best": 8,
@@ -168620,13 +169426,11 @@
           "steps_used_z": 50000,
           "wmin": 7
         },
-        "eval": 7216,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 57,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -168636,12 +169440,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 100000,
-        "target_distance": 8,
-        "timestamp": "20260129T074940Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 100000,
@@ -168729,7 +169529,6 @@
           },
           "slice_n": 96
         },
-        "A_id": "Ap0_0-1-3-4-6-10",
         "B": {
           "checks": {
             "Gp": {
@@ -168803,20 +169602,52 @@
           },
           "slice_n": 96
         },
-        "B_id": "Bp0_0-2-3-4-8-10",
-        "artifacts": {
-          "code_dir": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp0_0_2_3_4_8_10_k58_d12",
-          "hx_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp0_0_2_3_4_8_10_k58_d12/Hx.mtx",
-          "hz_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp0_0_2_3_4_8_10_k58_d12/Hz.mtx",
-          "meta_path": "results/smoke_SG16_4_20260128T214121Z/best_codes/SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp0_0_2_3_4_8_10_k58_d12/meta.json",
-          "results_dir": "results/smoke_SG16_4_20260128T214121Z"
+        "base": {
+          "k_base": 18
+        },
+        "best_codes": {
+          "best_code_id": "SmallGroup_16_4__AAp0_0_1_3_3_4_10_BBp0_0_3_4_4_8_10_k58_d8",
+          "best_d": 8,
+          "best_trials": 100000,
+          "path": "best_codes/data.json",
+          "source": "origin"
         },
         "best_codes_candidate": true,
+        "classical_slices": {
+          "A_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "A_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_G": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          },
+          "B_H": {
+            "backend": "fast",
+            "d_ub": 32,
+            "d_witness": 32,
+            "exact": false,
+            "k": 20,
+            "n": 96
+          }
+        },
         "code_id": "SmallGroup_16_4__AAp0_0_1_3_4_6_10_BBp0_0_2_3_4_8_10_k58_d12",
-        "dX_best": 12,
-        "dZ_best": 12,
-        "d_ub": 12,
-        "decision": "new_best",
         "distance": {
           "dX_best": 12,
           "dZ_best": 12,
@@ -168953,13 +169784,11 @@
           "steps_used_z": 100000,
           "wmin": 8
         },
-        "eval": 12927,
         "group": {
           "order": 16,
           "spec": "SmallGroup(16,4)"
         },
         "k": 58,
-        "k_base": 18,
         "local_codes": {
           "C0": "hamming_6_3_3_shortened",
           "C0p": "hamming_6_3_3_shortened",
@@ -168969,12 +169798,8 @@
           "permB_idx": 0
         },
         "n": 576,
-        "promising": false,
-        "schema": "qtanner.new_best.v1",
         "seed": 1381171564,
-        "steps_used": 200000,
-        "target_distance": 8,
-        "timestamp": "20260129T121655Z"
+        "target_distance": 8
       },
       "n": 576,
       "steps_used_total": 200000,
@@ -187743,6 +188568,6 @@
       "trials": 100000
     }
   ],
-  "generated_at_utc": "2026-01-29T19:12:32Z",
+  "generated_at_utc": "2026-01-29T19:14:02Z",
   "total_codes": 305
 }
