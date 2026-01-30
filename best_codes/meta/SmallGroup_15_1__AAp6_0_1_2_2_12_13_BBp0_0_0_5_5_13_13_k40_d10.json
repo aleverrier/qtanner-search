@@ -211,7 +211,7 @@
         "steps": 400
       }
     },
-    "method": "dist_m4ri_rw_progressive",
+    "method": "dist-m4ri",
     "refine_chunk": 20000,
     "refine_chunks": [
       {
@@ -322,9 +322,9 @@
     },
     "steps_fast": 400,
     "steps_slow": 100000,
-    "steps_used_total": 200000,
-    "steps_used_x": 100000,
-    "steps_used_z": 100000,
+    "steps_used_total": 10000000,
+    "steps_used_x": 5000000,
+    "steps_used_z": 5000000,
     "wmin": 9
   },
   "group": {
@@ -342,5 +342,24 @@
   },
   "n": 540,
   "seed": 2005063932,
-  "target_distance": 8
+  "target_distance": 8,
+  "distance_backend": "dist-m4ri",
+  "distance_method": "RW",
+  "m4ri_steps": 5000000,
+  "m4ri_seed": 1,
+  "dX_ub": 10,
+  "dZ_ub": 10,
+  "d_ub": 10,
+  "d": 10,
+  "trials": 5000000,
+  "updated_at": "2026-01-30T15:48:39Z",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "method": "RW",
+    "steps_per_side": 5000000,
+    "dX_ub": 10,
+    "dZ_ub": 10,
+    "d_ub": 10,
+    "updated_at": "2026-01-30T15:48:39Z"
+  }
 }
