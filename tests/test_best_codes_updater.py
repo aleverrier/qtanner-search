@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from qtanner.best_codes_updater import CodeRecord, select_best_by_nk
+from qtanner.best_codes_updater import CodeRecord, consolidate_records_by_code_key, select_best_by_nk
 
 
 def _rec(code_id: str, n: int, k: int, d: int, trials: int) -> CodeRecord:
@@ -40,3 +40,20 @@ def test_distance_floor_except_n36() -> None:
     low36 = _rec("low36", 36, 6, 3, 10)
     sel36 = select_best_by_nk([low36])
     assert sel36[(36, 6)].code_id == "low36"
+
+
+def test_consolidate_prefers_max_trials() -> None:
+    r1 = _rec("Code_k10_d50", 100, 10, 50, 100)
+    r2 = _rec("Code_k10_d30", 100, 10, 30, 200)
+    out = consolidate_records_by_code_key([r1, r2])
+    assert len(out) == 1
+    assert out[0].trials == 200
+    assert out[0].d == 30
+
+
+def test_consolidate_tie_trials_prefers_larger_d() -> None:
+    r1 = _rec("Code_k10_d40", 100, 10, 40, 100)
+    r2 = _rec("Code_k10_d50", 100, 10, 50, 100)
+    out = consolidate_records_by_code_key([r1, r2])
+    assert len(out) == 1
+    assert out[0].d == 50

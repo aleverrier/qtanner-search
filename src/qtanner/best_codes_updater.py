@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 _CODE_ID_D_RE = re.compile(r"_d(\d+)(?:_|$)")
+_CODE_ID_D_SUFFIX_RE = re.compile(r"^(.*)_d(\d+)$")
 _CODE_ID_K_RE = re.compile(r"_k(\d+)(?:_|$)")
 
 _SKIP_DIR_PARTS = {".git", "__pycache__", ".venv", "venv", "node_modules"}
@@ -131,6 +132,13 @@ def _parse_code_id_suffix(code_id: str, key_re: re.Pattern[str]) -> Optional[int
     return int(m.group(1)) if m else None
 
 
+def _strip_code_id_d_suffix(code_id: str) -> str:
+    if not code_id:
+        return ""
+    m = _CODE_ID_D_SUFFIX_RE.match(code_id)
+    return m.group(1) if m else code_id
+
+
 def _group_from_code_id(code_id: str) -> Optional[str]:
     if not code_id:
         return None
@@ -183,6 +191,30 @@ def _extract_distance(meta: Optional[Dict[str, Any]], code_id: str) -> Optional[
         return min(vals) if vals else None
 
     return _parse_code_id_suffix(code_id, _CODE_ID_D_RE)
+
+
+def _extract_distance_from_meta_only(meta: Dict[str, Any]) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    d = _get_first_int(meta, ["d_ub", "d", "d_recorded", "d_obs"])
+    if d is None:
+        d = _get_first_int(meta, ["distance.d_ub", "distance.d", "distance_ub", "distance"])
+
+    dx = _get_first_int(meta, ["distance.dX_best", "distance.dX_ub", "distance.dx_best", "distance.dx_ub", "distance.dX"])
+    dz = _get_first_int(meta, ["distance.dZ_best", "distance.dZ_ub", "distance.dz_best", "distance.dz_ub", "distance.dZ"])
+    if d is None and (dx is not None or dz is not None):
+        vals = [v for v in (dx, dz) if v is not None]
+        d = min(vals) if vals else None
+
+    dx_fast = _get_first_int(meta, ["distance.fast.dx.d_ub", "distance.fast.dx.d", "distance.fast.dx.signed"])
+    dz_fast = _get_first_int(meta, ["distance.fast.dz.d_ub", "distance.fast.dz.d", "distance.fast.dz.signed"])
+    if dx is None:
+        dx = dx_fast
+    if dz is None:
+        dz = dz_fast
+    if d is None and (dx is not None or dz is not None):
+        vals = [v for v in (dx, dz) if v is not None]
+        d = min(vals) if vals else None
+
+    return d, dx, dz
 
 
 def _extract_trials(meta: Optional[Dict[str, Any]], run_meta: Optional[Dict[str, Any]] = None) -> Optional[int]:
@@ -770,8 +802,10 @@ def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRe
     for key, group in eligible.items():
         # Prefer promising codes when any exist for this (n,k),
         # but fall back to the full set to avoid dropping legacy entries.
-        promising = [r for r in group if _is_promising(int(r.n), int(r.k), int(r.d))]
-        pool = promising if promising else list(group)
+        non_history = [r for r in group if r.source_kind != "git_history"]
+        base_pool = non_history if non_history else list(group)
+        promising = [r for r in base_pool if _is_promising(int(r.n), int(r.k), int(r.d))]
+        pool = promising if promising else list(base_pool)
 
         trials_vals = [r.trials for r in pool if isinstance(r.trials, int)]
         max_trials = max(trials_vals) if trials_vals else None
@@ -792,6 +826,58 @@ def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRe
         selected[key] = cand[0]
 
     return selected
+
+
+def consolidate_records_by_code_key(records: List[CodeRecord], *, verbose: bool = False) -> List[CodeRecord]:
+    grouped: Dict[Tuple[str, Optional[int], Optional[int]], List[CodeRecord]] = {}
+    for rec in records:
+        base = _strip_code_id_d_suffix(rec.code_id or "")
+        key = (base or rec.code_id or "", rec.n, rec.k)
+        grouped.setdefault(key, []).append(rec)
+
+    consolidated: List[CodeRecord] = []
+    for key, group in grouped.items():
+        if len(group) == 1:
+            consolidated.append(group[0])
+            continue
+
+        def trial_val(r: CodeRecord) -> int:
+            return int(r.trials) if isinstance(r.trials, int) else -1
+
+        def d_val(r: CodeRecord) -> int:
+            return int(r.d) if isinstance(r.d, int) else -1
+
+        group_sorted = sorted(group, key=lambda r: (trial_val(r), d_val(r), r.code_id or "", str(r.source_path or "")))
+        best = group_sorted[-1]
+
+        non_history = [r for r in group if r.source_kind != "git_history"]
+        if non_history:
+            nh_sorted = sorted(
+                non_history,
+                key=lambda r: (trial_val(r), d_val(r), r.code_id or "", str(r.source_path or "")),
+            )
+            best = nh_sorted[-1]
+
+        if verbose:
+            best_trials = trial_val(best)
+            best_d = d_val(best)
+            for other in group:
+                if other is best:
+                    continue
+                t = trial_val(other)
+                d = d_val(other)
+                if best_trials > t and best_d > d and t >= 0 and d >= 0:
+                    _log(
+                        verbose,
+                        "[merge] WARNING: higher trials "
+                        f"{best_trials} has higher d_ub {best_d} than "
+                        f"lower-trials {t} d_ub {d} for {best.code_id}",
+                    )
+                    break
+
+        consolidated.append(best)
+
+    return consolidated
 
 
 def _atomic_write_text(path: Path, text: str) -> None:
@@ -991,11 +1077,8 @@ def update_best_codes_webpage_data(
         group = _extract_group(meta, rec.code_id) or rec.group
         n = _get_first_int(meta, ["n"]) or rec.n
         k = _get_first_int(meta, ["k"]) or rec.k
-        d = _extract_distance(meta, rec.code_id)
+        d, dX, dZ = _extract_distance_from_meta_only(meta)
         trials = _extract_trials(meta, meta.get("run_meta") if isinstance(meta.get("run_meta"), dict) else None)
-
-        dX = _get_first_int(meta, ["distance.dX_ub", "distance.dX_best", "distance.dx_ub", "distance.dx_best"])
-        dZ = _get_first_int(meta, ["distance.dZ_ub", "distance.dZ_best", "distance.dz_ub", "distance.dz_best"])
 
         codes.append(
             {
@@ -1174,7 +1257,8 @@ def run_best_codes_update(
     while attempts < attempts_cap:
         attempts += 1
         last_records = scan_all_codes(root, verbose=verbose, include_git_history=include_git_history)
-        last_selected = select_best_by_nk(last_records)
+        consolidated = consolidate_records_by_code_key(last_records, verbose=verbose)
+        last_selected = select_best_by_nk(consolidated)
 
         if dry_run:
             return BestCodesUpdateResult(

@@ -153,6 +153,27 @@ def extract_distance_bounds(meta: Dict[str, Any]) -> Tuple[Optional[int], Option
         if ds: d_ub=min(ds)
     return dX, dZ, d_ub
 
+def extract_distance_bounds_strict(meta: Dict[str, Any]) -> Tuple[Optional[int], Optional[int], Optional[int]]:
+    dist = meta.get("distance")
+    if not isinstance(dist, dict):
+        dist = {}
+    d_ub = get_int(dist, ["d_ub","d","distance_ub","distance"])
+    dX = get_int(dist, ["dX_best","dX_ub","dx_best","dx_ub","dX"])
+    dZ = get_int(dist, ["dZ_best","dZ_ub","dz_best","dz_ub","dZ"])
+    fast = dist.get("fast")
+    if isinstance(fast, dict):
+        fdx=fast.get("dx")
+        fdz=fast.get("dz")
+        if isinstance(fdx, dict) and dX is None:
+            dX = get_int(fdx, ["d_ub","d","signed","d_est"])
+        if isinstance(fdz, dict) and dZ is None:
+            dZ = get_int(fdz, ["d_ub","d","signed","d_est"])
+    if d_ub is None and (dX is not None or dZ is not None):
+        ds=[x for x in (dX,dZ) if x is not None]
+        if ds:
+            d_ub=min(ds)
+    return dX, dZ, d_ub
+
 def extract_trials(meta: Dict[str, Any]) -> Tuple[Optional[int], Optional[int], Optional[int]]:
     dist = meta.get("distance")
     if not isinstance(dist, dict):

@@ -11,7 +11,7 @@ from _best_codes_common import (
     extract_A_elems,
     extract_B_elems,
     extract_code_id,
-    extract_distance_bounds,
+    extract_distance_bounds_strict,
     extract_group_spec,
     extract_k,
     extract_n,
@@ -45,7 +45,7 @@ def main() -> int:
 
         A = extract_A_elems(meta)
         B = extract_B_elems(meta)
-        dX, dZ, d = extract_distance_bounds(meta)
+        dX, dZ, d = extract_distance_bounds_strict(meta)
         t_total, sx, sz = extract_trials(meta)
         per_side = None
         if isinstance(sx, int) or isinstance(sz, int):
