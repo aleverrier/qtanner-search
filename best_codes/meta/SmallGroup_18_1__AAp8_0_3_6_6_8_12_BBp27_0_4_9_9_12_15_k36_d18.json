@@ -72,7 +72,6 @@
     },
     "slice_n": 108
   },
-  "A_id": "Ap8_0-3-6-6-8-12",
   "B": {
     "checks": {
       "Gp": {
@@ -146,20 +145,52 @@
     },
     "slice_n": 108
   },
-  "B_id": "Bp27_0-4-9-9-12-15",
-  "artifacts": {
-    "code_dir": "results/smoke_SG18_1_20260129T115419Z/best_codes/SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp27_0_4_9_9_12_15_k36_d18",
-    "hx_path": "results/smoke_SG18_1_20260129T115419Z/best_codes/SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp27_0_4_9_9_12_15_k36_d18/Hx.mtx",
-    "hz_path": "results/smoke_SG18_1_20260129T115419Z/best_codes/SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp27_0_4_9_9_12_15_k36_d18/Hz.mtx",
-    "meta_path": "results/smoke_SG18_1_20260129T115419Z/best_codes/SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp27_0_4_9_9_12_15_k36_d18/meta.json",
-    "results_dir": "results/smoke_SG18_1_20260129T115419Z"
+  "base": {
+    "k_base": 2
+  },
+  "best_codes": {
+    "best_code_id": "SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp8_0_2_12_12_15_17_k36_d16",
+    "best_d": 16,
+    "best_trials": 100000,
+    "path": "best_codes/data.json",
+    "source": "origin"
   },
   "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 40,
+      "d_witness": 40,
+      "exact": false,
+      "k": 18,
+      "n": 108
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 42,
+      "d_witness": 42,
+      "exact": false,
+      "k": 18,
+      "n": 108
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 36,
+      "d_witness": 36,
+      "exact": false,
+      "k": 18,
+      "n": 108
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 36,
+      "d_witness": 36,
+      "exact": false,
+      "k": 18,
+      "n": 108
+    }
+  },
   "code_id": "SmallGroup_18_1__AAp8_0_3_6_6_8_12_BBp27_0_4_9_9_12_15_k36_d18",
-  "dX_best": 18,
-  "dZ_best": 18,
-  "d_ub": 18,
-  "decision": "new_best",
   "distance": {
     "dX_best": 18,
     "dZ_best": 18,
@@ -296,13 +327,11 @@
     "steps_used_z": 100000,
     "wmin": 16
   },
-  "eval": 32509,
   "group": {
     "order": 18,
     "spec": "SmallGroup(18,1)"
   },
   "k": 36,
-  "k_base": 2,
   "local_codes": {
     "C0": "hamming_6_3_3_shortened",
     "C0p": "hamming_6_3_3_shortened",
@@ -312,10 +341,6 @@
     "permB_idx": 27
   },
   "n": 648,
-  "promising": false,
-  "schema": "qtanner.new_best.v1",
   "seed": 1398214789,
-  "steps_used": 200000,
-  "target_distance": 8,
-  "timestamp": "20260130T094216Z"
+  "target_distance": 8
 }
