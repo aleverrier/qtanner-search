@@ -32,8 +32,8 @@ from .lift_matrices import build_hx_hz, css_commutes
 from .local_codes import (
     LocalCode,
     apply_col_perm_to_rows,
-    hamming_6_3_3_shortened,
-    variants_6_3_3,
+    local_code_from_name,
+    variants_for_local_code,
 )
 from .mtx import write_mtx_from_bitrows
 from .qdistrnd import gap_is_available
@@ -44,8 +44,8 @@ from .slice_codes import (
     build_b_slice_checks_Hp,
 )
 
-SIDE_LEN = 6
-SIDE_PICK = SIDE_LEN - 1
+DEFAULT_SIDE_LEN = 6
+DEFAULT_SIDE_PICK = DEFAULT_SIDE_LEN - 1
 MIN_SLOW_TRIALS = 50_000
 
 
@@ -382,8 +382,12 @@ def _load_best_codes_records_from_text(text: str, path: str) -> List[Dict[str, o
     return []
 
 
-def load_best_codes_index(repo_root: Path, source: str = "auto") -> Dict[Tuple[int, int], BestCodesEntry]:
-    records, _info = _load_best_codes_index_with_meta(repo_root, source=source)
+def load_best_codes_index(
+    repo_root: Path, source: str = "auto", best_codes_dir: str = "best_codes"
+) -> Dict[Tuple[int, int], BestCodesEntry]:
+    records, _info = _load_best_codes_index_with_meta(
+        repo_root, source=source, best_codes_dir=best_codes_dir
+    )
     return records
 
 
@@ -391,8 +395,12 @@ def _load_best_codes_index_with_meta(
     repo_root: Path,
     *,
     source: str = "auto",
+    best_codes_dir: str = "best_codes",
 ) -> Tuple[Dict[Tuple[int, int], BestCodesEntry], Dict[str, str]]:
-    paths = ["best_codes/data.json", "best_codes/index.tsv"]
+    best_dir = best_codes_dir.strip().strip("/")
+    if not best_dir:
+        best_dir = "best_codes"
+    paths = [f"{best_dir}/data.json", f"{best_dir}/index.tsv"]
     info: Dict[str, str] = {"source": "none", "path": ""}
     source = (source or "auto").strip().lower()
 
@@ -418,7 +426,7 @@ def _load_best_codes_index_with_meta(
                 return parse_text(text, path), info
 
     if source == "website":
-        path = "best_codes/data.json"
+        path = f"{best_dir}/data.json"
         text = _read_working_tree(repo_root, path)
         if text:
             info["source"] = "website"
@@ -473,6 +481,7 @@ def decide_slow_quantum_plan(
 class BestCodesIndexCache:
     repo_root: Path
     source: str
+    best_codes_dir: str
     refresh_seconds: int
     verbose: bool = False
     index: Dict[Tuple[int, int], BestCodesEntry] = field(default_factory=dict)
@@ -483,6 +492,7 @@ class BestCodesIndexCache:
         index, info = _load_best_codes_index_with_meta(
             self.repo_root,
             source=self.source,
+            best_codes_dir=self.best_codes_dir,
         )
         self.index = index
         self.last_info = info
@@ -543,7 +553,7 @@ def _apply_variant_perm(code: LocalCode, perm: List[int], variant_idx: int) -> L
 
 
 def _build_variant_codes(base_code: LocalCode) -> List[LocalCode]:
-    perms = variants_6_3_3()
+    perms = variants_for_local_code(base_code)
     return [
         _apply_variant_perm(base_code, perm, idx) for idx, perm in enumerate(perms)
     ]
@@ -590,21 +600,24 @@ def passes_base_k_filter(k_base: int, min_base_k: int) -> bool:
 
 def _compute_base_k_table_for_variants(
     *,
-    base_code: LocalCode,
-    variant_codes: List[LocalCode],
+    base_a: LocalCode,
+    variants_a: List[LocalCode],
+    base_b: LocalCode,
+    variants_b: List[LocalCode],
 ) -> List[List[int]]:
-    perm_total = len(variant_codes)
+    perm_a = len(variants_a)
+    perm_b = len(variants_b)
     group = CyclicGroup(1)
-    A0 = [0] * base_code.n
-    B0 = [0] * base_code.n
+    A0 = [0] * base_a.n
+    B0 = [0] * base_b.n
     table: List[List[int]] = []
-    for a_idx in range(perm_total):
+    for a_idx in range(perm_a):
         row: List[int] = []
-        C1 = variant_codes[a_idx]
-        for b_idx in range(perm_total):
-            C1p = variant_codes[b_idx]
+        C1 = variants_a[a_idx]
+        for b_idx in range(perm_b):
+            C1p = variants_b[b_idx]
             hx_rows, hz_rows, n_cols = build_hx_hz(
-                group, A0, B0, base_code, C1, base_code, C1p
+                group, A0, B0, base_a, C1, base_b, C1p
             )
             rank_hx = gf2_rank(list(hx_rows), n_cols)
             rank_hz = gf2_rank(list(hz_rows), n_cols)
@@ -614,10 +627,10 @@ def _compute_base_k_table_for_variants(
     return table
 
 
-def _enumerate_multisets_with_identity(order: int) -> List[List[int]]:
+def _enumerate_multisets_with_identity(order: int, side_pick: int) -> List[List[int]]:
     if order <= 0:
         return []
-    return [[0, *comb] for comb in combinations_with_replacement(range(order), SIDE_PICK)]
+    return [[0, *comb] for comb in combinations_with_replacement(range(order), side_pick)]
 
 
 def _filter_min_distinct(sets: Iterable[List[int]], min_distinct: int) -> List[List[int]]:
@@ -1854,6 +1867,7 @@ def _format_best_by_k_table(best_by_k: Dict[int, Dict[str, object]]) -> str:
 def _save_best_code(
     *,
     outdir: Path,
+    best_codes_dir: str,
     code_id: str,
     hx_rows: Sequence[int],
     hz_rows: Sequence[int],
@@ -1861,7 +1875,7 @@ def _save_best_code(
     meta: Dict[str, object],
     timings: Optional[Dict[str, float]] = None,
 ) -> None:
-    code_dir = outdir / "best_codes" / code_id
+    code_dir = outdir / best_codes_dir / code_id
     code_dir.mkdir(parents=True, exist_ok=True)
     write_start = time.perf_counter()
     write_mtx_from_bitrows(str(code_dir / "Hx.mtx"), list(hx_rows), n_cols)
@@ -1967,6 +1981,7 @@ def _run_best_codes_update_after_progressive(
     *,
     outdir: Path,
     group_tag: str,
+    best_codes_dir: str,
     no_git: bool,
     no_publish: bool,
     include_git_history: bool,
@@ -1985,7 +2000,7 @@ def _run_best_codes_update_after_progressive(
     publish_label = "off" if no_publish else "on"
     git_label = "off" if no_git else "on"
     print(
-        "[best_codes] updating best_codes "
+        f"[best_codes] updating {best_codes_dir} "
         f"(history={history_label} publish={publish_label} git={git_label})"
     )
 
@@ -1994,8 +2009,9 @@ def _run_best_codes_update_after_progressive(
         from .best_codes_updater import run_best_codes_update
 
         context = f"progressive {group_tag}"
+        label = best_codes_dir or "best_codes"
         commit_message = (
-            f"best_codes: refresh best-by-nk after {context} "
+            f"{label}: refresh best-by-nk after {context} "
             f"({_timestamp_utc()})"
         )
         result = run_best_codes_update(
@@ -2006,6 +2022,7 @@ def _run_best_codes_update_after_progressive(
             verbose=False,
             include_git_history=include_git_history,
             max_attempts=max_attempts,
+            best_dir_name=best_codes_dir,
             commit_message=commit_message,
         )
     except Exception as exc:
@@ -2026,6 +2043,20 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         description="Progressive exhaustive classical-first search."
     )
     parser.add_argument("--group", type=str, required=True, help="Group spec.")
+    parser.add_argument(
+        "--local-a",
+        type=str,
+        choices=("6_3_3", "8_4_4"),
+        default="6_3_3",
+        help="Local code for the A side (default: 6_3_3).",
+    )
+    parser.add_argument(
+        "--local-b",
+        type=str,
+        choices=("6_3_3", "8_4_4"),
+        default="6_3_3",
+        help="Local code for the B side (default: 6_3_3).",
+    )
     parser.add_argument(
         "--target-distance",
         type=int,
@@ -2119,6 +2150,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         choices=("auto", "origin", "working-tree", "website"),
         default="auto",
         help="Source for best_codes index (default: auto).",
+    )
+    parser.add_argument(
+        "--best-codes-dir",
+        type=str,
+        default="best_codes",
+        help="Folder for best_codes artifacts (default: best_codes).",
     )
     parser.add_argument(
         "--best-codes-refresh-seconds",
@@ -2226,6 +2263,16 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     )
     raw_argv = list(argv) if argv is not None else sys.argv[1:]
     args = parser.parse_args(raw_argv)
+    if (
+        not _argv_has_flag(raw_argv, "--save-new-bests-dir")
+        and args.best_codes_dir != "best_codes"
+        and args.save_new_bests_dir == "codes/pending"
+    ):
+        suffix = args.best_codes_dir
+        if suffix.startswith("best_codes_"):
+            suffix = suffix[len("best_codes_") :]
+        if suffix:
+            args.save_new_bests_dir = f"codes/pending_{suffix}"
 
     if args.target_distance <= 0:
         raise ValueError("--target-distance must be positive.")
@@ -2279,10 +2326,18 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--report-every must be positive.")
     if args.max_quantum_evals < 0:
         raise ValueError("--max-quantum-evals must be nonnegative.")
+    base_a = local_code_from_name(args.local_a)
+    base_b = local_code_from_name(args.local_b)
+    if base_a.n != base_b.n:
+        raise SystemExit(
+            "--local-a and --local-b must use the same length in progressive mode."
+        )
+    side_len = int(base_a.n)
+    side_pick = side_len - 1
     if args.min_distinct is not None and args.min_distinct <= 0:
         raise ValueError("--min-distinct must be positive.")
-    if args.min_distinct is not None and args.min_distinct > SIDE_LEN:
-        raise ValueError("--min-distinct cannot exceed 6.")
+    if args.min_distinct is not None and args.min_distinct > side_len:
+        raise ValueError("--min-distinct cannot exceed local code length.")
     if args.best_codes_max_attempts <= 0:
         raise ValueError("--best-codes-max-attempts must be positive.")
     if args.best_codes_refresh_seconds <= 0:
@@ -2366,14 +2421,14 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     aut_cache_dir = outdir / "cache" / "aut"
     group = group_from_spec(group_spec, gap_cmd=args.gap_cmd, cache_dir=group_cache_dir)
 
-    base_code = hamming_6_3_3_shortened()
-    variant_codes = _build_variant_codes(base_code)
-    perm_total = len(variant_codes)
+    variant_codes_a = _build_variant_codes(base_a)
+    variant_codes_b = _build_variant_codes(base_b)
+    perm_total = len(variant_codes_a)
     local_codes_match = _local_code_specs_match(
-        base_code, variant_codes, base_code, variant_codes
+        base_a, variant_codes_a, base_b, variant_codes_b
     )
 
-    n_slice = SIDE_LEN * group.order
+    n_slice = side_len * group.order
     classical_target = args.classical_target
     if classical_target is None:
         classical_target = _ceil_sqrt(n_slice)
@@ -2381,6 +2436,10 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     run_meta = {
         "mode": "progressive",
         "group": {"spec": group.name, "order": group.order},
+        "local_codes": {
+            "A": {"name": base_a.name, "n": base_a.n, "k": base_a.k},
+            "B": {"name": base_b.name, "n": base_b.n, "k": base_b.k},
+        },
         "target_distance": args.target_distance,
         "classical_target": classical_target,
         "classical_steps": args.classical_steps,
@@ -2401,6 +2460,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         "min_distinct": args.min_distinct,
         "timings": bool(args.timings),
         "best_codes_source": args.best_codes_source,
+        "best_codes_dir": args.best_codes_dir,
         "best_codes_refresh_seconds": args.best_codes_refresh_seconds,
         "best_codes_verbose": bool(args.best_codes_verbose),
         "min_base_k": int(args.min_base_k),
@@ -2419,7 +2479,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         classical_start = time.monotonic()
         gen_start = time.perf_counter()
 
-    multisets = _enumerate_multisets_with_identity(group.order)
+    multisets = _enumerate_multisets_with_identity(group.order, side_pick)
     raw_multiset_count = len(multisets)
     if args.min_distinct is not None:
         multisets = _filter_min_distinct(multisets, args.min_distinct)
@@ -2460,10 +2520,12 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     base_k_table: Optional[List[List[int]]] = None
     if args.min_base_k > 0:
         base_k_table = _compute_base_k_table_for_variants(
-            base_code=base_code,
-            variant_codes=variant_codes,
+            base_a=base_a,
+            variants_a=variant_codes_a,
+            base_b=base_b,
+            variants_b=variant_codes_b,
         )
-        total_pairs = perm_total * perm_total
+        total_pairs = len(variant_codes_a) * len(variant_codes_b)
         kept_pairs = sum(
             1
             for row in base_k_table
@@ -2490,8 +2552,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         side="A",
         group=group,
         multisets=multisets,
-        variant_codes=variant_codes,
-        base_code=base_code,
+        variant_codes=variant_codes_a,
+        base_code=base_a,
         steps=args.classical_steps,
         classical_target=classical_target,
         classical_backend=args.classical_distance_backend,
@@ -2535,7 +2597,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             side="B",
             group=group,
             multisets=multisets,
-            variant_codes=variant_codes,
+            variant_codes=variant_codes_b,
             lookup=a_lookup,
             classical_backend=args.classical_distance_backend,
             out_path=outdir / "classical_B_kept.jsonl",
@@ -2547,8 +2609,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             side="B",
             group=group,
             multisets=multisets,
-            variant_codes=variant_codes,
-            base_code=base_code,
+            variant_codes=variant_codes_b,
+            base_code=base_b,
             steps=args.classical_steps,
             classical_target=classical_target,
             classical_backend=args.classical_distance_backend,
@@ -2603,6 +2665,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
     best_codes_cache = BestCodesIndexCache(
         repo_root=repo_root,
         source=args.best_codes_source,
+        best_codes_dir=args.best_codes_dir,
         refresh_seconds=args.best_codes_refresh_seconds,
         verbose=args.best_codes_verbose,
     )
@@ -2626,16 +2689,16 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                         )
                         seen_perm_skips.add((permA, permB))
                     continue
-            C1 = variant_codes[permA]
-            C1p = variant_codes[permB]
+            C1 = variant_codes_a[permA]
+            C1p = variant_codes_b[permB]
             build_start = time.perf_counter()
             hx_rows, hz_rows, n_cols = build_hx_hz(
                 group,
                 a_setting.elements,
                 b_setting.elements,
-                base_code,
+                base_a,
                 C1,
-                base_code,
+                base_b,
                 C1p,
             )
             _add_timing(
@@ -2857,9 +2920,9 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 "A": a_setting.record,
                 "B": b_setting.record,
                 "local_codes": {
-                    "C0": base_code.name,
+                    "C0": base_a.name,
                     "C1": C1.name,
-                    "C0p": base_code.name,
+                    "C0p": base_b.name,
                     "C1p": C1p.name,
                     "permA_idx": permA,
                     "permB_idx": permB,
@@ -2904,6 +2967,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             if save_candidate:
                 _save_best_code(
                     outdir=outdir,
+                    best_codes_dir=args.best_codes_dir,
                     code_id=code_id,
                     hx_rows=hx_rows,
                     hz_rows=hz_rows,
@@ -2915,6 +2979,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             if decision == "new_best" and not saved_best_code:
                 _save_best_code(
                     outdir=outdir,
+                    best_codes_dir=args.best_codes_dir,
                     code_id=code_id,
                     hx_rows=hx_rows,
                     hz_rows=hz_rows,
@@ -2924,7 +2989,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 )
                 saved_best_code = True
             if decision == "new_best":
-                code_dir = outdir / "best_codes" / code_id
+                code_dir = outdir / args.best_codes_dir / code_id
                 artifact = {
                     "schema": "qtanner.new_best.v1",
                     "timestamp": timestamp,

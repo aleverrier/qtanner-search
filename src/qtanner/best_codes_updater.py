@@ -84,11 +84,28 @@ def _log(verbose: bool, msg: str) -> None:
         print(msg)
 
 
-def _default_commit_message(context: Optional[str] = None) -> str:
+def _normalize_best_dir_name(best_dir_name: Optional[str]) -> str:
+    name = (best_dir_name or "best_codes").strip().strip("/")
+    return name or "best_codes"
+
+
+def _pending_dir_for_best_dir(best_dir_name: str) -> str:
+    if best_dir_name == "best_codes":
+        return "codes/pending"
+    suffix = best_dir_name
+    if suffix.startswith("best_codes_"):
+        suffix = suffix[len("best_codes_") :]
+    if not suffix:
+        suffix = best_dir_name
+    return f"codes/pending_{suffix}"
+
+
+def _default_commit_message(context: Optional[str] = None, best_dir_name: Optional[str] = None) -> str:
     ts = _utc_now_iso()
+    label = _normalize_best_dir_name(best_dir_name)
     if context:
-        return f"best_codes: refresh best-by-nk after {context} ({ts})"
-    return f"best_codes: refresh best-by-nk ({ts})"
+        return f"{label}: refresh best-by-nk after {context} ({ts})"
+    return f"{label}: refresh best-by-nk ({ts})"
 
 
 def _to_int(val: Any) -> Optional[int]:
@@ -352,8 +369,12 @@ def _code_id_from_matrix_filename(name: str) -> str:
     return _strip_matrix_suffix(stem)
 
 
-def _build_history_matrix_index(repo_root: Path, *, verbose: bool = False) -> Dict[str, Dict[str, Tuple[str, str]]]:
-    mapping = _git_log_path_mapping(repo_root, "best_codes/matrices", diff_filter="AM", verbose=verbose)
+def _build_history_matrix_index(
+    repo_root: Path, best_dir_name: str, *, verbose: bool = False
+) -> Dict[str, Dict[str, Tuple[str, str]]]:
+    mapping = _git_log_path_mapping(
+        repo_root, f"{best_dir_name}/matrices", diff_filter="AM", verbose=verbose
+    )
     index: Dict[str, Dict[str, Tuple[str, str, bool]]] = {}
     for relpath, commit in mapping.items():
         if not relpath.lower().endswith(".mtx"):
@@ -601,15 +622,23 @@ def _record_from_summary_dict(row: Dict[str, Any], source_path: Path, source_kin
     )
 
 
-def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_history: bool = True) -> List[CodeRecord]:
+def scan_all_codes(
+    repo_root: Path,
+    *,
+    verbose: bool = False,
+    include_git_history: bool = True,
+    best_dir_name: str = "best_codes",
+) -> List[CodeRecord]:
     root = Path(repo_root)
+    best_dir_name = _normalize_best_dir_name(best_dir_name)
+    pending_dir_name = _pending_dir_for_best_dir(best_dir_name)
     records: List[CodeRecord] = []
 
-    # 1) Scan run-level best_codes directories (excluding repo_root/best_codes).
-    for best_dir in sorted(root.rglob("best_codes")):
+    # 1) Scan run-level best_codes directories (excluding repo_root/best_dir_name).
+    for best_dir in sorted(root.rglob(best_dir_name)):
         if _is_ignored_path(best_dir):
             continue
-        if best_dir == root / "best_codes":
+        if best_dir == root / best_dir_name:
             continue
         if not best_dir.is_dir():
             continue
@@ -621,8 +650,8 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
             if rec:
                 records.append(rec)
 
-    # 2) Scan best_codes/collected
-    collected_dir = root / "best_codes" / "collected"
+    # 2) Scan best_dir/collected
+    collected_dir = root / best_dir_name / "collected"
     if collected_dir.exists():
         for code_dir in sorted(collected_dir.iterdir()):
             if not code_dir.is_dir():
@@ -631,16 +660,16 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
             if rec:
                 records.append(rec)
 
-    # 3) Scan best_codes/meta
-    meta_dir = root / "best_codes" / "meta"
+    # 3) Scan best_dir/meta
+    meta_dir = root / best_dir_name / "meta"
     if meta_dir.exists():
         for meta_path in sorted(meta_dir.glob("*.json")):
             rec = _record_from_meta_file(meta_path, root, "best_codes_meta", verbose=verbose)
             if rec:
                 records.append(rec)
 
-    # 3b) Scan new_best artifacts in codes/pending
-    pending_dir = root / "codes" / "pending"
+    # 3b) Scan new_best artifacts in pending dir
+    pending_dir = root / pending_dir_name
     if pending_dir.exists():
         for meta_path in sorted(pending_dir.rglob("*.json")):
             if not meta_path.is_file():
@@ -688,7 +717,7 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
         except Exception as exc:
             _log(verbose, f"[scan] {path}: {exc}")
 
-    # 6) Scan git history for best_codes/meta and best_codes/matrices.
+    # 6) Scan git history for best_dir/meta and best_dir/matrices.
     if include_git_history:
         try:
             (_HISTORY_STAGING_ROOT / "meta").mkdir(parents=True, exist_ok=True)
@@ -697,8 +726,10 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
             _log(verbose, f"[history] staging root unavailable: {exc}")
             return records
 
-        history_meta = _git_log_path_mapping(root, "best_codes/meta", diff_filter="AM", verbose=verbose)
-        history_mats = _build_history_matrix_index(root, verbose=verbose)
+        history_meta = _git_log_path_mapping(
+            root, f"{best_dir_name}/meta", diff_filter="AM", verbose=verbose
+        )
+        history_mats = _build_history_matrix_index(root, best_dir_name, verbose=verbose)
 
         for relpath, commit in sorted(history_meta.items()):
             if not relpath.endswith(".json"):
@@ -724,7 +755,9 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
             trials = _extract_trials(meta, meta.get("run_meta") if isinstance(meta.get("run_meta"), dict) else None)
             group = _extract_group(meta, code_id)
 
-            hx_local, hz_local = _find_hx_hz_in_matrices(root / "best_codes" / "matrices", code_id)
+            hx_local, hz_local = _find_hx_hz_in_matrices(
+                root / best_dir_name / "matrices", code_id
+            )
             hx_hist = history_mats.get(code_id, {}).get("hx")
             hz_hist = history_mats.get(code_id, {}).get("hz")
 
@@ -745,7 +778,11 @@ def scan_all_codes(repo_root: Path, *, verbose: bool = False, include_git_histor
             if hx_path is None or hz_path is None:
                 continue
 
-            meta_path = root / relpath if (root / relpath).exists() else (_HISTORY_STAGING_ROOT / "meta" / f"{code_id}.json")
+            meta_path = (
+                root / relpath
+                if (root / relpath).exists()
+                else (_HISTORY_STAGING_ROOT / "meta" / f"{code_id}.json")
+            )
 
             rec = CodeRecord(
                 code_id=code_id,
@@ -950,11 +987,13 @@ def sync_best_codes_folder(
     selected: Dict[Tuple[int, int], CodeRecord],
     repo_root: Path,
     *,
+    best_dir_name: str = "best_codes",
     dry_run: bool = False,
     verbose: bool = False,
 ) -> Dict[str, int]:
     root = Path(repo_root)
-    best_dir = root / "best_codes"
+    best_dir_name = _normalize_best_dir_name(best_dir_name)
+    best_dir = root / best_dir_name
     meta_dir = best_dir / "meta"
     collected_dir = best_dir / "collected"
     matrices_dir = best_dir / "matrices"
@@ -1059,11 +1098,13 @@ def update_best_codes_webpage_data(
     selected: Dict[Tuple[int, int], CodeRecord],
     repo_root: Path,
     *,
+    best_dir_name: str = "best_codes",
     dry_run: bool = False,
     verbose: bool = False,
 ) -> Dict[str, int]:
     root = Path(repo_root)
-    best_dir = root / "best_codes"
+    best_dir_name = _normalize_best_dir_name(best_dir_name)
+    best_dir = root / best_dir_name
     meta_dir = best_dir / "meta"
 
     codes: List[Dict[str, Any]] = []
@@ -1208,9 +1249,16 @@ def git_pull_rebase(repo_root: Path, *, verbose: bool = False) -> None:
         )
 
 
-def git_commit_and_push(repo_root: Path, commit_message: str, retry_on_nonfastforward: bool = True) -> bool:
+def git_commit_and_push(
+    repo_root: Path,
+    commit_message: str,
+    *,
+    best_dir_name: str = "best_codes",
+    retry_on_nonfastforward: bool = True,
+) -> bool:
     root = Path(repo_root)
-    _run_git(["git", "add", "best_codes"], root, check=True)
+    best_dir_name = _normalize_best_dir_name(best_dir_name)
+    _run_git(["git", "add", best_dir_name], root, check=True)
 
     diff = _run_git(["git", "diff", "--cached", "--quiet"], root, check=False)
     if diff.returncode == 0:
@@ -1243,6 +1291,7 @@ def run_best_codes_update(
     include_git_history: bool = True,
     max_attempts: int = 3,
     commit_message: Optional[str] = None,
+    best_dir_name: str = "best_codes",
 ) -> BestCodesUpdateResult:
     """Scan, select, sync, optionally publish, and optionally git-push best codes.
 
@@ -1253,10 +1302,16 @@ def run_best_codes_update(
     attempts_cap = max(1, int(max_attempts))
     last_records: List[CodeRecord] = []
     last_selected: Dict[Tuple[int, int], CodeRecord] = {}
+    best_dir_name = _normalize_best_dir_name(best_dir_name)
 
     while attempts < attempts_cap:
         attempts += 1
-        last_records = scan_all_codes(root, verbose=verbose, include_git_history=include_git_history)
+        last_records = scan_all_codes(
+            root,
+            verbose=verbose,
+            include_git_history=include_git_history,
+            best_dir_name=best_dir_name,
+        )
         consolidated = consolidate_records_by_code_key(last_records, verbose=verbose)
         last_selected = select_best_by_nk(consolidated)
 
@@ -1268,9 +1323,21 @@ def run_best_codes_update(
                 committed=False,
             )
 
-        sync_best_codes_folder(last_selected, root, dry_run=False, verbose=verbose)
+        sync_best_codes_folder(
+            last_selected,
+            root,
+            best_dir_name=best_dir_name,
+            dry_run=False,
+            verbose=verbose,
+        )
         if not no_publish:
-            update_best_codes_webpage_data(last_selected, root, dry_run=False, verbose=verbose)
+            update_best_codes_webpage_data(
+                last_selected,
+                root,
+                best_dir_name=best_dir_name,
+                dry_run=False,
+                verbose=verbose,
+            )
 
         if no_git:
             return BestCodesUpdateResult(
@@ -1281,12 +1348,13 @@ def run_best_codes_update(
             )
 
         git_pull_rebase(root, verbose=verbose)
-        msg = commit_message or _default_commit_message()
+        msg = commit_message or _default_commit_message(best_dir_name=best_dir_name)
         try:
             committed = git_commit_and_push(
                 root,
                 msg,
                 retry_on_nonfastforward=True,
+                best_dir_name=best_dir_name,
             )
             return BestCodesUpdateResult(
                 records=last_records,

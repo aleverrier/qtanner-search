@@ -81,6 +81,19 @@ def hamming_6_3_3_shortened() -> LocalCode:
     return LocalCode(name="hamming_6_3_3_shortened", n=6, k=3, H_rows=H, G_rows=G)
 
 
+def hamming_8_4_4_extended() -> LocalCode:
+    """Canonical extended Hamming [8,4,4] code (self-dual)."""
+    G = [
+        row_from_bits([1, 0, 0, 0, 1, 1, 1, 0]),
+        row_from_bits([0, 1, 0, 0, 1, 1, 0, 1]),
+        row_from_bits([0, 0, 1, 0, 1, 0, 1, 1]),
+        row_from_bits([0, 0, 0, 1, 0, 1, 1, 1]),
+    ]
+    # Self-dual: parity-check rows can match generator rows.
+    H = list(G)
+    return LocalCode(name="hamming_8_4_4_extended", n=8, k=4, H_rows=H, G_rows=G)
+
+
 def distinct_column_permutation_representatives(code: LocalCode) -> List[List[int]]:
     """Enumerate distinct column permutations by codeword-span signature."""
     n = code.n
@@ -99,6 +112,28 @@ def variants_6_3_3() -> List[List[int]]:
     return distinct_column_permutation_representatives(hamming_6_3_3_shortened())
 
 
+def variants_8_4_4() -> List[List[int]]:
+    """Column-permutation representatives for [8,4,4] (expected 30)."""
+    return distinct_column_permutation_representatives(hamming_8_4_4_extended())
+
+
+def local_code_from_name(name: str) -> LocalCode:
+    key = (name or "").strip().lower()
+    if key in {"6_3_3", "hamming_6_3_3", "hamming_6_3_3_shortened"}:
+        return hamming_6_3_3_shortened()
+    if key in {"8_4_4", "hamming_8_4_4", "hamming_8_4_4_extended"}:
+        return hamming_8_4_4_extended()
+    raise ValueError(f"Unknown local code: {name}")
+
+
+def variants_for_local_code(code: LocalCode) -> List[List[int]]:
+    if code.name == "hamming_6_3_3_shortened":
+        return variants_6_3_3()
+    if code.name == "hamming_8_4_4_extended":
+        return variants_8_4_4()
+    raise ValueError(f"Unknown local code: {code.name}")
+
+
 __all__ = [
     "LocalCode",
     "row_from_bits",
@@ -107,6 +142,10 @@ __all__ = [
     "span_codewords",
     "is_orthogonal",
     "hamming_6_3_3_shortened",
+    "hamming_8_4_4_extended",
     "distinct_column_permutation_representatives",
     "variants_6_3_3",
+    "variants_8_4_4",
+    "local_code_from_name",
+    "variants_for_local_code",
 ]

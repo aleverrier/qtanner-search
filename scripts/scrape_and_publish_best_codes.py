@@ -55,7 +55,24 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument("--no-publish", action="store_true", help="Skip website data.json/index updates.")
     ap.add_argument("--verbose", action="store_true", help="Verbose scan/sync logging.")
     ap.add_argument("--max-attempts", type=int, default=3, help="Max push attempts if non-fast-forward.")
+    ap.add_argument(
+        "--best-dir",
+        type=str,
+        default="best_codes",
+        help="Best-codes folder to update (default: best_codes).",
+    )
+    ap.add_argument(
+        "--track",
+        choices=("633", "844"),
+        default=None,
+        help="Shortcut for best_codes track (633 -> best_codes, 844 -> best_codes_844).",
+    )
     args = ap.parse_args(argv)
+
+    if args.track:
+        if args.best_dir != "best_codes":
+            raise SystemExit("--track cannot be combined with --best-dir.")
+        args.best_dir = "best_codes" if args.track == "633" else "best_codes_844"
 
     root = _repo_root()
 
@@ -67,6 +84,7 @@ def main(argv: List[str] | None = None) -> int:
             no_publish=args.no_publish,
             verbose=args.verbose,
             max_attempts=args.max_attempts,
+            best_dir_name=args.best_dir,
         )
         _print_summary(result.selected, result.records)
         return 0

@@ -41,6 +41,7 @@ def _parse_best_codes_flags(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--no-publish", action="store_true")
     parser.add_argument("--best-codes-no-history", action="store_true")
     parser.add_argument("--best-codes-max-attempts", type=int, default=3)
+    parser.add_argument("--best-codes-dir", type=str, default="best_codes")
     flags, _ = parser.parse_known_args(argv)
     if flags.best_codes_max_attempts <= 0:
         raise SystemExit("--best-codes-max-attempts must be positive.")
@@ -81,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
                     no_publish=flags.no_publish,
                     include_git_history=include_history,
                     max_attempts=flags.best_codes_max_attempts,
+                    best_dir_name=flags.best_codes_dir,
                 )
                 print(
                     "[best_codes] done "
@@ -119,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
                     no_publish=flags.no_publish,
                     include_git_history=include_history,
                     max_attempts=flags.best_codes_max_attempts,
+                    best_dir_name=flags.best_codes_dir,
                 )
                 print(
                     "[best_codes] done "
