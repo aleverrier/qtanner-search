@@ -25,8 +25,8 @@ from .lift_matrices import build_hx_hz, css_commutes
 from .local_codes import (
     LocalCode,
     apply_col_perm_to_rows,
-    hamming_6_3_3_shortened,
-    variants_6_3_3,
+    local_code_from_name,
+    variants_for_local_code,
 )
 from .dist_m4ri import dist_m4ri_is_available, run_dist_m4ri_css_rw
 from .mtx import write_mtx_from_bitrows
@@ -184,41 +184,39 @@ def _apply_variant_perm(code: LocalCode, perm: List[int], variant_idx: int) -> L
 
 
 def _build_variant_codes(base_code: LocalCode) -> List[LocalCode]:
-    perms = variants_6_3_3()
+    perms = variants_for_local_code(base_code)
     return [
         _apply_variant_perm(base_code, perm, idx) for idx, perm in enumerate(perms)
     ]
 
 
 EnumMode = Literal["subset", "multiset", "ordered"]
-SIDE_LEN = 6
-SIDE_PICK = SIDE_LEN - 1
 
 
-def _comb_count(m: int) -> int:
-    if m <= SIDE_PICK:
+def _comb_count(m: int, side_pick: int) -> int:
+    if m <= side_pick:
         return 0
-    return math.comb(m - 1, SIDE_PICK)
+    return math.comb(m - 1, side_pick)
 
 
-def _multiset_count(m: int) -> int:
+def _multiset_count(m: int, side_pick: int) -> int:
     if m <= 0:
         return 0
-    return math.comb(m + SIDE_PICK - 1, SIDE_PICK)
+    return math.comb(m + side_pick - 1, side_pick)
 
 
-def _ordered_count(m: int) -> int:
+def _ordered_count(m: int, side_pick: int) -> int:
     if m <= 0:
         return 0
-    return m**SIDE_PICK
+    return m**side_pick
 
 
-def _expected_enum_count(m: int, enum_mode: EnumMode) -> int:
+def _expected_enum_count(m: int, enum_mode: EnumMode, side_pick: int) -> int:
     if enum_mode == "multiset":
-        return _multiset_count(m)
+        return _multiset_count(m, side_pick)
     if enum_mode == "ordered":
-        return _ordered_count(m)
-    return _comb_count(m)
+        return _ordered_count(m, side_pick)
+    return _comb_count(m, side_pick)
 
 
 def _sample_combinations(
@@ -226,22 +224,23 @@ def _sample_combinations(
     m: int,
     count: int,
     rng: random.Random,
+    side_pick: int,
 ) -> List[List[int]]:
     if count <= 0:
         return []
-    if m <= SIDE_PICK:
+    if m <= side_pick:
         return []
     pool = list(range(1, m))
     chosen: set[Tuple[int, ...]] = set()
     max_attempts = max(50, count * 50)
     attempts = 0
     while len(chosen) < count and attempts < max_attempts:
-        comb = tuple(sorted(rng.sample(pool, SIDE_PICK)))
+        comb = tuple(sorted(rng.sample(pool, side_pick)))
         chosen.add(comb)
         attempts += 1
     if len(chosen) < count:
         # fallback: deterministic prefix if sampling couldn't hit enough
-        combs = list(combinations(pool, SIDE_PICK))[:count]
+        combs = list(combinations(pool, side_pick))[:count]
         chosen.update(combs)
     ordered = sorted(chosen)
     if len(ordered) > count:
@@ -254,6 +253,7 @@ def _sample_multisets(
     m: int,
     count: int,
     rng: random.Random,
+    side_pick: int,
 ) -> List[List[int]]:
     if count <= 0 or m <= 0:
         return []
@@ -261,11 +261,11 @@ def _sample_multisets(
     max_attempts = max(50, count * 50)
     attempts = 0
     while len(chosen) < count and attempts < max_attempts:
-        sample = [rng.randrange(m) for _ in range(SIDE_PICK)]
+        sample = [rng.randrange(m) for _ in range(side_pick)]
         chosen.add(tuple([0, *sorted(sample)]))
         attempts += 1
     if len(chosen) < count:
-        for comb in combinations_with_replacement(range(m), SIDE_PICK):
+        for comb in combinations_with_replacement(range(m), side_pick):
             chosen.add(tuple([0, *comb]))
             if len(chosen) >= count:
                 break
@@ -281,6 +281,7 @@ def _sample_ordered(
     m: int,
     count: int,
     rng: random.Random,
+    side_pick: int,
 ) -> List[List[int]]:
     if count <= 0 or m <= 0:
         return []
@@ -288,11 +289,11 @@ def _sample_ordered(
     max_attempts = max(50, count * 50)
     attempts = 0
     while len(chosen) < count and attempts < max_attempts:
-        sample = tuple(rng.randrange(m) for _ in range(SIDE_PICK))
+        sample = tuple(rng.randrange(m) for _ in range(side_pick))
         chosen.add(sample)
         attempts += 1
     if len(chosen) < count:
-        for seq in product(range(m), repeat=SIDE_PICK):
+        for seq in product(range(m), repeat=side_pick):
             chosen.add(seq)
             if len(chosen) >= count:
                 break
@@ -310,45 +311,52 @@ def _enumerate_sets(
     rng: random.Random,
     feasible_limit: int,
     enum_mode: EnumMode,
+    side_pick: int,
 ) -> List[List[int]]:
     if enum_mode == "multiset":
-        total = _multiset_count(m)
+        total = _multiset_count(m, side_pick)
         if total == 0:
             return []
         if total <= feasible_limit:
             combos = [
                 [0, *comb]
-                for comb in combinations_with_replacement(range(m), SIDE_PICK)
+                for comb in combinations_with_replacement(range(m), side_pick)
             ]
             if max_sets is not None and len(combos) > max_sets:
                 rng.shuffle(combos)
                 combos = combos[:max_sets]
             return combos
         target = max_sets if max_sets is not None else min(feasible_limit, total)
-        return _sample_multisets(m=m, count=min(target, total), rng=rng)
+        return _sample_multisets(
+            m=m, count=min(target, total), rng=rng, side_pick=side_pick
+        )
     if enum_mode == "ordered":
-        total = _ordered_count(m)
+        total = _ordered_count(m, side_pick)
         if total == 0:
             return []
         if total <= feasible_limit:
-            combos = [[0, *seq] for seq in product(range(m), repeat=SIDE_PICK)]
+            combos = [[0, *seq] for seq in product(range(m), repeat=side_pick)]
             if max_sets is not None and len(combos) > max_sets:
                 rng.shuffle(combos)
                 combos = combos[:max_sets]
             return combos
         target = max_sets if max_sets is not None else min(feasible_limit, total)
-        return _sample_ordered(m=m, count=min(target, total), rng=rng)
-    total = _comb_count(m)
+        return _sample_ordered(
+            m=m, count=min(target, total), rng=rng, side_pick=side_pick
+        )
+    total = _comb_count(m, side_pick)
     if total == 0:
         return []
     if max_sets is None and total <= feasible_limit:
-        return [[0, *comb] for comb in combinations(range(1, m), SIDE_PICK)]
+        return [[0, *comb] for comb in combinations(range(1, m), side_pick)]
     target = max_sets if max_sets is not None else min(feasible_limit, total)
-    return _sample_combinations(m=m, count=target, rng=rng)
+    return _sample_combinations(
+        m=m, count=target, rng=rng, side_pick=side_pick
+    )
 
 
 def _auto_enum_mode(group_order: int, n_a: int, n_b: int) -> EnumMode:
-    if group_order <= 20 and n_a == SIDE_LEN and n_b == SIDE_LEN:
+    if group_order <= 20 and n_a == n_b and n_a in (6, 8):
         return "multiset"
     return "subset"
 
@@ -678,22 +686,25 @@ def _safe_id_component(text: str) -> str:
 
 def _compute_base_k_table(
     *,
-    base_code: LocalCode,
-    variant_codes: List[LocalCode],
+    base_a: LocalCode,
+    variants_a: List[LocalCode],
+    base_b: LocalCode,
+    variants_b: List[LocalCode],
     outdir: Path,
 ) -> List[List[int]]:
-    perm_total = len(variant_codes)
+    perm_total_a = len(variants_a)
+    perm_total_b = len(variants_b)
     group = CyclicGroup(1)
-    A0 = [0] * base_code.n
-    B0 = [0] * base_code.n
+    A0 = [0] * base_a.n
+    B0 = [0] * base_b.n
     table: List[List[int]] = []
-    for a_idx in range(perm_total):
+    for a_idx in range(perm_total_a):
         row: List[int] = []
-        C1 = variant_codes[a_idx]
-        for b_idx in range(perm_total):
-            C1p = variant_codes[b_idx]
+        C1 = variants_a[a_idx]
+        for b_idx in range(perm_total_b):
+            C1p = variants_b[b_idx]
             hx_rows, hz_rows, n_cols = build_hx_hz(
-                group, A0, B0, base_code, C1, base_code, C1p
+                group, A0, B0, base_a, C1, base_b, C1p
             )
             rank_hx = gf2_rank(hx_rows[:], n_cols)
             rank_hz = gf2_rank(hz_rows[:], n_cols)
@@ -701,8 +712,9 @@ def _compute_base_k_table(
             row.append(k)
         table.append(row)
     payload = {
-        "n_base": 36,
-        "perm_total": perm_total,
+        "n_base": int(base_a.n) * int(base_b.n),
+        "perm_total_a": perm_total_a,
+        "perm_total_b": perm_total_b,
         "k_base": table,
     }
     (outdir / "base_k_table.json").write_text(
@@ -2466,7 +2478,27 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
         "--max-n",
         type=int,
         default=200,
-        help="Skip groups with n=36*|G| above this value.",
+        help="Skip groups with n=nA*nB*|G| above this value.",
+    )
+    parser.add_argument(
+        "--local-a",
+        type=str,
+        choices=("6_3_3", "8_4_4"),
+        default="6_3_3",
+        help="Local code for the A side (default: 6_3_3).",
+    )
+    parser.add_argument(
+        "--local-b",
+        type=str,
+        choices=("6_3_3", "8_4_4"),
+        default="6_3_3",
+        help="Local code for the B side (default: 6_3_3).",
+    )
+    parser.add_argument(
+        "--best-codes-dir",
+        type=str,
+        default="best_codes",
+        help="Folder for best_codes artifacts (default: best_codes).",
     )
     parser.add_argument(
         "--min-slice-dist",
@@ -2626,6 +2658,12 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
         raise ValueError("--mindist is deprecated; use --target-distance.")
     if args.target_distance is not None and args.target_distance < 0:
         raise ValueError("--target-distance must be nonnegative.")
+    base_a = local_code_from_name(args.local_a)
+    base_b = local_code_from_name(args.local_b)
+    side_len_a = int(base_a.n)
+    side_len_b = int(base_b.n)
+    side_pick_a = side_len_a - 1
+    side_pick_b = side_len_b - 1
     for name in (
         "maxA",
         "maxB",
@@ -2686,6 +2724,11 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
     run_meta = {
         "groups": [canonical_group_spec(spec) for spec in group_specs],
         "max_n": args.max_n,
+        "local_codes": {
+            "A": {"name": base_a.name, "n": base_a.n, "k": base_a.k},
+            "B": {"name": base_b.name, "n": base_b.n, "k": base_b.k},
+        },
+        "best_codes_dir": args.best_codes_dir,
         "min_slice_dist": args.min_slice_dist,
         "allow_repeats": args.allow_repeats,
         "A_enum": args.A_enum,
@@ -2719,15 +2762,20 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
     (outdir / "run_meta.json").write_text(json.dumps(run_meta, indent=2), encoding="utf-8")
     _write_commands_run(outdir, args)
 
-    base_code = hamming_6_3_3_shortened()
-    variant_codes = _build_variant_codes(base_code)
-    perm_total = len(variant_codes)
+    variant_codes_a = _build_variant_codes(base_a)
+    variant_codes_b = _build_variant_codes(base_b)
+    perm_total_a = len(variant_codes_a)
+    perm_total_b = len(variant_codes_b)
     base_k_table = _compute_base_k_table(
-        base_code=base_code, variant_codes=variant_codes, outdir=outdir
+        base_a=base_a,
+        variants_a=variant_codes_a,
+        base_b=base_b,
+        variants_b=variant_codes_b,
+        outdir=outdir,
     )
     best_pairs: List[Tuple[int, int, int]] = []
-    for a_idx in range(perm_total):
-        for b_idx in range(perm_total):
+    for a_idx in range(perm_total_a):
+        for b_idx in range(perm_total_b):
             best_pairs.append((base_k_table[a_idx][b_idx], a_idx, b_idx))
     best_pairs.sort(reverse=True)
     print("[pilot] base k_table top pairs:")
@@ -2739,7 +2787,7 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
     classical_b_path = outdir / "classical_B.jsonl"
     classical_a_frontier_path = outdir / "classical_A_frontier.json"
     classical_b_frontier_path = outdir / "classical_B_frontier.json"
-    best_codes_root = outdir / "best_codes"
+    best_codes_root = outdir / args.best_codes_dir
     group_cache_dir = outdir / "groups"
     aut_cache_dir = outdir / "cache" / "aut"
     summary_records: List[Dict[str, object]] = []
@@ -2763,14 +2811,14 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 spec_norm, gap_cmd=args.gap_cmd, cache_dir=group_cache_dir
             )
             group_tag = _safe_id_component(group.name)
-            n_est = 36 * group.order
+            n_est = base_a.n * base_b.n * group.order
             if n_est > args.max_n:
                 print(
-                    f"[pilot] skipping {group.name} (n=36*|G|={n_est} exceeds --max-n={args.max_n})."
+                    f"[pilot] skipping {group.name} (n={n_est} exceeds --max-n={args.max_n})."
                 )
                 continue
-            n_a = base_code.n
-            n_b = base_code.n
+            n_a = base_a.n
+            n_b = base_b.n
             A_enum = _resolve_enum_mode(
                 explicit=args.A_enum,
                 allow_repeats=args.allow_repeats,
@@ -2785,9 +2833,13 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 n_a=n_a,
                 n_b=n_b,
             )
-            if group.order <= SIDE_PICK and (A_enum == "subset" or B_enum == "subset"):
+            if (
+                (A_enum == "subset" and group.order <= side_pick_a)
+                or (B_enum == "subset" and group.order <= side_pick_b)
+            ):
                 print(
-                    f"[pilot] skipping {group.name} (need |G|>=6 for subset enumeration; "
+                    "[pilot] skipping "
+                    f"{group.name} (need |G|>{max(side_pick_a, side_pick_b)} for subset enumeration; "
                     "use --A-enum/--B-enum multiset or ordered to permit repetitions)."
                 )
                 continue
@@ -2799,6 +2851,7 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 rng=rng,
                 feasible_limit=feasible_limit,
                 enum_mode=A_enum,
+                side_pick=side_pick_a,
             )
             B_sets = _enumerate_sets(
                 m=group.order,
@@ -2806,6 +2859,7 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 rng=rng,
                 feasible_limit=feasible_limit,
                 enum_mode=B_enum,
+                side_pick=side_pick_b,
             )
             automorphisms = group.automorphisms(
                 gap_cmd=args.gap_cmd,
@@ -2817,17 +2871,17 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
             B_sets, B_raw, B_unique = _dedup_multisets(
                 group, B_sets, automorphisms=automorphisms
             )
-            A_expected = _expected_enum_count(group.order, A_enum)
-            B_expected = _expected_enum_count(group.order, B_enum)
+            A_expected = _expected_enum_count(group.order, A_enum, side_pick_a)
+            B_expected = _expected_enum_count(group.order, B_enum, side_pick_b)
             print(
                 f"[pilot] A multisets raw={A_raw} (expected={A_expected}) "
                 f"enum_mode={A_enum} cayley_unique={A_unique} "
-                f"perms={perm_total} -> total scored = {A_unique * perm_total}"
+                f"perms={perm_total_a} -> total scored = {A_unique * perm_total_a}"
             )
             print(
                 f"[pilot] B multisets raw={B_raw} (expected={B_expected}) "
                 f"enum_mode={B_enum} cayley_unique={B_unique} "
-                f"perms={perm_total} -> total scored = {B_unique * perm_total}"
+                f"perms={perm_total_b} -> total scored = {B_unique * perm_total_b}"
             )
             if not A_sets or not B_sets:
                 print(
@@ -2838,8 +2892,8 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
             a_scored: List[SliceCandidate] = []
             for A in A_sets:
                 A_repr = [group.repr(x) for x in A]
-                for perm_idx, C1 in enumerate(variant_codes):
-                    metrics = _score_a_slice(group, A, base_code, C1, rng=rng)
+                for perm_idx, C1 in enumerate(variant_codes_a):
+                    metrics = _score_a_slice(group, A, base_a, C1, rng=rng)
                     cand_id = _classical_candidate_id(
                         side="A",
                         group=group,
@@ -2868,8 +2922,8 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
             b_scored: List[SliceCandidate] = []
             for B in B_sets:
                 B_repr = [group.repr(x) for x in B]
-                for perm_idx, C1p in enumerate(variant_codes):
-                    metrics = _score_b_slice(group, B, base_code, C1p, rng=rng)
+                for perm_idx, C1p in enumerate(variant_codes_b):
+                    metrics = _score_b_slice(group, B, base_b, C1p, rng=rng)
                     cand_id = _classical_candidate_id(
                         side="B",
                         group=group,
@@ -3009,8 +3063,8 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 "A_multisets_raw": A_raw,
                 "A_multisets_total": len(A_sets),
                 "A_multisets_cayley": len(A_sets),
-                "A_perm_total": perm_total,
-                "A_candidates_total": len(A_sets) * perm_total,
+                "A_perm_total": perm_total_a,
+                "A_candidates_total": len(A_sets) * perm_total_a,
                 "A_candidates_ge_sqrt": sum(
                     1 for cand in a_scored if cand.metrics.d_min >= d0
                 ),
@@ -3018,8 +3072,8 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 "B_multisets_raw": B_raw,
                 "B_multisets_total": len(B_sets),
                 "B_multisets_cayley": len(B_sets),
-                "B_perm_total": perm_total,
-                "B_candidates_total": len(B_sets) * perm_total,
+                "B_perm_total": perm_total_b,
+                "B_candidates_total": len(B_sets) * perm_total_b,
                 "B_candidates_ge_sqrt": sum(
                     1 for cand in b_scored if cand.metrics.d_min >= d0
                 ),
@@ -3044,8 +3098,8 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
 
             print(
                 f"[pilot] {group.name} n={n_est} d0={d0} "
-                f"A_sets={len(A_sets)}*{perm_total} -> keep {len(A_keep)}; "
-                f"B_sets={len(B_sets)}*{perm_total} -> keep {len(B_keep)}"
+                f"A_sets={len(A_sets)}*{perm_total_a} -> keep {len(A_keep)}; "
+                f"B_sets={len(B_sets)}*{perm_total_b} -> keep {len(B_keep)}"
             )
 
             batch_items: List[Tuple[int, List[int], List[int], int, str, str, dict]] = []
@@ -3072,15 +3126,15 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                 permB = B_info.perm_idx
                 candidate_id = f"{group_tag}_c{candidate_counter:05d}"
                 candidate_counter += 1
-                C1 = variant_codes[permA]
-                C1p = variant_codes[permB]
+                C1 = variant_codes_a[permA]
+                C1p = variant_codes_b[permB]
                 hx_rows, hz_rows, n_cols = build_hx_hz(
                     group,
                     A_info.elements,
                     B_info.elements,
-                    base_code,
+                    base_a,
                     C1,
-                    base_code,
+                    base_b,
                     C1p,
                 )
                 if not css_commutes(hx_rows, hz_rows):
@@ -3096,9 +3150,9 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                     "B": list(B_info.elements),
                     "B_repr": [group.repr(x) for x in B_info.elements],
                     "local_codes": {
-                        "C0": base_code.name,
+                        "C0": base_a.name,
                         "C1": C1.name,
-                        "C0p": base_code.name,
+                        "C0p": base_b.name,
                         "C1p": C1p.name,
                         "permA_idx": permA,
                         "permB_idx": permB,
@@ -3122,7 +3176,7 @@ def pilot_main(argv: Optional[Sequence[str]] = None) -> int:
                         },
                     },
                     "base": {
-                        "n_base": 36,
+                        "n_base": int(base_a.n) * int(base_b.n),
                         "k_base": base_k_table[permA][permB],
                     },
                     "n": n_cols,

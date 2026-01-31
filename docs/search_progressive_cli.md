@@ -30,6 +30,12 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   - If `D > 0`: reject candidates that cannot beat `max(best_by_k, D-1)`.
   - If `D = 0`: disable the fixed target and run “best-by-k” mode (keep first code per k, then only try to beat best).
 
+### Local code selection
+- `--local-a {6_3_3,8_4_4}`
+  Local code for the A side (default: 6_3_3).
+- `--local-b {6_3_3,8_4_4}`
+  Local code for the B side (default: 6_3_3).
+
 ### Classical prefilter (slice codes)
 - `--classical-target T`
   Target distance threshold for the classical slice filter.
@@ -54,6 +60,8 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   Refinement chunk size.
 - `--best-codes-source {auto,origin,working-tree,website}`
   Where to load the best_codes index from (default: auto).
+- `--best-codes-dir PATH`
+  Best-codes folder to use (default: `best_codes`). Use `best_codes_844` for the 8x8 track.
 - `--best-codes-refresh-seconds N`
   Minimum seconds between best_codes refreshes (default: 600).
 
@@ -70,6 +78,8 @@ Distances reported are *upper bounds* found by a search routine (i.e., “we fou
   Only consider local-code permutations whose unlifted/base code dimension is >= MIN_BASE_K.
 - `--save-new-bests-dir PATH`
   Directory for `decision=new_best` JSON artifacts (default: `codes/pending`).
+  If you set `--best-codes-dir best_codes_844` and do not override this flag,
+  the default will be `codes/pending_844`.
 - `--no-save-new-bests`
   Disable writing new_best artifacts.
 - `--timings`
@@ -84,6 +94,7 @@ Workflow:
 - Run `scripts/search_progressive.py` (or `./scripts/py -m qtanner.search progressive`).
 - New best candidates are written to `codes/pending/*.json` when logged as `decision=new_best`.
 - Run `scripts/scrape_and_publish_best_codes.py` to scan pending artifacts and publish `best_codes/data.json`.
+  For the 8x8 track: `scripts/scrape_and_publish_best_codes.py --track 844`.
 
 - `--no-best-codes-update`
   Skip all post-run best-codes steps.

@@ -58,3 +58,8 @@ the end-to-end workflow (search -> scrape/publish -> refine).
 - If you run custom refinement steps, follow with
   `scripts/scrape_and_publish_best_codes.py` to rebuild `best_codes/data.json`
   and `best_codes/index.tsv`.
+
+## Local code tracks
+- Default track uses local [6,3,3] codes and publishes to `best_codes/`.
+- The [8,4,4] track uses `--local-a 8_4_4 --local-b 8_4_4` and publishes to
+  `best_codes_844/` (with pending artifacts under `codes/pending_844/`).

@@ -47,8 +47,8 @@ Let nA,nB be local code lengths, and |G| be group order. Then total length is:
   - |G| = 10 -> 480
 
 ## Local code choice: A/B sides
-- Initial scaffolding assumes **same-length local codes on both sides**.
-- Mixed (8×6) is desirable but not implemented yet. It would require separate multiset sizes for A and B and minor refactors to the progressive enumerators.
+- Progressive search requires **same-length local codes on both sides** (A/B).
+- Non-progressive search now supports mixed lengths (8×6), with separate multiset sizes per side.
 
 ## Compute implications
 - nA = nB = 8 increases slice size and overall HX/HZ sizes by ~ (8/6)^2 ≈ 1.78.
@@ -87,16 +87,13 @@ Let nA,nB be local code lengths, and |G| be group order. Then total length is:
 ## What is already implemented in this branch
 - Local-code scaffolding for [8,4,4], with helpers in `src/qtanner/local_codes.py`.
 - Progressive search selection via `--local-a/--local-b`, plus dynamic side length handling.
+- Non-progressive search (`src/qtanner/search.py`) accepts `--local-a/--local-b` and handles mixed lengths.
 - Track-aware best_codes updates via `--best-codes-dir` (and `--track` in the scraper).
 - Minimal website pages: `best_codes_844/index.html` + `best_codes_844/simple.html`.
+- Docs updates for new flags and the 844 track.
 
 ## Remaining work / checklist
-- Decide whether mixed 8×6 (A/B different lengths) should be supported; if yes:
-  - Update multiset enumeration to use separate sizes for A and B.
-  - Update progress reports to show separate settings per side.
-- Update non-progressive search (`src/qtanner/search.py`) to accept local code selection.
-- Add documentation updates (README + search_progressive_cli.md) for new flags.
-- Ensure best_codes_844 is linked from the main website landing page (if desired).
+- Decide whether mixed 8×6 should be supported in progressive mode; if yes, update the progressive enumerators to allow different A/B lengths.
 
 ## Smoke tests (no expensive search)
 - Quick CLI parsing + early exit (no publish):
