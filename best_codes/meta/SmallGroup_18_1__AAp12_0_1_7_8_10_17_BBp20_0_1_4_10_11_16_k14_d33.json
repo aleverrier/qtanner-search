@@ -190,11 +190,18 @@
       "n": 108
     }
   },
-  "code_id": "SmallGroup_18_1__AAp12_0_1_7_8_10_17_BBp20_0_1_4_10_11_16_k14_d51",
+  "code_id": "SmallGroup_18_1__AAp12_0_1_7_8_10_17_BBp20_0_1_4_10_11_16_k14_d33",
+  "d": 33,
+  "dX_ub": 35,
+  "dZ_ub": 33,
+  "d_in_id": 33,
+  "d_recorded": 33,
+  "d_recorded_kind": "from_code_id",
+  "d_ub": 33,
   "distance": {
-    "dX_best": 51,
-    "dZ_best": 58,
-    "d_ub": 51,
+    "dX_best": 35,
+    "dZ_best": 33,
+    "d_ub": 33,
     "fast": {
       "dx": {
         "d_ub": 89,
@@ -211,7 +218,7 @@
         "steps": 1000
       }
     },
-    "method": "dist_m4ri_rw_progressive",
+    "method": "dist-m4ri",
     "refine_chunk": 20000,
     "refine_chunks": [
       {
@@ -282,11 +289,22 @@
     },
     "steps_fast": 1000,
     "steps_slow": 50000,
-    "steps_used_total": 100000,
-    "steps_used_x": 50000,
-    "steps_used_z": 50000,
+    "steps_used_total": 2000000,
+    "steps_used_x": 1000000,
+    "steps_used_z": 1000000,
     "wmin": 50
   },
+  "distance_backend": "dist-m4ri",
+  "distance_m4ri": {
+    "backend": "dist-m4ri",
+    "dX_ub": 35,
+    "dZ_ub": 33,
+    "d_ub": 33,
+    "method": "RW",
+    "steps_per_side": 1000000,
+    "updated_at": "2026-01-31T00:07:38Z"
+  },
+  "distance_method": "RW",
   "group": {
     "order": 18,
     "spec": "SmallGroup(18,1)"
@@ -300,7 +318,11 @@
     "permA_idx": 12,
     "permB_idx": 20
   },
+  "m4ri_seed": 1,
+  "m4ri_steps": 1000000,
   "n": 648,
   "seed": 1398214789,
-  "target_distance": 8
+  "target_distance": 8,
+  "trials": 1000000,
+  "updated_at": "2026-01-31T00:07:38Z"
 }
