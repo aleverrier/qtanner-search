@@ -1,0 +1,101 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+
+\title{Quantum Tanner Search: Project Progress Log}
+\author{}
+\date{2026-01-31}
+
+\begin{document}
+\maketitle
+
+\section{Overview and goals}
+We are searching for explicit quantum Tanner codes from left--right Cayley complexes
+(Leverrier--Rozendaal--Z\'emor, arXiv:2512.20532). The current focus is on code
+lengths in the 200--500 range under laptop-scale compute constraints. We use
+filter-first workflows and only persist promising codes (heuristic: $d \ge \sqrt{n}$
+and $k d \ge n$).
+
+\section{Current workflow}
+\begin{enumerate}
+  \item \textbf{Search:} \texttt{scripts/search\_progressive.py} (wrapper for
+    \texttt{src/qtanner/progressive\_search.py}). Produces run artifacts, including
+    best-by-$k$ tables, histograms, per-run \texttt{best\_codes/} snapshots, and
+    \texttt{codes/pending/} new\_best JSONs.
+  \item \textbf{Scrape + publish:} \texttt{scripts/scrape\_and\_publish\_best\_codes.py}.
+    Scans run outputs, \texttt{best\_codes/meta}, \texttt{best\_codes/collected}, and
+    git history, then selects best-by-$(n,k)$ entries, syncs artifacts, rebuilds
+    \texttt{best\_codes/data.json} and \texttt{best\_codes/index.tsv}, and optionally
+    commits/pushes.
+  \item \textbf{Refine:} \texttt{scripts/refine\_best\_codes.py} (or length/group
+    pipelines). Runs dist-m4ri refinements, updates metadata, rebuilds website
+    artifacts, and republishes via the best\_codes updater.
+\end{enumerate}
+
+\section{Canonical scripts}
+\begin{itemize}
+  \item \texttt{scripts/search\_progressive.py}: end-to-end progressive search runner;
+    triggers best\_codes update on clean exit or Ctrl-C (unless
+    \texttt{--no-best-codes-update}).
+  \item \texttt{scripts/scrape\_and\_publish\_best\_codes.py}: standard scrape/publish
+    entrypoint for best\_codes.
+  \item \texttt{scripts/refine\_best\_codes.py}: refine all best\_codes entries at a
+    given length (optional group filter), then resync/publish.
+  \item \texttt{scripts/refine\_best\_codes\_length.py} and
+    \texttt{scripts/refine\_best\_codes\_length.sh}: length-based refinement pipeline,
+    including archiving below-trials entries.
+  \item \texttt{scripts/refine\_best\_codes\_m4ri.py} and
+    \texttt{scripts/refine\_best\_codes\_m4ri\_by\_length.py}: m4ri-only refinement.
+  \item Consistency tools used after refinements:
+    \texttt{scripts/rebuild\_best\_codes\_artifacts\_from\_meta.py},
+    \texttt{scripts/ensure\_best\_codes\_data\_json\_from\_meta.py},
+    \texttt{scripts/sync\_best\_codes\_names\_from\_meta.py}, and
+    \texttt{scripts/sync\_best\_codes\_matrices.py}.
+\end{itemize}
+
+\section{Key design choices}
+\begin{itemize}
+  \item \textbf{Best-codes-driven slow distance:} progressive search loads best\_codes
+    (\texttt{data.json} or \texttt{index.tsv}) to set slow-trial budgets and decide
+    whether the slow pass is worthwhile for each $(n,k)$. Slow trials are
+    \texttt{max(50k, best\_codes trials)} unless overridden.
+  \item \textbf{Early abort during refinement:} slow refinement chunks stop when
+    $d_X$ or $d_Z$ cannot exceed the current best\_codes distance threshold.
+  \item \textbf{Min slow trials = 50k:} enforces a reliability floor and keeps
+    best\_codes entries comparable.
+  \item \textbf{Base-$k$ filter:} \texttt{--min-base-k} prunes local-code permutations
+    with low unlifted/base code dimension to reduce the search space.
+\end{itemize}
+
+\section{Multi-machine best practice}
+\begin{itemize}
+  \item Use a dedicated maintenance clone for publishing; do not pull into a running
+    search clone.
+  \item Archive untracked artifacts from the search clone into
+    \texttt{local\_results/} before syncing.
+  \item Run best\_codes publish/website rebuild steps only in the maintenance clone.
+\end{itemize}
+
+\section{Troubleshooting: untracked files blocking git pull/rebase}
+\begin{itemize}
+  \item Move or archive run artifacts: create \texttt{local\_results/} and move
+    untracked folders into it, or use \texttt{git stash -u}.
+  \item After verifying backups, remove remaining untracked files with
+    \texttt{git clean -fd} (only if safe).
+\end{itemize}
+
+\section{What\'s next}
+\begin{itemize}
+  \item Schedule refinement passes for lengths 200--500 to standardize trial counts.
+  \item Add a lightweight summary of best\_codes trial coverage to the website dataset.
+  \item Explore base-$k$ thresholds by group family to reduce search costs safely.
+  \item Tighten documentation around two-machine workflows and refine pipelines.
+\end{itemize}
+
+\end{document}

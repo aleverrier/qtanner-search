@@ -2,7 +2,7 @@ for seed in 1 2 3 4 5 6; do
   RUN_DIR="results/progressive_C11_target24_seed${seed}_$(date -u +%Y%m%dT%H%M%SZ)"
   mkdir -p "$RUN_DIR"
 
-  ./scripts/py -u scripts/search_progressive.py \
+  python3 -u scripts/search_progressive.py \
     --group C11 \
     --target-distance 14 \
     --seed "$seed" \
@@ -11,8 +11,6 @@ for seed in 1 2 3 4 5 6; do
     --quantum-steps-slow 300000 \
     2>&1 | tee "$RUN_DIR/run.log"
 done
-
-Interpreter override: set `QTANNER_PYTHON` to a specific Python (e.g., Homebrew) if you want to bypass the auto-selection logic in `./scripts/py`.
 
 By default, `scripts/search_progressive.py` now updates `best_codes/` at the end of a
 successful run (including publishing website data and pushing to GitHub). Use
@@ -29,12 +27,12 @@ SMOKE_BEST_CODES_UPDATE=1 bash scripts/smoke_progressive_search.sh
 
 Dry run (no filesystem or git changes):
 ```
-./scripts/py scripts/scrape_and_publish_best_codes.py --dry-run
+python3 scripts/scrape_and_publish_best_codes.py --dry-run
 ```
 
 Full update (sync best_codes/, rebuild data.json/index.tsv, commit + push):
 ```
-./scripts/py scripts/scrape_and_publish_best_codes.py
+python3 scripts/scrape_and_publish_best_codes.py
 ```
 
 Common flags:
@@ -44,4 +42,19 @@ Common flags:
 
 Note: the scraper now scans git history to recover older best codes, so a run can take about a minute.
 
-Interpreter override: set `QTANNER_PYTHON` to a specific Python (e.g., Homebrew) if you want to bypass the auto-selection logic in `./scripts/py`.
+## Workflow
+See `docs/PROGRESS_LOG.md` for the current project state, canonical scripts, and
+the end-to-end workflow (search -> scrape/publish -> refine).
+
+## Two-machine setup
+- Keep a dedicated maintenance clone for publishing; do not `git pull` into a
+  running search clone.
+- Archive untracked run artifacts into `local_results/` before syncing.
+- Run website/best_codes publish steps from the maintenance clone only.
+
+## Refine then publish
+- Refinement scripts (`scripts/refine_best_codes.py` and the length/group
+  pipelines) update metadata and then resync/publish best_codes by default.
+- If you run custom refinement steps, follow with
+  `scripts/scrape_and_publish_best_codes.py` to rebuild `best_codes/data.json`
+  and `best_codes/index.tsv`.
