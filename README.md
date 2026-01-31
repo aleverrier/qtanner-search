@@ -63,3 +63,8 @@ the end-to-end workflow (search -> scrape/publish -> refine).
 - Default track uses local [6,3,3] codes and publishes to `best_codes/`.
 - The [8,4,4] track uses `--local-a 8_4_4 --local-b 8_4_4` and publishes to
   `best_codes_844/` (with pending artifacts under `codes/pending_844/`).
+
+## Context for new contributors / new chats
+- `docs/CHAT_CONTEXT.md`
+- `docs/CHAT_PROMPT_TEMPLATE.md`
+- `docs/ARCHITECTURE.md`
