@@ -649,6 +649,19 @@ function parseABFromCodeId(codeId) {
     });
   }
 
+  function filterSparseRows(codes, minCount) {
+    const counts = new Map();
+    for (const c of codes) {
+      if (c.n === null || c.n === undefined) continue;
+      counts.set(c.n, (counts.get(c.n) || 0) + 1);
+    }
+    return codes.filter(c => {
+      const n = c.n;
+      if (n === null || n === undefined) return false;
+      return (counts.get(n) || 0) >= minCount;
+    });
+  }
+
   function updateLegend(minD, maxD) {
     const el = els.legend();
     if (minD === null || maxD === null) { el.innerHTML = ""; return; }
@@ -781,7 +794,8 @@ function parseABFromCodeId(codeId) {
 
     const render = () => {
       const f = readFilters();
-      const filtered = applyFilters(bestCodes, f);
+      let filtered = applyFilters(bestCodes, f);
+      filtered = filterSparseRows(filtered, 3);
 
       const groupLabel = f.groupRaw ? groupDisplay(f.groupRaw) : "All groups";
       const tLabel = trackLabel(f.track);
