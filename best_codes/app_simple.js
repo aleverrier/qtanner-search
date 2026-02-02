@@ -160,6 +160,22 @@
     return "";
   }
 
+  function trackFromLocalCodeValue(localCode) {
+    if (typeof localCode !== "string") return "";
+    const lc = localCode.toLowerCase();
+    if (lc.includes("8_4_4") || lc.includes("8,4,4")) return "8_4_4";
+    if (lc.includes("2_1_2") || lc.includes("2,1,2")) return "2_1_2";
+    if (lc.includes("6_3_3") || lc.includes("6,3,3")) return "6_3_3";
+    return "";
+  }
+
+  function baseForTrack(track) {
+    if (track === "8_4_4") return "../best_codes_844";
+    if (track === "2_1_2") return "../best_codes_212";
+    if (track === "6_3_3") return "../best_codes";
+    return "";
+  }
+
   async function loadOne(url) {
     const resp = await fetch(url, { cache: "no-store" });
     if (!resp.ok) throw new Error(`Failed to load ${url}: ${resp.status}`);
@@ -350,19 +366,48 @@
     return await r.json();
   }
 
-function matrixLinks(codeId) {
-  // We only expose lifted-code parity-check matrices.
-  // Canonical deployed names are:
-  //   matrices/<code_id>__Hx.mtx   and   matrices/<code_id>__Hz.mtx
-  const base = `matrices/${encodeURIComponent(codeId)}`;
-  const links = [
-    {label: "Hx", url: `${base}__Hx.mtx`},
-    {label: "Hz", url: `${base}__Hz.mtx`},
-  ];
-  return links
-    .map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`)
-    .join(" • ");
-}
+  function normalizeBasePath(base) {
+    if (!base) return "";
+    const trimmed = String(base).replace(/\/+$/, "");
+    return trimmed ? `${trimmed}/` : "";
+  }
+
+  function basePathsForCode(code) {
+    const track = trackFromLocalCodeValue(code.localCode);
+    const trackBase = baseForTrack(track);
+    const paths = [];
+    if (trackBase) paths.push(trackBase);
+    paths.push("");
+    for (const p of ["../best_codes", "../best_codes_844", "../best_codes_212"]) {
+      if (!paths.includes(p)) paths.push(p);
+    }
+    return paths;
+  }
+
+  function buildMetaUrls(codeId, basePaths, cb) {
+    const urls = [];
+    for (const base of basePaths) {
+      const prefix = normalizeBasePath(base);
+      urls.push({ url: `${prefix}meta/${encodeURIComponent(codeId)}.json?cb=${cb}`, base });
+      urls.push({ url: `${prefix}collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`, base });
+    }
+    return urls;
+  }
+
+  function matrixLinks(codeId, basePath = "") {
+    // We only expose lifted-code parity-check matrices.
+    // Canonical deployed names are:
+    //   matrices/<code_id>__Hx.mtx   and   matrices/<code_id>__Hz.mtx
+    const prefix = normalizeBasePath(basePath);
+    const base = `${prefix}matrices/${encodeURIComponent(codeId)}`;
+    const links = [
+      {label: "Hx", url: `${base}__Hx.mtx`},
+      {label: "Hz", url: `${base}__Hz.mtx`},
+    ];
+    return links
+      .map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`)
+      .join(" • ");
+  }
 
 function parseABFromCodeId(codeId) {
     const m = String(codeId).match(/_AA([^_]+)_BB([^_]+)_k/i);
@@ -460,31 +505,40 @@ function parseABFromCodeId(codeId) {
     const codeId = code.codeId;
     const cb = Date.now();
 
-    const urls = [
-      `meta/${encodeURIComponent(codeId)}.json?cb=${cb}`,
-      `collected/${encodeURIComponent(codeId)}/meta.json?cb=${cb}`,
-    ];
+    const basePaths = basePathsForCode(code);
+    const urlObjs = buildMetaUrls(codeId, basePaths, cb);
 
     let metas = [];
-    for (const u of urls) {
+    for (const { url, base } of urlObjs) {
       try {
-        const m = await fetchJSON(u);
-        metas.push({ url: u, meta: m, trials: toInt(extractTrials(m, null)) ?? 0 });
+        const m = await fetchJSON(url);
+        metas.push({ url, base, meta: m, trials: toInt(extractTrials(m, null)) ?? 0 });
       } catch (_) {}
     }
 
     if (metas.length === 0) {
-      showModal("Code details", codeId, `
-        <p><b>Could not load metadata</b> for this code.</p>
-        <p class="muted">Tried:</p>
-        <pre>${escHtml(urls.join("\n"))}</pre>
-      `);
-      return;
+      const embedded = code?.rec?.meta;
+      if (embedded && typeof embedded === "object") {
+        metas.push({
+          url: "embedded:data.json",
+          base: basePaths[0] || "",
+          meta: embedded,
+          trials: toInt(extractTrials(embedded, null)) ?? 0,
+        });
+      } else {
+        showModal("Code details", codeId, `
+          <p><b>Could not load metadata</b> for this code.</p>
+          <p class="muted">Tried:</p>
+          <pre>${escHtml(urlObjs.map(u => u.url).join("\n"))}</pre>
+        `);
+        return;
+      }
     }
 
     metas.sort((a,b) => (b.trials - a.trials) || String(a.url).localeCompare(String(b.url)));
     const meta = metas[0].meta;
     const source = metas[0].url;
+    const sourceBase = metas[0].base || "";
 
     const n = meta.n ?? code.n;
     const k = meta.k ?? code.k;
@@ -546,7 +600,7 @@ function parseABFromCodeId(codeId) {
       </div>
 
       <h3 style="margin:12px 0 6px 0">Parity-check matrices</h3>
-      <p>${matrixLinks(codeId)}</p>
+      <p>${matrixLinks(codeId, sourceBase)}</p>
 
       <p class="muted">meta source: <code>${escHtml(source)}</code></p>
 
