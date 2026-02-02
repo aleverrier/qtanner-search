@@ -166,10 +166,9 @@
     return "";
   }
 
-  async function loadData() {
-    const url = "data.json?cb=" + Date.now();
+  async function loadOne(url) {
     const resp = await fetch(url, { cache: "no-store" });
-    if (!resp.ok) throw new Error(`Failed to load data.json: ${resp.status}`);
+    if (!resp.ok) throw new Error(`Failed to load ${url}: ${resp.status}`);
     const data = await resp.json();
 
     let codes = data.codes;
@@ -187,6 +186,35 @@
       .filter(x => x.codeId);
 
     return { data, codes: norm };
+  }
+
+  async function loadData() {
+    const cb = Date.now();
+    const urls = [
+      `data.json?cb=${cb}`,
+      `../best_codes_844/data.json?cb=${cb}`,
+      `../best_codes_212/data.json?cb=${cb}`,
+    ];
+
+    const out = [];
+    let primary = null;
+    for (const u of urls) {
+      try {
+        const r = await loadOne(u);
+        if (!primary) primary = r.data;
+        out.push(r.codes);
+      } catch (_) {}
+    }
+
+    const merged = new Map();
+    for (const chunk of out) {
+      for (const c of chunk) {
+        if (!c.codeId) continue;
+        if (!merged.has(c.codeId)) merged.set(c.codeId, c);
+      }
+    }
+
+    return { data: (primary || {}), codes: Array.from(merged.values()) };
   }
 
   async function loadMinTrialsByGroup() {
@@ -662,6 +690,10 @@ function parseABFromCodeId(codeId) {
 
       if (!passesRange(c.n, f.nMin, f.nMax)) return false;
       if (!passesRange(c.k, f.kMin, f.kMax)) return false;
+
+      if (c.n !== null && c.n !== undefined && c.n <= 100) {
+        if ((c.d ?? -1) < 4) return false;
+      }
 
       if (f.search) {
         const hay = [
