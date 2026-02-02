@@ -499,7 +499,14 @@ def _record_from_code_dir(code_dir: Path, source_kind: str, *, run_meta: Optiona
     return rec
 
 
-def _record_from_meta_file(meta_path: Path, repo_root: Path, source_kind: str, *, verbose: bool = False) -> Optional[CodeRecord]:
+def _record_from_meta_file(
+    meta_path: Path,
+    repo_root: Path,
+    source_kind: str,
+    *,
+    best_dir_name: str = "best_codes",
+    verbose: bool = False,
+) -> Optional[CodeRecord]:
     meta = _safe_load_json(meta_path)
     if meta is None:
         _log(verbose, f"[scan] {meta_path}: invalid JSON")
@@ -541,10 +548,18 @@ def _record_from_meta_file(meta_path: Path, repo_root: Path, source_kind: str, *
             hx, hz = _find_hx_hz_in_dir(cand)
 
     if hx is None or hz is None:
-        matrices_dir = repo_root / "best_codes" / "matrices"
+        # Meta files in different tracks (best_codes_844, best_codes_212, ...)
+        # store Hx/Hz in that track's matrices folder. Only fall back to the
+        # default best_codes/matrices when needed for legacy artifacts.
+        best_dir_name = _normalize_best_dir_name(best_dir_name)
+        matrices_dir = repo_root / best_dir_name / "matrices"
         hx2, hz2 = _find_hx_hz_in_matrices(matrices_dir, code_id)
         hx = hx or hx2
         hz = hz or hz2
+        if (hx is None or hz is None) and best_dir_name != "best_codes":
+            hx3, hz3 = _find_hx_hz_in_matrices(repo_root / "best_codes" / "matrices", code_id)
+            hx = hx or hx3
+            hz = hz or hz3
 
     rec = CodeRecord(
         code_id=code_id,
@@ -670,7 +685,13 @@ def scan_all_codes(
     meta_dir = root / best_dir_name / "meta"
     if meta_dir.exists():
         for meta_path in sorted(meta_dir.glob("*.json")):
-            rec = _record_from_meta_file(meta_path, root, "best_codes_meta", verbose=verbose)
+            rec = _record_from_meta_file(
+                meta_path,
+                root,
+                "best_codes_meta",
+                best_dir_name=best_dir_name,
+                verbose=verbose,
+            )
             if rec:
                 records.append(rec)
 
@@ -680,7 +701,13 @@ def scan_all_codes(
         for meta_path in sorted(pending_dir.rglob("*.json")):
             if not meta_path.is_file():
                 continue
-            rec = _record_from_meta_file(meta_path, root, "pending_json", verbose=verbose)
+            rec = _record_from_meta_file(
+                meta_path,
+                root,
+                "pending_json",
+                best_dir_name=best_dir_name,
+                verbose=verbose,
+            )
             if rec:
                 records.append(rec)
 
