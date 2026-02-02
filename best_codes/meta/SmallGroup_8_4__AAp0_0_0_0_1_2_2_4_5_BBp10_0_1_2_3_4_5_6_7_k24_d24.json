@@ -76,7 +76,6 @@
     },
     "slice_n": 64
   },
-  "A_id": "Ap0_0-0-0-1-2-2-4-5",
   "B": {
     "checks": {
       "Gp": {
@@ -154,20 +153,49 @@
     },
     "slice_n": 64
   },
-  "B_id": "Bp10_0-1-2-3-4-5-6-7",
-  "artifacts": {
-    "code_dir": "results/progressive_SmallGroup_8_4_20260201T233108Z/best_codes/SmallGroup_8_4__AAp0_0_0_0_1_2_2_4_5_BBp10_0_1_2_3_4_5_6_7_k24_d24",
-    "hx_path": "results/progressive_SmallGroup_8_4_20260201T233108Z/best_codes/SmallGroup_8_4__AAp0_0_0_0_1_2_2_4_5_BBp10_0_1_2_3_4_5_6_7_k24_d24/Hx.mtx",
-    "hz_path": "results/progressive_SmallGroup_8_4_20260201T233108Z/best_codes/SmallGroup_8_4__AAp0_0_0_0_1_2_2_4_5_BBp10_0_1_2_3_4_5_6_7_k24_d24/Hz.mtx",
-    "meta_path": "results/progressive_SmallGroup_8_4_20260201T233108Z/best_codes/SmallGroup_8_4__AAp0_0_0_0_1_2_2_4_5_BBp10_0_1_2_3_4_5_6_7_k24_d24/meta.json",
-    "results_dir": "results/progressive_SmallGroup_8_4_20260201T233108Z"
+  "best_codes": {
+    "best_code_id": "SmallGroup_8_1__AAp0_0_0_0_0_1_1_1_4_BBp6_0_2_3_4_4_6_7_7_k24_d16",
+    "best_d": 16,
+    "best_trials": 400000,
+    "path": "best_codes/data.json",
+    "source": "website"
   },
   "best_codes_candidate": true,
+  "classical_slices": {
+    "A_G": {
+      "backend": "fast",
+      "d_ub": 24,
+      "d_witness": 24,
+      "exact": true,
+      "k": 6,
+      "n": 64
+    },
+    "A_H": {
+      "backend": "fast",
+      "d_ub": 24,
+      "d_witness": 24,
+      "exact": true,
+      "k": 6,
+      "n": 64
+    },
+    "B_G": {
+      "backend": "fast",
+      "d_ub": 28,
+      "d_witness": 28,
+      "exact": true,
+      "k": 8,
+      "n": 64
+    },
+    "B_H": {
+      "backend": "fast",
+      "d_ub": 28,
+      "d_witness": 28,
+      "exact": true,
+      "k": 8,
+      "n": 64
+    }
+  },
   "code_id": "SmallGroup_8_4__AAp0_0_0_0_1_2_2_4_5_BBp10_0_1_2_3_4_5_6_7_k24_d24",
-  "dX_best": 24,
-  "dZ_best": 24,
-  "d_ub": 24,
-  "decision": "new_best",
   "distance": {
     "dX_best": 24,
     "dZ_best": 24,
@@ -604,7 +632,6 @@
     "steps_used_z": 400000,
     "wmin": 7
   },
-  "eval": 13,
   "group": {
     "order": 8,
     "spec": "SmallGroup(8,4)"
@@ -619,10 +646,6 @@
     "permB_idx": 10
   },
   "n": 512,
-  "promising": true,
-  "schema": "qtanner.new_best.v1",
   "seed": 1,
-  "steps_used": 800000,
-  "target_distance": 8,
-  "timestamp": "20260202T021725Z"
+  "target_distance": 8
 }
