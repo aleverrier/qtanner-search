@@ -373,7 +373,9 @@ def _build_history_matrix_index(
     repo_root: Path, best_dir_name: str, *, verbose: bool = False
 ) -> Dict[str, Dict[str, Tuple[str, str]]]:
     mapping = _git_log_path_mapping(
-        repo_root, f"{best_dir_name}/matrices", diff_filter="AM", verbose=verbose
+        # Include renames: large update commits often move matrices around and
+        # git may classify some paths as R (rename) rather than A (add).
+        repo_root, f"{best_dir_name}/matrices", diff_filter="AMR", verbose=verbose
     )
     index: Dict[str, Dict[str, Tuple[str, str, bool]]] = {}
     for relpath, commit in mapping.items():
@@ -759,8 +761,10 @@ def scan_all_codes(
             _log(verbose, f"[history] staging root unavailable: {exc}")
             return records
 
+        # Include renames for the same reason as matrices: large sync commits can
+        # be detected as R rather than A/M for individual files.
         history_meta = _git_log_path_mapping(
-            root, f"{best_dir_name}/meta", diff_filter="AM", verbose=verbose
+            root, f"{best_dir_name}/meta", diff_filter="AMR", verbose=verbose
         )
         history_mats = _build_history_matrix_index(root, best_dir_name, verbose=verbose)
 
@@ -870,10 +874,10 @@ def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRe
 
     selected: Dict[Tuple[int, int], CodeRecord] = {}
     for key, group in eligible.items():
-        # Prefer promising codes when any exist for this (n,k),
-        # but fall back to the full set to avoid dropping legacy entries.
-        non_history = [r for r in group if r.source_kind != "git_history"]
-        base_pool = non_history if non_history else list(group)
+        # Keep git-history candidates in the pool. They are sometimes the only
+        # place where a highly-refined code still exists (e.g. after a buggy
+        # sync or an interrupted run). We still prefer non-history on ties.
+        base_pool = list(group)
         promising = [r for r in base_pool if _is_promising(int(r.n), int(r.k), int(r.d))]
         pool = promising if promising else list(base_pool)
 
@@ -886,11 +890,12 @@ def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRe
         if not cand:
             continue
 
-        def sort_key(r: CodeRecord) -> Tuple[int, str, str]:
+        def sort_key(r: CodeRecord) -> Tuple[int, int, str, str]:
             d_val = r.d if isinstance(r.d, int) else -1
+            is_hist = 1 if r.source_kind == "git_history" else 0
             code_id = r.code_id or ""
             src = str(r.source_path) if r.source_path else ""
-            return (-d_val, code_id, src)
+            return (-d_val, is_hist, code_id, src)
 
         cand.sort(key=sort_key)
         selected[key] = cand[0]
@@ -926,7 +931,12 @@ def consolidate_records_by_code_key(records: List[CodeRecord], *, verbose: bool 
                 non_history,
                 key=lambda r: (trial_val(r), d_val(r), r.code_id or "", str(r.source_path or "")),
             )
-            best = nh_sorted[-1]
+            best_nh = nh_sorted[-1]
+            # Prefer non-history only when it is not worse on our primary key.
+            # This avoids downgrading a code when the best-known version exists
+            # only in git history.
+            if trial_val(best_nh) >= trial_val(best):
+                best = best_nh
 
         if verbose:
             best_trials = trial_val(best)
