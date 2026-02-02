@@ -1180,8 +1180,20 @@ def update_best_codes_webpage_data(
             }
         )
 
+    # Avoid rewriting data.json with a new timestamp when the selected codes are
+    # unchanged. This is important for "scrape every N minutes" workflows:
+    # otherwise we create no-op commits that constantly trigger (and can cancel)
+    # GitHub Pages deployments.
+    generated_at_utc = _utc_now_iso()
+    existing = _safe_load_json(best_dir / "data.json")
+    if isinstance(existing, dict) and existing.get("codes") == codes:
+        prev = existing.get("generated_at_utc")
+        if isinstance(prev, str) and prev.strip():
+            generated_at_utc = prev.strip()
+            _log(verbose, "[web] data unchanged; keeping generated_at_utc stable")
+
     out = {
-        "generated_at_utc": _utc_now_iso(),
+        "generated_at_utc": generated_at_utc,
         "total_codes": len(codes),
         "codes": codes,
     }
