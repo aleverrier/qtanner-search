@@ -890,7 +890,9 @@ function parseABFromCodeId(codeId) {
     const render = () => {
       const f = readFilters();
       let filtered = applyFilters(bestCodes, f);
-      filtered = filterSparseRows(filtered, 3);
+      if (f.track !== "2_1_2") {
+        filtered = filterSparseRows(filtered, 3);
+      }
 
       const groupLabel = f.groupRaw ? groupDisplay(f.groupRaw) : "All groups";
       const tLabel = trackLabel(f.track);
