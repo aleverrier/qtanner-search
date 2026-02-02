@@ -115,8 +115,12 @@
     const localCode = getFirst(rec, [
       "local_codes.C0",
       "local_codes.C0p",
+      "local_codes.A",
+      "local_codes.B",
       "meta.local_codes.C0",
       "meta.local_codes.C0p",
+      "meta.local_codes.A",
+      "meta.local_codes.B",
     ]);
 
     return { rec, codeId, groupRaw: String(groupRaw), group, n, k, d, trials, dX, dZ, localCode };
