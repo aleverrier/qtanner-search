@@ -146,12 +146,14 @@
       if (track === "2_1_2") return lc.includes("2_1_2") || lc.includes("2,1,2");
       return lc.includes("6_3_3") || lc.includes("6,3,3");
     }
-    if (typeof n === "number") {
-      if (track === "8_4_4") return n % 64 === 0;
-      if (track === "2_1_2") return n % 4 === 0;
-      return n % 36 === 0;
-    }
-    return true;
+    return false;
+  }
+
+  function trackLabel(track) {
+    if (track === "8_4_4") return "[8,4,4]";
+    if (track === "2_1_2") return "[2,1,2]";
+    if (track === "6_3_3") return "[6,3,3]";
+    return "";
   }
 
   async function loadData() {
@@ -746,9 +748,10 @@ function parseABFromCodeId(codeId) {
       const filtered = applyFilters(bestCodes, f);
 
       const groupLabel = f.groupRaw ? groupDisplay(f.groupRaw) : "All groups";
-      const trackLabel = f.track ? ` · track: ${f.track}` : "";
+      const tLabel = trackLabel(f.track);
+      const trackLabelText = tLabel ? ` · track: ${tLabel}` : "";
       els.stats().textContent =
-        `generated_at_utc: ${data.generated_at_utc || ""} · raw: ${codes.length} · curated: ${curated.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}${trackLabel}`;
+        `generated_at_utc: ${data.generated_at_utc || ""} · raw: ${codes.length} · curated: ${curated.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}${trackLabelText}`;
 
       renderList(filtered);
     };
