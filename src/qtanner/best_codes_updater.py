@@ -522,6 +522,12 @@ def _record_from_meta_file(meta_path: Path, repo_root: Path, source_kind: str, *
         code_dir = _resolve_artifact_path(repo_root, artifacts.get("code_dir"))
         hx = _resolve_artifact_path(repo_root, artifacts.get("hx_path"))
         hz = _resolve_artifact_path(repo_root, artifacts.get("hz_path"))
+        if code_dir is not None and not code_dir.exists():
+            code_dir = None
+        if hx is not None and not hx.exists():
+            hx = None
+        if hz is not None and not hz.exists():
+            hz = None
         if code_dir is not None and (hx is None or hz is None):
             hx2, hz2 = _find_hx_hz_in_dir(code_dir)
             hx = hx or hx2
