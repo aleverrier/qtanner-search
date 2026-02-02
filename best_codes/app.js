@@ -118,7 +118,46 @@
     const dX = toInt(getFirst(rec, ["dX_ub","dx_ub","distance.dX_ub","distance.dx_ub","distance.dX_best","distance.dX"])) ?? null;
     const dZ = toInt(getFirst(rec, ["dZ_ub","dz_ub","distance.dZ_ub","distance.dz_ub","distance.dZ_best","distance.dZ"])) ?? null;
 
-    return { rec, codeId, groupRaw: String(groupRaw), group, n, k, d, trials, dX, dZ };
+    const localCode = getFirst(rec, [
+      "local_codes.C0",
+      "local_codes.C0p",
+      "meta.local_codes.C0",
+      "meta.local_codes.C0p",
+    ]);
+
+    return { rec, codeId, groupRaw: String(groupRaw), group, n, k, d, trials, dX, dZ, localCode };
+  }
+
+  function trackFromPath() {
+    const path = (window.location && window.location.pathname) ? window.location.pathname : "";
+    if (path.includes("best_codes_844")) return "8_4_4";
+    if (path.includes("best_codes_212")) return "2_1_2";
+    return "6_3_3";
+  }
+
+  function trackFromQuery() {
+    try {
+      const url = new URL(window.location.href);
+      const q = (url.searchParams.get("track") || "").trim();
+      if (q === "6_3_3" || q === "8_4_4" || q === "2_1_2") return q;
+    } catch (_) {}
+    return "";
+  }
+
+  function localCodeMatchesTrack(localCode, n, track) {
+    if (!track) return true;
+    if (typeof localCode === "string") {
+      const lc = localCode.toLowerCase();
+      if (track === "8_4_4") return lc.includes("8_4_4") || lc.includes("8,4,4");
+      if (track === "2_1_2") return lc.includes("2_1_2") || lc.includes("2,1,2");
+      return lc.includes("6_3_3") || lc.includes("6,3,3");
+    }
+    if (typeof n === "number") {
+      if (track === "8_4_4") return n % 64 === 0;
+      if (track === "2_1_2") return n % 4 === 0;
+      return n % 36 === 0;
+    }
+    return true;
   }
 
   async function loadData() {
@@ -554,6 +593,7 @@ function parseABFromCodeId(codeId) {
     modeSel: () => document.getElementById("modeSel"),
     btnRender: () => document.getElementById("btnRender"),
     btnReset: () => document.getElementById("btnReset"),
+    trackSel: () => document.getElementById("trackSel"),
   };
 
   function fillGroupSelect(bestCodes) {
@@ -593,7 +633,10 @@ function parseABFromCodeId(codeId) {
 
     const mode = els.modeSel().value || "d";
 
-    return { groupRaw, search, minTrials, nMin, nMax, kMin, kMax, mode };
+    const trackSel = els.trackSel();
+    const track = trackSel ? (trackSel.value || "") : (trackFromQuery() || trackFromPath());
+
+    return { groupRaw, search, minTrials, nMin, nMax, kMin, kMax, mode, track };
   }
 
   function passesRange(v, lo, hi) {
@@ -605,6 +648,7 @@ function parseABFromCodeId(codeId) {
 
   function applyFilters(bestCodes, f) {
     return bestCodes.filter(c => {
+      if (!localCodeMatchesTrack(c.localCode, c.n, f.track)) return false;
       if (f.groupRaw && c.groupRaw !== f.groupRaw) return false;
 
       const t = c.trials ?? 0;
@@ -786,13 +830,20 @@ function parseABFromCodeId(codeId) {
 
     fillGroupSelect(bestCodes);
 
+    const trackSel = els.trackSel();
+    if (trackSel) {
+      const defaultTrack = trackFromQuery() || trackFromPath();
+      if (!trackSel.value) trackSel.value = defaultTrack;
+    }
+
     const render = () => {
       const f = readFilters();
       const filtered = applyFilters(bestCodes, f);
 
       const groupLabel = f.groupRaw ? groupDisplay(f.groupRaw) : "All groups";
+      const trackLabel = f.track ? ` · track: ${f.track}` : "";
       els.stats().textContent =
-        `generated_at_utc: ${data.generated_at_utc || ""} · raw: ${codes.length} · curated: ${curated.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}`;
+        `generated_at_utc: ${data.generated_at_utc || ""} · raw: ${codes.length} · curated: ${curated.length} · best/group,n,k: ${bestCodes.length} · displayed: ${filtered.length} · group: ${groupLabel}${trackLabel}`;
 
       renderTable(filtered, f.mode);
     };
@@ -807,10 +858,11 @@ function parseABFromCodeId(codeId) {
       els.kMin().value = "";
       els.kMax().value = "";
       els.modeSel().value = "d";
+      if (trackSel) trackSel.value = trackFromQuery() || trackFromPath();
       render();
     });
 
-    for (const id of ["groupSel","searchBox","minTrials","nMin","nMax","kMin","kMax","modeSel"]) {
+    for (const id of ["groupSel","searchBox","minTrials","nMin","nMax","kMin","kMax","modeSel","trackSel"]) {
       const el = document.getElementById(id);
       if (el) el.addEventListener("input", () => render());
       if (el) el.addEventListener("change", () => render());
