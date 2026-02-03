@@ -41,6 +41,35 @@
     return m ? parseInt(m[1], 10) : null;
   };
 
+  const MATRIX_RELEASE = {
+    owner: "aleverrier",
+    repo: "qtanner-search",
+    tag: "best-codes-matrices",
+    prefixByTrack: {
+      "6_3_3": "633",
+      "8_4_4": "844",
+      "2_1_2": "212",
+    },
+  };
+
+  function matrixReleaseTag() {
+    try {
+      const url = new URL(window.location.href);
+      const q = (url.searchParams.get("release") || "").trim();
+      if (q === "0" || q === "off" || q === "local") return "";
+      if (q) return q;
+    } catch (_) {}
+    return MATRIX_RELEASE.tag;
+  }
+
+  function matrixReleaseAssetUrl(codeId, track, kind) {
+    const tag = matrixReleaseTag();
+    if (!tag) return "";
+    const prefix = MATRIX_RELEASE.prefixByTrack[track] || MATRIX_RELEASE.prefixByTrack["6_3_3"];
+    const assetName = `${prefix}__${codeId}__${kind}.mtx`;
+    return `https://github.com/${MATRIX_RELEASE.owner}/${MATRIX_RELEASE.repo}/releases/download/${encodeURIComponent(tag)}/${encodeURIComponent(assetName)}`;
+  }
+
   // ---------------- group display ----------------
   function groupRawFromCodeId(codeId) {
     const s = String(codeId);
@@ -179,6 +208,14 @@
     if (track === "8_4_4") return "../best_codes_844";
     if (track === "2_1_2") return "../best_codes_212";
     if (track === "6_3_3") return "../best_codes";
+    return "";
+  }
+
+  function trackFromBasePath(basePath) {
+    const base = String(basePath || "");
+    if (base.includes("best_codes_844")) return "8_4_4";
+    if (base.includes("best_codes_212")) return "2_1_2";
+    if (base.includes("best_codes")) return "6_3_3";
     return "";
   }
 
@@ -434,18 +471,21 @@
     return urls;
   }
 
-  function matrixLinks(codeId, basePath = "") {
+  function matrixLinks(codeId, basePath = "", track = "") {
     // We only expose lifted-code parity-check matrices.
     // Canonical deployed names are:
     //   matrices/<code_id>__Hx.mtx   and   matrices/<code_id>__Hz.mtx
     const prefix = normalizeBasePath(basePath);
     const base = `${prefix}matrices/${encodeURIComponent(codeId)}`;
+    const resolvedTrack = track || trackFromBasePath(basePath) || trackFromPath() || "6_3_3";
+    const releaseHx = matrixReleaseAssetUrl(codeId, resolvedTrack, "Hx");
+    const releaseHz = matrixReleaseAssetUrl(codeId, resolvedTrack, "Hz");
     const links = [
-      {label: "Hx", url: `${base}__Hx.mtx`},
-      {label: "Hz", url: `${base}__Hz.mtx`},
+      {label: "Hx", url: releaseHx || `${base}__Hx.mtx`, tracked: Boolean(releaseHx)},
+      {label: "Hz", url: releaseHz || `${base}__Hz.mtx`, tracked: Boolean(releaseHz)},
     ];
     return links
-      .map(c => `<a href="${c.url}" target="_blank" rel="noopener">${escHtml(c.label)}</a>`)
+      .map(c => `<a href="${c.url}" target="_blank" rel="noopener"${c.tracked ? ' title="tracked via GitHub release"' : ""}>${escHtml(c.label)}</a>`)
       .join(" • ");
   }
 
@@ -581,6 +621,7 @@ function parseABFromCodeId(codeId) {
     const meta = metas[0].meta;
     const source = metas[0].url;
     const sourceBase = metas[0].base || "";
+    const track = trackFromLocalCodeValue(code.localCode) || trackFromBasePath(sourceBase) || trackFromPath() || "6_3_3";
 
     const n = meta.n ?? code.n;
     const k = meta.k ?? code.k;
@@ -648,7 +689,7 @@ function parseABFromCodeId(codeId) {
       </div>
 
       <h3 style="margin:12px 0 6px 0">Parity-check matrices</h3>
-      <p>${matrixLinks(codeId, sourceBase)}</p>
+      <p>${matrixLinks(codeId, sourceBase, track)}</p>
 
       <p class="muted">meta source: <code>${escHtml(source)}</code></p>
 
