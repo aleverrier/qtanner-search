@@ -44,7 +44,12 @@
   const MATRIX_RELEASE = {
     owner: "aleverrier",
     repo: "qtanner-search",
-    tag: "best-codes-matrices",
+    defaultTag: "best-codes-matrices",
+    tagByTrack: {
+      "6_3_3": "best-codes-matrices-633",
+      "8_4_4": "best-codes-matrices-844",
+      "2_1_2": "best-codes-matrices-212",
+    },
     prefixByTrack: {
       "6_3_3": "633",
       "8_4_4": "844",
@@ -52,18 +57,18 @@
     },
   };
 
-  function matrixReleaseTag() {
+  function matrixReleaseTag(track) {
     try {
       const url = new URL(window.location.href);
       const q = (url.searchParams.get("release") || "").trim();
       if (q === "0" || q === "off" || q === "local") return "";
       if (q) return q;
     } catch (_) {}
-    return MATRIX_RELEASE.tag;
+    return MATRIX_RELEASE.tagByTrack[track] || MATRIX_RELEASE.defaultTag;
   }
 
   function matrixReleaseAssetUrl(codeId, track, kind) {
-    const tag = matrixReleaseTag();
+    const tag = matrixReleaseTag(track);
     if (!tag) return "";
     const prefix = MATRIX_RELEASE.prefixByTrack[track] || MATRIX_RELEASE.prefixByTrack["6_3_3"];
     const assetName = `${prefix}__${codeId}__${kind}.mtx`;

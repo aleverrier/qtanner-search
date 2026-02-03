@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from urllib import parse, request, error
 
-DEFAULT_TAG = "best-codes-matrices"
+DEFAULT_TAG_TEMPLATE = "best-codes-matrices-{track}"
 TRACK_DIRS = {
     "633": "best_codes",
     "844": "best_codes_844",
@@ -149,7 +149,8 @@ def parse_tracks(value: str | None) -> list[str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", default=DEFAULT_TAG, help="Release tag name")
+    parser.add_argument("--tag", default="", help="Release tag name (single release)")
+    parser.add_argument("--tag-template", default=DEFAULT_TAG_TEMPLATE, help="Release tag template per track")
     parser.add_argument("--owner", default="", help="GitHub owner (optional)")
     parser.add_argument("--repo", default="", help="GitHub repo (optional)")
     parser.add_argument("--tracks", default="", help="Comma list: 633,844,212")
@@ -170,28 +171,41 @@ def main() -> int:
     tracks = parse_tracks(args.tracks)
     repo_root = Path(__file__).resolve().parents[1]
 
-    release = get_release(owner, repo, args.tag, token)
-    if release is None:
-        if args.dry_run:
-            print(f"[dry-run] create release {args.tag}")
-            release = {"id": None, "upload_url": ""}
-        else:
-            release = create_release(owner, repo, args.tag, token)
-            print(f"Created release {args.tag} ({release.get('html_url', '')})")
+    if args.tag and len(tracks) > 1:
+        print(
+            "[warn] --tag set with multiple tracks; a single release may hit the 1000-asset limit.",
+            file=sys.stderr,
+        )
 
-    release_id = release.get("id")
-    upload_url = (release.get("upload_url") or "").split("{", 1)[0]
-    if not upload_url and not args.dry_run:
-        raise SystemExit("Release upload_url missing; cannot upload assets.")
+    def tag_for_track(track: str) -> str:
+        if args.tag:
+            return args.tag
+        return (args.tag_template or DEFAULT_TAG_TEMPLATE).format(track=track)
 
-    existing = set()
-    if release_id and token:
-        for asset in list_assets(owner, repo, int(release_id), token):
-            if "name" in asset:
-                existing.add(asset["name"])
-
-    to_upload: list[tuple[str, Path]] = []
+    total_uploaded = 0
     for track in tracks:
+        tag = tag_for_track(track)
+        release = get_release(owner, repo, tag, token)
+        if release is None:
+            if args.dry_run:
+                print(f"[dry-run] create release {tag}")
+                release = {"id": None, "upload_url": ""}
+            else:
+                release = create_release(owner, repo, tag, token)
+                print(f"Created release {tag} ({release.get('html_url', '')})")
+
+        release_id = release.get("id")
+        upload_url = (release.get("upload_url") or "").split("{", 1)[0]
+        if not upload_url and not args.dry_run:
+            raise SystemExit("Release upload_url missing; cannot upload assets.")
+
+        existing = set()
+        if release_id and token:
+            for asset in list_assets(owner, repo, int(release_id), token):
+                if "name" in asset:
+                    existing.add(asset["name"])
+
+        to_upload: list[tuple[str, Path]] = []
         base = repo_root / TRACK_DIRS[track] / "matrices"
         if not base.exists():
             print(f"Skipping missing directory: {base}")
@@ -202,30 +216,37 @@ def main() -> int:
                 continue
             to_upload.append((asset_name, path))
 
-    if args.limit and len(to_upload) > args.limit:
-        to_upload = to_upload[: args.limit]
+        if args.limit and len(to_upload) > args.limit:
+            to_upload = to_upload[: args.limit]
 
-    print(f"Release tag: {args.tag}")
-    print(f"Repo: {owner}/{repo}")
-    print(f"Tracks: {', '.join(tracks)}")
-    print(f"Missing assets: {len(to_upload)}")
+        if len(existing) + len(to_upload) > 1000:
+            raise SystemExit(
+                f"Release {tag} would exceed 1000 assets. "
+                f"Use --tag-template to split further (e.g. best-codes-matrices-{track}-part{{n}})."
+            )
 
-    if args.dry_run:
-        for name, path in to_upload[:10]:
-            print(f"[dry-run] upload {name} ({path})")
-        if len(to_upload) > 10:
-            print(f"[dry-run] ... {len(to_upload) - 10} more")
-        return 0
+        print(f"Release tag: {tag}")
+        print(f"Repo: {owner}/{repo}")
+        print(f"Track: {track}")
+        print(f"Missing assets: {len(to_upload)}")
 
-    uploaded = 0
-    for name, path in to_upload:
-        url = f"{upload_url}?name={parse.quote(name)}"
-        data = path.read_bytes()
-        api_request_binary("POST", url, token, data)
-        uploaded += 1
-        print(f"Uploaded {name} ({uploaded}/{len(to_upload)})")
+        if args.dry_run:
+            for name, path in to_upload[:10]:
+                print(f"[dry-run] upload {name} ({path})")
+            if len(to_upload) > 10:
+                print(f"[dry-run] ... {len(to_upload) - 10} more")
+            continue
 
-    print(f"Done. Uploaded {uploaded} assets.")
+        uploaded = 0
+        for name, path in to_upload:
+            url = f"{upload_url}?name={parse.quote(name)}"
+            data = path.read_bytes()
+            api_request_binary("POST", url, token, data)
+            uploaded += 1
+            total_uploaded += 1
+            print(f"Uploaded {name} ({uploaded}/{len(to_upload)})")
+
+    print(f"Done. Uploaded {total_uploaded} assets.")
     return 0
 
 

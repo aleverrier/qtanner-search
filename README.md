@@ -43,7 +43,8 @@ Common flags:
 Note: the scraper now scans git history to recover older best codes, so a run can take about a minute.
 
 ## Matrix download tracking (GitHub Releases)
-- Website matrix links point to GitHub release assets tagged `best-codes-matrices`.
+- Website matrix links point to GitHub release assets tagged per track:
+  `best-codes-matrices-633`, `best-codes-matrices-844`, `best-codes-matrices-212`.
 - Publish (or sync) release assets:
 ```
 python3 scripts/publish_matrices_release.py --dry-run

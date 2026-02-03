@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 from urllib import parse, request, error
 
-DEFAULT_TAG = "best-codes-matrices"
+DEFAULT_TAG_TEMPLATE = "best-codes-matrices-{track}"
+DEFAULT_TRACKS = ("633", "844", "212")
 PREFIX_TO_TRACK = {
     "633": "6_3_3",
     "844": "8_4_4",
@@ -101,9 +102,25 @@ def parse_asset(name: str) -> tuple[str, str, str]:
     return track, code_id, matrix
 
 
+def parse_tracks(value: str | None) -> list[str]:
+    if not value:
+        return list(DEFAULT_TRACKS)
+    items = [v.strip() for v in value.split(",") if v.strip()]
+    tracks: list[str] = []
+    for item in items:
+        if item in DEFAULT_TRACKS:
+            tracks.append(item)
+            continue
+        raise ValueError(f"Unknown track '{item}'. Use one of: {', '.join(DEFAULT_TRACKS)}")
+    return tracks
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tag", default=DEFAULT_TAG, help="Release tag name")
+    parser.add_argument("--tag", default="", help="Release tag name (single release)")
+    parser.add_argument("--tags", default="", help="Comma list of release tags")
+    parser.add_argument("--tag-template", default=DEFAULT_TAG_TEMPLATE, help="Release tag template per track")
+    parser.add_argument("--tracks", default="", help="Comma list: 633,844,212")
     parser.add_argument("--owner", default="", help="GitHub owner (optional)")
     parser.add_argument("--repo", default="", help="GitHub repo (optional)")
     parser.add_argument("--out", default="", help="Write TSV output to file")
@@ -117,17 +134,37 @@ def main() -> int:
 
     token = args.token.strip() or None
 
-    release_url = f"https://api.github.com/repos/{owner}/{repo}/releases/tags/{parse.quote(args.tag)}"
-    release = api_request_json("GET", release_url, token)
-    release_id = release.get("id")
-    if not release_id:
-        raise SystemExit(f"Release tag not found: {args.tag}")
+    tracks = parse_tracks(args.tracks)
 
-    assets = list_assets(owner, repo, int(release_id), token)
+    if args.tag:
+        tags = [args.tag]
+    elif args.tags:
+        tags = [t.strip() for t in args.tags.split(",") if t.strip()]
+    else:
+        template = args.tag_template or DEFAULT_TAG_TEMPLATE
+        tags = [template.format(track=t) for t in tracks]
+
+    assets = []
+    for tag in tags:
+        release_url = f"https://api.github.com/repos/{owner}/{repo}/releases/tags/{parse.quote(tag)}"
+        try:
+            release = api_request_json("GET", release_url, token)
+        except RuntimeError as exc:
+            if " -> 404" in str(exc):
+                print(f"[warn] Release tag not found: {tag}", file=sys.stderr)
+                continue
+            raise
+        release_id = release.get("id")
+        if not release_id:
+            print(f"[warn] Release tag not found: {tag}", file=sys.stderr)
+            continue
+        for asset in list_assets(owner, repo, int(release_id), token):
+            asset["__tag"] = tag
+            assets.append(asset)
 
     out_fh = open(args.out, "w", newline="") if args.out else sys.stdout
     writer = csv.writer(out_fh, delimiter="\t")
-    writer.writerow(["asset", "track", "code_id", "matrix", "downloads", "size_bytes", "updated_at"])
+    writer.writerow(["asset", "tag", "track", "code_id", "matrix", "downloads", "size_bytes", "updated_at"])
 
     totals_by_track: dict[str, int] = {}
     totals_by_code: dict[tuple[str, str], int] = {}
@@ -138,8 +175,9 @@ def main() -> int:
         size = int(asset.get("size") or 0)
         updated = asset.get("updated_at") or ""
         track, code_id, matrix = parse_asset(name)
+        tag = asset.get("__tag", "")
 
-        writer.writerow([name, track, code_id, matrix, downloads, size, updated])
+        writer.writerow([name, tag, track, code_id, matrix, downloads, size, updated])
 
         if track:
             totals_by_track[track] = totals_by_track.get(track, 0) + downloads
