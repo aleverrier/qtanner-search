@@ -731,8 +731,11 @@ function parseABFromCodeId(codeId) {
       if (!passesRange(c.n, f.nMin, f.nMax)) return false;
       if (!passesRange(c.k, f.kMin, f.kMax)) return false;
 
+      // For small n we suppress very low-distance codes to keep the table
+      // readable, except that for n=36 we also want to surface d>=3.
       if (c.n !== null && c.n !== undefined && c.n <= 100) {
-        if ((c.d ?? -1) < 4) return false;
+        const minD = c.n === 36 ? 3 : 4;
+        if ((c.d ?? -1) < minD) return false;
       }
 
       if (f.search) {
