@@ -62,6 +62,13 @@ def main(argv: List[str] | None = None) -> int:
         help="Minimum total m4ri trials required to be eligible for best-by-(n,k).",
     )
     ap.add_argument(
+        "--min-m4ri-trials-exempt-n",
+        action="append",
+        type=int,
+        default=[],
+        help="Code lengths (n) exempted from the min m4ri trials filter.",
+    )
+    ap.add_argument(
         "--best-dir",
         type=str,
         default="best_codes",
@@ -92,6 +99,7 @@ def main(argv: List[str] | None = None) -> int:
             max_attempts=args.max_attempts,
             best_dir_name=args.best_dir,
             min_m4ri_trials=args.min_m4ri_trials,
+            min_m4ri_trials_exempt_n=args.min_m4ri_trials_exempt_n,
         )
         _print_summary(result.selected, result.records)
         return 0

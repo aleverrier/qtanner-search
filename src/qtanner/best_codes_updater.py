@@ -877,7 +877,9 @@ def select_best_by_nk(
     records: List[CodeRecord],
     *,
     min_trials_floor: Optional[int] = None,
+    min_trials_exempt_n: Optional[Iterable[int]] = None,
 ) -> Dict[Tuple[int, int], CodeRecord]:
+    exempt_n = {int(n) for n in (min_trials_exempt_n or [])}
     best_trials_by_nk = _best_trials_by_nk(records) if min_trials_floor is not None else {}
     eligible: Dict[Tuple[int, int], List[CodeRecord]] = {}
     for rec in records:
@@ -891,7 +893,7 @@ def select_best_by_nk(
         if not rec.has_artifacts():
             continue
         key = (int(rec.n), int(rec.k))
-        if min_trials_floor is not None:
+        if min_trials_floor is not None and int(rec.n) not in exempt_n:
             required = max(int(min_trials_floor), best_trials_by_nk.get(key, 0))
             if not isinstance(rec.trials, int) or rec.trials < required:
                 continue
@@ -1373,6 +1375,7 @@ def run_best_codes_update(
     commit_message: Optional[str] = None,
     best_dir_name: str = "best_codes",
     min_m4ri_trials: Optional[int] = None,
+    min_m4ri_trials_exempt_n: Optional[Iterable[int]] = None,
 ) -> BestCodesUpdateResult:
     """Scan, select, sync, optionally publish, and optionally git-push best codes.
 
@@ -1389,6 +1392,8 @@ def run_best_codes_update(
         min_m4ri_trials = int(min_m4ri_trials)
         if min_m4ri_trials <= 0:
             raise ValueError("--min-m4ri-trials must be positive.")
+    if min_m4ri_trials_exempt_n is not None:
+        min_m4ri_trials_exempt_n = [int(n) for n in min_m4ri_trials_exempt_n]
 
     while attempts < attempts_cap:
         attempts += 1
@@ -1402,6 +1407,7 @@ def run_best_codes_update(
         last_selected = select_best_by_nk(
             consolidated,
             min_trials_floor=min_m4ri_trials,
+            min_trials_exempt_n=min_m4ri_trials_exempt_n,
         )
 
         if dry_run:
