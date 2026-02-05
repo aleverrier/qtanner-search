@@ -1004,27 +1004,40 @@ def _estimate_css_distance_direction(
     timings: Optional[Dict[str, float]] = None,
 ) -> Dict[str, object]:
     seed = rng.randrange(1 << 31)
-    if timings is None:
-        signed = estimator(
-            hx_rows,
-            hz_rows,
-            n_cols,
-            steps,
-            wmin,
-            seed=seed,
-            dist_m4ri_cmd=dist_m4ri_cmd,
-        )
-    else:
-        signed = estimator(
-            hx_rows,
-            hz_rows,
-            n_cols,
-            steps,
-            wmin,
-            seed=seed,
-            dist_m4ri_cmd=dist_m4ri_cmd,
-            timings=timings,
-        )
+    try:
+        if timings is None:
+            signed = estimator(
+                hx_rows,
+                hz_rows,
+                n_cols,
+                steps,
+                wmin,
+                seed=seed,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+            )
+        else:
+            signed = estimator(
+                hx_rows,
+                hz_rows,
+                n_cols,
+                steps,
+                wmin,
+                seed=seed,
+                dist_m4ri_cmd=dist_m4ri_cmd,
+                timings=timings,
+            )
+    except RuntimeError as exc:
+        # dist_m4ri can occasionally return empty output; treat as a failed
+        # estimate and let the search skip the candidate instead of crashing.
+        return {
+            "steps": steps,
+            "seed": seed,
+            "signed": None,
+            "d_ub": 0,
+            "early_stop": True,
+            "failed": True,
+            "error": str(exc),
+        }
     d_ub = abs(signed)
     return {
         "steps": steps,
