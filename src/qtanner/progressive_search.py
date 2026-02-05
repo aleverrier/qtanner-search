@@ -222,12 +222,19 @@ def _adaptive_quantum_steps_slow(n_cols: int) -> int:
     return 500000
 
 
-def compute_slow_trials(best_trials: Optional[int], override: Optional[int]) -> int:
+def compute_slow_trials(
+    best_trials: Optional[int],
+    override: Optional[int],
+    min_floor: Optional[int] = None,
+) -> int:
+    floor = MIN_SLOW_TRIALS
+    if min_floor is not None:
+        floor = max(floor, int(min_floor))
     if override is not None:
-        return max(MIN_SLOW_TRIALS, int(override))
+        return max(floor, int(override))
     if best_trials is not None:
-        return max(MIN_SLOW_TRIALS, int(best_trials))
-    return MIN_SLOW_TRIALS
+        return max(floor, int(best_trials))
+    return floor
 
 
 def should_abort_refine(d_x_best: int, d_z_best: int, best_d: Optional[int]) -> bool:
@@ -442,12 +449,13 @@ def decide_slow_quantum_plan(
     fast_trials: int,
     best_entry: Optional[BestCodesEntry],
     override: Optional[int] = None,
+    min_floor: Optional[int] = None,
 ) -> SlowDistanceDecision:
     best_d = best_entry.d if best_entry else None
     best_trials = best_entry.m4ri_trials if best_entry else None
     best_code_id = best_entry.code_id if best_entry else None
 
-    steps_slow = compute_slow_trials(best_trials, override)
+    steps_slow = compute_slow_trials(best_trials, override, min_floor)
 
     if best_d is None:
         return SlowDistanceDecision(
@@ -2131,6 +2139,15 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
         ),
     )
     parser.add_argument(
+        "--slow-quantum-trials-min",
+        type=int,
+        default=None,
+        help=(
+            "Minimum slow quantum distance trials (floor) applied to "
+            "best_codes/override (default: None)."
+        ),
+    )
+    parser.add_argument(
         "--quantum-refine-chunk",
         type=int,
         default=20000,
@@ -2320,6 +2337,8 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
             )
     if args.slow_quantum_trials_override is not None and args.slow_quantum_trials_override <= 0:
         raise ValueError("--slow-quantum-trials-override must be positive.")
+    if args.slow_quantum_trials_min is not None and args.slow_quantum_trials_min <= 0:
+        raise ValueError("--slow-quantum-trials-min must be positive.")
     if args.quantum_refine_chunk <= 0:
         raise ValueError("--quantum-refine-chunk must be positive.")
     if args.report_every <= 0:
@@ -2759,6 +2778,7 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                     fast_trials=args.quantum_steps_fast,
                     best_entry=best_entry,
                     override=args.slow_quantum_trials_override,
+                    min_floor=args.slow_quantum_trials_min,
                 )
                 if (
                     args.slow_quantum_trials_override is not None
@@ -2837,6 +2857,11 @@ def progressive_main(argv: Optional[Sequence[str]] = None) -> int:
                 path_label = best_codes_info.get("path", "?")
                 if args.slow_quantum_trials_override is not None:
                     trials_source = "override"
+                elif args.slow_quantum_trials_min is not None:
+                    if best_entry is not None and best_entry.m4ri_trials is not None:
+                        trials_source = "best_codes+floor"
+                    else:
+                        trials_source = "floor"
                 elif best_entry is not None and best_entry.m4ri_trials is not None:
                     trials_source = "best_codes"
                 else:

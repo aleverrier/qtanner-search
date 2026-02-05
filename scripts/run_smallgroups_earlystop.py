@@ -69,6 +69,7 @@ def run_one_group(
     classical_target: int,
     quantum_steps_fast: int,
     slow_trials_override: Optional[int],
+    slow_trials_min: Optional[int],
     best_codes_source: str,
     no_progress_evals: int,
     extra_args: List[str],
@@ -89,6 +90,8 @@ def run_one_group(
     ]
     if slow_trials_override is not None:
         cmd.extend(["--slow-quantum-trials-override", str(slow_trials_override)])
+    if slow_trials_min is not None:
+        cmd.extend(["--slow-quantum-trials-min", str(slow_trials_min)])
     if extra_args:
         cmd.extend(extra_args)
 
@@ -182,6 +185,7 @@ def main() -> int:
     ap.add_argument("--classical-target", type=int, default=0, help="Override classical target (0=auto)")
     ap.add_argument("--quantum-steps-fast", type=int, default=2000)
     ap.add_argument("--slow-quantum-trials-override", type=int, default=0)
+    ap.add_argument("--slow-quantum-trials-min", type=int, default=0)
     ap.add_argument("--best-codes-source", default="website")
     ap.add_argument("--extra-arg", action="append", default=[], help="Extra args forwarded to search_progressive.py")
     args = ap.parse_args()
@@ -217,6 +221,7 @@ def main() -> int:
         else:
             classical_target = target
         slow_override = args.slow_quantum_trials_override if args.slow_quantum_trials_override > 0 else None
+        slow_min = args.slow_quantum_trials_min if args.slow_quantum_trials_min > 0 else None
         return run_one_group(
             gspec,
             args.seed,
@@ -230,6 +235,7 @@ def main() -> int:
             classical_target=classical_target,
             quantum_steps_fast=args.quantum_steps_fast,
             slow_trials_override=slow_override,
+            slow_trials_min=slow_min,
             best_codes_source=args.best_codes_source,
             no_progress_evals=args.no_progress_evals,
             extra_args=args.extra_arg,
