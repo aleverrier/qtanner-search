@@ -56,6 +56,12 @@ def main(argv: List[str] | None = None) -> int:
     ap.add_argument("--verbose", action="store_true", help="Verbose scan/sync logging.")
     ap.add_argument("--max-attempts", type=int, default=3, help="Max push attempts if non-fast-forward.")
     ap.add_argument(
+        "--min-m4ri-trials",
+        type=int,
+        default=None,
+        help="Minimum total m4ri trials required to be eligible for best-by-(n,k).",
+    )
+    ap.add_argument(
         "--best-dir",
         type=str,
         default="best_codes",
@@ -85,6 +91,7 @@ def main(argv: List[str] | None = None) -> int:
             verbose=args.verbose,
             max_attempts=args.max_attempts,
             best_dir_name=args.best_dir,
+            min_m4ri_trials=args.min_m4ri_trials,
         )
         _print_summary(result.selected, result.records)
         return 0

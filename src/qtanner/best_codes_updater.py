@@ -857,7 +857,28 @@ def _is_promising(n: int, k: int, d: int) -> bool:
     return True
 
 
-def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRecord]:
+def _best_trials_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], int]:
+    best: Dict[Tuple[int, int], int] = {}
+    for rec in records:
+        if rec.n is None or rec.k is None:
+            continue
+        if not isinstance(rec.trials, int):
+            continue
+        if not rec.source_kind.startswith("best_codes") and rec.source_kind != "git_history":
+            continue
+        key = (int(rec.n), int(rec.k))
+        cur = best.get(key)
+        if cur is None or rec.trials > cur:
+            best[key] = int(rec.trials)
+    return best
+
+
+def select_best_by_nk(
+    records: List[CodeRecord],
+    *,
+    min_trials_floor: Optional[int] = None,
+) -> Dict[Tuple[int, int], CodeRecord]:
+    best_trials_by_nk = _best_trials_by_nk(records) if min_trials_floor is not None else {}
     eligible: Dict[Tuple[int, int], List[CodeRecord]] = {}
     for rec in records:
         if not rec.code_id:
@@ -870,6 +891,10 @@ def select_best_by_nk(records: List[CodeRecord]) -> Dict[Tuple[int, int], CodeRe
         if not rec.has_artifacts():
             continue
         key = (int(rec.n), int(rec.k))
+        if min_trials_floor is not None:
+            required = max(int(min_trials_floor), best_trials_by_nk.get(key, 0))
+            if not isinstance(rec.trials, int) or rec.trials < required:
+                continue
         eligible.setdefault(key, []).append(rec)
 
     selected: Dict[Tuple[int, int], CodeRecord] = {}
@@ -1347,6 +1372,7 @@ def run_best_codes_update(
     max_attempts: int = 3,
     commit_message: Optional[str] = None,
     best_dir_name: str = "best_codes",
+    min_m4ri_trials: Optional[int] = None,
 ) -> BestCodesUpdateResult:
     """Scan, select, sync, optionally publish, and optionally git-push best codes.
 
@@ -1359,6 +1385,11 @@ def run_best_codes_update(
     last_selected: Dict[Tuple[int, int], CodeRecord] = {}
     best_dir_name = _normalize_best_dir_name(best_dir_name)
 
+    if min_m4ri_trials is not None:
+        min_m4ri_trials = int(min_m4ri_trials)
+        if min_m4ri_trials <= 0:
+            raise ValueError("--min-m4ri-trials must be positive.")
+
     while attempts < attempts_cap:
         attempts += 1
         last_records = scan_all_codes(
@@ -1368,7 +1399,10 @@ def run_best_codes_update(
             best_dir_name=best_dir_name,
         )
         consolidated = consolidate_records_by_code_key(last_records, verbose=verbose)
-        last_selected = select_best_by_nk(consolidated)
+        last_selected = select_best_by_nk(
+            consolidated,
+            min_trials_floor=min_m4ri_trials,
+        )
 
         if dry_run:
             return BestCodesUpdateResult(
