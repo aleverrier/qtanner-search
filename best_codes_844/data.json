@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-02-05T09:49:34Z",
+  "generated_at_utc": "2026-02-05T10:06:36Z",
   "total_codes": 140,
   "codes": [
     {
@@ -55152,20 +55152,20 @@
       }
     },
     {
-      "code_id": "SmallGroup_8_4__AAp14_0_1_2_3_4_5_6_7_BBp10_0_0_1_1_2_2_3_6_k16_d68",
+      "code_id": "SmallGroup_8_4__AAp14_0_1_2_3_4_5_6_7_BBp10_0_0_1_1_2_2_3_6_k16_d28",
       "group": "SmallGroup(8,4)",
       "n": 512,
       "k": 16,
-      "d_ub": 68,
-      "dX_ub": 68,
-      "dZ_ub": 68,
-      "trials": 200000,
-      "steps_used_total": 200000,
-      "steps_used_x": 100000,
-      "steps_used_z": 100000,
-      "steps": 100000,
-      "m4ri_steps": 100000,
-      "m4ri_trials": 200000,
+      "d_ub": 28,
+      "dX_ub": 28,
+      "dZ_ub": 28,
+      "trials": 4000000,
+      "steps_used_total": 4000000,
+      "steps_used_x": 2000000,
+      "steps_used_z": 2000000,
+      "steps": 2000000,
+      "m4ri_steps": 2000000,
+      "m4ri_trials": 4000000,
       "A_elems": [
         0,
         1,
@@ -55383,11 +55383,11 @@
             "n": 64
           }
         },
-        "code_id": "SmallGroup_8_4__AAp14_0_1_2_3_4_5_6_7_BBp10_0_0_1_1_2_2_3_6_k16_d68",
+        "code_id": "SmallGroup_8_4__AAp14_0_1_2_3_4_5_6_7_BBp10_0_0_1_1_2_2_3_6_k16_d28",
         "distance": {
-          "dX_best": 68,
-          "dZ_best": 68,
-          "d_ub": 68,
+          "dX_best": 28,
+          "dZ_best": 28,
+          "d_ub": 28,
           "fast": {
             "dx": {
               "d_ub": 74,
@@ -55404,7 +55404,7 @@
               "steps": 2000
             }
           },
-          "method": "dist_m4ri_rw_progressive",
+          "method": "dist-m4ri",
           "refine_chunk": 20000,
           "refine_chunks": [
             {
@@ -55515,9 +55515,9 @@
           },
           "steps_fast": 2000,
           "steps_slow": 100000,
-          "steps_used_total": 200000,
-          "steps_used_x": 100000,
-          "steps_used_z": 100000,
+          "steps_used_total": 4000000,
+          "steps_used_x": 2000000,
+          "steps_used_z": 2000000,
           "wmin": 42
         },
         "group": {
@@ -55535,7 +55535,29 @@
         },
         "n": 512,
         "seed": 1,
-        "target_distance": 16
+        "target_distance": 16,
+        "distance_backend": "dist-m4ri",
+        "distance_method": "RW",
+        "m4ri_steps": 2000000,
+        "m4ri_seed": 1,
+        "dX_ub": 28,
+        "dZ_ub": 28,
+        "d_ub": 28,
+        "d": 28,
+        "trials": 2000000,
+        "updated_at": "2026-02-05T10:06:36Z",
+        "distance_m4ri": {
+          "backend": "dist-m4ri",
+          "method": "RW",
+          "steps_per_side": 2000000,
+          "dX_ub": 28,
+          "dZ_ub": 28,
+          "d_ub": 28,
+          "updated_at": "2026-02-05T10:06:36Z"
+        },
+        "d_in_id": 28,
+        "d_recorded": 28,
+        "d_recorded_kind": "from_code_id"
       }
     },
     {
