@@ -31,3 +31,5 @@ We are implementing a small-scale search for explicit quantum Tanner codes from 
 - Conflicts: call out; pick safer path.
 - Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
 - Leave breadcrumb notes in thread.
+
+- never use hard wall-clock time cutoffs that abort an active config/run; let launched runs finish and only stop before starting the next unit of work.
