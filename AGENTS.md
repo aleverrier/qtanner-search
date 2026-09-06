@@ -4,12 +4,12 @@
 We are implementing a small-scale search for explicit quantum Tanner codes from left–right Cayley complexes (Leverrier–Rozendaal–Zémor, arXiv:2512.20532).
 
 ## Hard constraints
-- Do NOT run any computation that could take more than a few minutes on a MacBook Pro.
+- Before a non-trivial simulation, give a best-effort runtime estimate and obtain a time/CPU budget if not already supplied. Run requested work within that budget; longer runs are allowed when authorized. Use fast smoke checks for correctness validation.
 - Prefer fast “filter-first” workflows.
 - Keep changes small and commit frequently.
 
 ## Development workflow
-- After making changes, run the repo’s quick checks:
+- After behavioral changes, run focused checks using the repository entrypoints below. For documentation-only edits, validate the affected documents and links:
   - Preferred: `make test`
   - Equivalent: `./scripts/run_tests.sh`
 - Do not run `python -m pytest` directly (the test entrypoint is `./scripts/run_tests.sh`).
@@ -22,14 +22,7 @@ We are implementing a small-scale search for explicit quantum Tanner codes from 
   - Hx.mtx, Hz.mtx
   - a metadata JSON describing (G, A, B, local code variants, n, k, distance estimate method, trials, RNG seed)
 
-## When unsure
-- Prefer asking for a smaller, testable implementation step.
+## Working agreements
+- Preserve unrelated edits and resolve the cause of failures introduced by this task. Ask only when a material decision or missing information blocks progress.
 
-## Critical Thinking
-- Fix root cause (not band-aid).
-- Unsure: read more code; if still stuck, ask w/ short options.
-- Conflicts: call out; pick safer path.
-- Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
-- Leave breadcrumb notes in thread.
-
-- never use hard wall-clock time cutoffs that abort an active config/run; let launched runs finish and only stop before starting the next unit of work.
+- Use bounded work units and incremental checkpoints so the agreed time/CPU budget and explicit cancellation can be honored. Prefer clean stops between units; make units interruptible when they could exceed the remaining budget.
